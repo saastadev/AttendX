@@ -6,14 +6,13 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
 // Browser-side singleton
 let _browserClient: SupabaseClient | null = null
 
 export function getSupabaseBrowserClient(): SupabaseClient {
   if (!_browserClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     _browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
   }
   return _browserClient

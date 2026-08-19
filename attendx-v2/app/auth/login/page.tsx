@@ -156,24 +156,28 @@ function LoginForm() {
     return errs
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length) { setFieldErrors(errs); return }
+  async function doSignIn(targetEmail: string, targetPw: string) {
+    const cleanEmail = targetEmail.trim()
     setFieldErrors({})
     setError('')
     setLoading(true)
 
-    const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: targetPw })
     setLoading(false)
 
     if (authErr) {
-      // Surface exact Supabase error — never swallow silently
       setError(authErr.message)
       return
     }
 
     router.push(next)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length) { setFieldErrors(errs); return }
+    await doSignIn(email, password)
   }
 
   return (
@@ -328,6 +332,46 @@ function LoginForm() {
               Sign up
             </Link>
           </p>
+
+          {/* Quick Demo Login Credentials */}
+          <div style={{
+            marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-subtle)',
+          }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Quick Demo Accounts (Password: Password123!)
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[
+                { role: 'Super Admin', email: 'superadmin@acme-tech.com' },
+                { role: 'Admin', email: 'admin@acme-tech.com' },
+                { role: 'HR', email: 'hr@acme-tech.com' },
+                { role: 'Employee', email: 'employee@acme-tech.com' },
+                { role: 'Sridhar', email: 'hitlergaripellam05@gmail.com' },
+              ].map(demo => (
+                <button
+                  key={demo.email}
+                  type="button"
+                  onClick={() => {
+                    setEmail(demo.email)
+                    setPassword('Password123!')
+                    doSignIn(demo.email, 'Password123!')
+                  }}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-card-hover)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  {demo.role}
+                </button>
+              ))}
+            </div>
+          </div>
         </motion.div>
       </form>
     </motion.div>

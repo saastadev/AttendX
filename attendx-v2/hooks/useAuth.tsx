@@ -19,56 +19,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, clearUser, setLoading, setInitialized } = useAuthStore()
 
   const loadUserProfile = useCallback(async (userId: string): Promise<AuthUser | null> => {
-    // Fetch profile + role + tenant in one go
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const res = await fetch('/api/auth/profile', { headers })
+      if (res.ok) {
+        const json = await res.json()
+        if (json.user) return json.user
+      }
+    } catch (err) {
+      console.warn('[Auth] API profile load failed, falling back to direct query:', err)
+    }
+
+    // Direct client query fallback using maybeSingle to avoid 406 errors
     const [profileRes, roleRes] = await Promise.all([
-      supabase.from('profiles').select('*, tenant:tenants(*)').eq('id', userId).single(),
-      // Not .single(): a user can hold roles in several tenants, and .single()
-      // errors on multiple rows -- which previously logged them out entirely.
+      supabase.from('profiles').select('*, tenant:tenants(*)').eq('id', userId).maybeSingle(),
       supabase.from('user_roles').select('role, tenant_id').eq('user_id', userId),
     ])
 
-    let profile = profileRes.data
-    let roleRows = roleRes.data ?? []
-
-    if (!profile) {
-      // Fallback: Check if user exists in auth session and create profile
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user && user.id === userId) {
-        const tenantId = (user.user_metadata as any)?.tenant_id
-        const fullName = (user.user_metadata as any)?.full_name || user.email?.split('@')[0] || 'User'
-
-        // Fetch target tenant or default
-        let targetTenantId = tenantId
-        if (!targetTenantId) {
-          const { data: t } = await supabase.from('tenants').select('id').limit(1).maybeSingle()
-          targetTenantId = t?.id
-        }
-
-        if (targetTenantId) {
-          await supabase.from('profiles').upsert({
-            id: userId,
-            tenant_id: targetTenantId,
-            email: user.email!,
-            full_name: fullName,
-            is_active: true,
-            onboarding_completed: true,
-          })
-
-          await supabase.from('user_roles').upsert({
-            user_id: userId,
-            tenant_id: targetTenantId,
-            role: 'EMPLOYEE',
-          })
-
-          // Refetch
-          const refetchProfile = await supabase.from('profiles').select('*, tenant:tenants(*)').eq('id', userId).maybeSingle()
-          const refetchRole = await supabase.from('user_roles').select('role, tenant_id').eq('user_id', userId)
-
-          profile = refetchProfile.data
-          roleRows = refetchRole.data ?? []
-        }
-      }
-    }
+    const profile = profileRes.data
+    const roleRows = roleRes.data ?? []
 
     if (!profile) {
       console.error('[Auth] Failed to load profile for user', userId)
@@ -130,6 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (authUser) {
             setUser(authUser)
             applyTenantBranding(authUser)
+          } else {
+            await supabase.auth.signOut()
+            clearUser()
           }
         }
       } finally {
@@ -148,6 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (authUser) {
             setUser(authUser)
             applyTenantBranding(authUser)
+          } else {
+            await supabase.auth.signOut()
+            clearUser()
           }
         } else if (event === 'SIGNED_OUT') {
           clearUser()

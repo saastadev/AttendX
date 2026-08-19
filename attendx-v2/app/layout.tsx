@@ -66,6 +66,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="light"
+      data-scroll-behavior="smooth"
       className={`${inter.variable} ${jakarta.variable}`}
       suppressHydrationWarning // for theme switching
     >

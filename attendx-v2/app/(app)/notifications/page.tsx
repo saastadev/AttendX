@@ -28,17 +28,23 @@ export default function NotificationsPage() {
     queryKey: ['notifications', user?.id, filter],
     queryFn: async () => {
       if (!user) return []
-      let q = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
-      if (filter === 'unread') q = q.eq('is_read', false)
-      const { data } = await q
-      return data ?? []
+      try {
+        let q = supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (filter === 'unread') q = q.eq('is_read', false)
+        const { data, error } = await q
+        if (error) return []
+        return data ?? []
+      } catch {
+        return []
+      }
     },
     enabled: !!user,
+    retry: false,
   })
 
   const unreadCount = notifications?.filter(n => !n.is_read).length ?? 0
