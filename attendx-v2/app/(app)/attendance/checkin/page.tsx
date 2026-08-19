@@ -175,22 +175,29 @@ export default function CheckInPage() {
       const now = new Date().toISOString()
       let selfieUrl: string | null = null
 
-      // Upload selfie to Supabase Storage (if online)
+      const { data: { session } } = await supabase.auth.getSession()
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        authHeaders['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      // Upload selfie via server API (if online)
       if (isOnline && selfieDataUrl) {
-        const blob = await (await fetch(selfieDataUrl)).blob()
         const fileName = `${user.tenant.id}/${user.id}/${today}-${checkinType}-${Date.now()}.jpg`
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('attendance-selfies')
-          .upload(fileName, blob, { contentType: 'image/jpeg', upsert: false })
-
-        if (uploadError) {
-          console.warn('[Checkin] Selfie upload failed, proceeding without:', uploadError)
-        } else {
-          const { data: urlData } = supabase.storage
-            .from('attendance-selfies')
-            .getPublicUrl(uploadData.path)
-          selfieUrl = urlData.publicUrl
+        try {
+          const selfieRes = await fetch('/api/attendance/selfie', {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ selfieDataUrl, fileName }),
+          })
+          if (selfieRes.ok) {
+            const { publicUrl } = await selfieRes.json()
+            selfieUrl = publicUrl
+          } else {
+            console.warn('[Checkin] Selfie upload failed via API:', await selfieRes.text())
+          }
+        } catch (e) {
+          console.warn('[Checkin] Selfie upload exception:', e)
         }
       }
 
@@ -216,16 +223,21 @@ export default function CheckInPage() {
             id: crypto.randomUUID(),
             entityType: 'attendance',
             action: 'create',
-            payload: { ...payload, clock_in_selfie_url: null }, // Can't upload selfie offline
+            payload: { ...payload, clock_in_selfie_url: null },
           })
           return { offline: true }
         }
 
-        const { error } = await supabase
-          .from('attendance_records')
-          .upsert(payload, { onConflict: 'tenant_id,employee_id,date' })
+        const checkinRes = await fetch('/api/attendance/checkin', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ type: 'clock_in', payload }),
+        })
 
-        if (error) throw error
+        if (!checkinRes.ok) {
+          const errData = await checkinRes.json().catch(() => ({}))
+          throw new Error(errData.error || 'Failed to clock in')
+        }
 
       } else {
         // Clock OUT
@@ -255,12 +267,16 @@ export default function CheckInPage() {
           return { offline: true }
         }
 
-        const { error } = await supabase
-          .from('attendance_records')
-          .update(payload)
-          .eq('id', todayAttendance.id)
+        const checkinRes = await fetch('/api/attendance/checkin', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ type: 'clock_out', recordId: todayAttendance.id, payload }),
+        })
 
-        if (error) throw error
+        if (!checkinRes.ok) {
+          const errData = await checkinRes.json().catch(() => ({}))
+          throw new Error(errData.error || 'Failed to clock out')
+        }
       }
 
       return { offline: false }

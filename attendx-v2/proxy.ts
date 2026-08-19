@@ -50,13 +50,18 @@ export async function proxy(request: NextRequest) {
 
   // Allow public routes
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    if (user && !userError) {
+    if (user && !userError && !pathname.startsWith('/api/')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return supabaseResponse
   }
 
-  // Redirect unauthenticated users
+  // Pass through all /api/ requests to let API route handlers evaluate session/Bearer tokens
+  if (pathname.startsWith('/api/')) {
+    return supabaseResponse
+  }
+
+  // Redirect unauthenticated users for page routes
   if (!user || userError) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('next', pathname)
@@ -68,19 +73,25 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith(prefix)
   )
 
-  // Optimistic RBAC gate only. Per the Next.js docs, proxy must not be the
-  // authorization boundary -- RLS in Postgres is. This just avoids rendering
-  // a privileged shell the user can't populate.
   if (matchedRoute) {
     const [, allowedRoles] = matchedRoute
 
-    // A user may hold roles in more than one tenant, so this must not use
-    // .single() (which errors on multiple rows and would deny a legitimate
-    // user). Prefer the active tenant claim when the session carries one.
     const activeTenantId =
       (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id
 
-    let query = supabase.from('user_roles').select('role').eq('user_id', user.id)
+    // Use service role if available for reliable role lookup, falling back to authenticated client
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    let clientForRole = supabase
+    if (serviceKey) {
+      const { createClient } = await import('@supabase/supabase-js')
+      clientForRole = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceKey,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      ) as any
+    }
+
+    let query = clientForRole.from('user_roles').select('role, tenant_id').eq('user_id', user.id)
     if (typeof activeTenantId === 'string') {
       query = query.eq('tenant_id', activeTenantId)
     }
@@ -88,12 +99,19 @@ export async function proxy(request: NextRequest) {
     const { data: roleRecords, error: roleError } = await query
 
     if (roleError) {
-      console.error('[proxy] role lookup failed:', roleError.message)
+      console.error('[proxy] role lookup error:', roleError.message)
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
 
     const roles = (roleRecords ?? []).map(r => r.role as string)
+    // Also consider role in app_metadata if present
+    const appRole = (user.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined
+    if (appRole && !roles.includes(appRole)) {
+      roles.push(appRole)
+    }
+
     if (!roles.some(role => allowedRoles.includes(role))) {
+      console.warn(`[proxy] User ${user.email} with roles [${roles.join(', ')}] denied access to ${pathname}`)
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }

@@ -10,7 +10,7 @@ const cspHeader = `
   base-uri 'self';
   form-action 'self';
   frame-ancestors 'none';
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+  connect-src 'self' data: blob: https://api.openai.com https://*.supabase.co wss://*.supabase.co;
 `.replace(/\s{2,}/g, ' ').trim()
 
 const nextConfig = {
@@ -58,4 +58,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig

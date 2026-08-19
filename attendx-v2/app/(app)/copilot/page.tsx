@@ -44,7 +44,7 @@ function AmbientOrb({ thinking }: { thinking: boolean }) {
       <div style={{
         position: 'absolute', inset: 8,
         borderRadius: '50%',
-        background: thinking
+        backgroundImage: thinking
           ? 'linear-gradient(135deg, var(--accent), var(--brand-violet), var(--brand-cyan))'
           : 'linear-gradient(135deg, var(--accent-dark), var(--accent))',
         boxShadow: thinking
@@ -179,10 +179,18 @@ export default function CopilotPage() {
     setThinking(true)
 
     try {
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       // Attempt to call the real API endpoint
       const res = await fetch('/api/copilot', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ message: text }),
       })
 
