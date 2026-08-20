@@ -1,27 +1,32 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
   Clock, Calendar, CheckCircle, AlertTriangle, MapPin, Camera,
-  Users, UserCheck, UserX, Search, Filter, RefreshCw, Eye, Sparkles
+  Users, UserCheck, UserX, Search, Filter, RefreshCw, Eye, Sparkles, Trash2
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { useToast } from '@/components/ui/Toast'
 import type { AttendanceRecord } from '@/types/database'
 
 export default function AttendanceHistoryPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
+  const { success, error: toastError } = useToast()
+  const queryClient = useQueryClient()
+
   const isPrivileged = ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'].includes(user?.role ?? 'EMPLOYEE')
 
   // Tab: 'workforce' (company-wide live board) vs 'my-log' (personal records)
   const [activeTab, setActiveTab] = useState<'workforce' | 'my-log'>(isPrivileged ? 'workforce' : 'my-log')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PRESENT' | 'COMPLETED' | 'ON_LEAVE' | 'ABSENT'>('ALL')
-  const [selectedSelfie, setSelectedSelfie] = useState<{ url: string; name: string; time: string } | null>(null)
+  const [selectedSelfie, setSelectedSelfie] = useState<{ recordId: string; url: string; name: string; time: string; target: 'clock_in' | 'clock_out' | 'both' } | null>(null)
+  const [deletingRecord, setDeletingRecord] = useState<{ recordId: string; name: string; target: 'clock_in' | 'clock_out' | 'both' } | null>(null)
 
   // 1. Live Workforce Attendance Query (for Admin / HR / Manager)
   const { data: workforceData, isLoading: workforceLoading, refetch: refetchWorkforce, isFetching } = useQuery({
@@ -32,7 +37,7 @@ export default function AttendanceHistoryPage() {
       return res.json()
     },
     enabled: isPrivileged,
-    refetchInterval: 15 * 1000, // Live poll every 15s
+    refetchInterval: 15 * 1000,
   })
 
   // 2. Personal Attendance Records Query
@@ -49,6 +54,32 @@ export default function AttendanceHistoryPage() {
       return data ?? []
     },
     enabled: !!user,
+  })
+
+  // 3. Delete Selfie Mutation for Admins
+  const deleteSelfieMutation = useMutation({
+    mutationFn: async ({ recordId, target }: { recordId: string; target: 'clock_in' | 'clock_out' | 'both' }) => {
+      const res = await fetch('/api/admin/attendance', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ record_id: recordId, target }),
+      })
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'Failed to delete selfie' }))
+        throw new Error(errJson.error)
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      success(data.message || 'Selfie image deleted successfully')
+      setDeletingRecord(null)
+      setSelectedSelfie(null)
+      refetchWorkforce()
+      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
+    },
+    onError: (err: Error) => {
+      toastError(err.message || 'Failed to delete selfie')
+    },
   })
 
   // Filter workforce items
@@ -98,180 +129,173 @@ export default function AttendanceHistoryPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-          {isPrivileged && activeTab === 'workforce' && (
-            <button
-              onClick={() => refetchWorkforce()}
-              className="btn btn-secondary"
-              title="Refresh attendance data"
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} /> Refresh
-            </button>
+          {isPrivileged && (
+            <div style={{
+              display: 'flex',
+              background: 'var(--neu-bg-deep)',
+              borderRadius: 'var(--radius-pill)',
+              padding: 4,
+              boxShadow: 'var(--shadow-inset-sm)',
+            }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('workforce')}
+                className={`btn btn-sm ${activeTab === 'workforce' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ borderRadius: 'var(--radius-pill)' }}
+              >
+                <Users size={16} /> Workforce Board
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('my-log')}
+                className={`btn btn-sm ${activeTab === 'my-log' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ borderRadius: 'var(--radius-pill)' }}
+              >
+                <Clock size={16} /> My Log
+              </button>
+            </div>
           )}
-          <Link href="/attendance/checkin" className="btn btn-primary" id="btn-clock-in-nav">
-            <Clock size={18} /> Clock In / Out
+
+          <Link href="/attendance/checkin" className="btn btn-primary" id="btn-clockin-now">
+            <Clock size={18} /> Clock In Now
           </Link>
         </div>
       </div>
 
-      {/* Privileged Tab Selector: Live Workforce vs Personal Log */}
-      {isPrivileged && (
-        <div style={{
-          display: 'flex',
-          gap: 'var(--space-2)',
-          marginBottom: 'var(--space-6)',
-          borderBottom: '1px solid var(--neu-bg-deep)',
-          paddingBottom: 'var(--space-3)'
-        }}>
-          <button
-            onClick={() => setActiveTab('workforce')}
-            className={`btn ${activeTab === 'workforce' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <Users size={18} /> Live Workforce Board
-            <span style={{
-              background: activeTab === 'workforce' ? 'rgba(255,255,255,0.2)' : 'var(--accent-light)',
-              color: activeTab === 'workforce' ? '#fff' : 'var(--accent)',
-              borderRadius: 12, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700
-            }}>
-              {stats.present} Working Now
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('my-log')}
-            className={`btn ${activeTab === 'my-log' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <Clock size={18} /> My Personal Clock-In Log
-          </button>
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 1: LIVE WORKFORCE BOARD (Admin / HR / Manager View)
-          ───────────────────────────────────────────────────────────── */}
-      {isPrivileged && activeTab === 'workforce' ? (
+      {activeTab === 'workforce' && isPrivileged ? (
         <div>
-          {/* Live Attendance Metric Cards */}
+          {/* Workforce Stats Top Row */}
           <div className="grid-auto" style={{ marginBottom: 'var(--space-6)' }}>
-            <div
-              className="stat-card"
-              style={{ cursor: 'pointer', border: statusFilter === 'PRESENT' ? '2px solid var(--success)' : undefined }}
-              onClick={() => setStatusFilter(statusFilter === 'PRESENT' ? 'ALL' : 'PRESENT')}
-            >
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--accent-light)' }}>
+                <Users size={22} color="var(--accent)" />
+              </div>
+              <div className="stat-card-value">{stats.total}</div>
+              <div className="stat-card-label">Total Active Staff</div>
+            </div>
+
+            <div className="stat-card">
               <div className="stat-card-icon" style={{ background: 'var(--success-light)' }}>
                 <UserCheck size={22} color="var(--success)" />
               </div>
-              <div className="stat-card-value">{workforceLoading ? '—' : stats.present}</div>
-              <div className="stat-card-label">Working Now (Clocked In)</div>
-            </div>
-
-            <div
-              className="stat-card"
-              style={{ cursor: 'pointer', border: statusFilter === 'COMPLETED' ? '2px solid var(--accent)' : undefined }}
-              onClick={() => setStatusFilter(statusFilter === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
-            >
-              <div className="stat-card-icon" style={{ background: 'var(--accent-light)' }}>
-                <CheckCircle size={22} color="var(--accent)" />
+              <div className="stat-card-value" style={{ color: 'var(--success)' }}>
+                {stats.present + stats.completed}
               </div>
-              <div className="stat-card-value">{workforceLoading ? '—' : stats.completed}</div>
-              <div className="stat-card-label">Day Completed (Clocked Out)</div>
+              <div className="stat-card-label">Working / Completed Today</div>
             </div>
 
-            <div
-              className="stat-card"
-              style={{ cursor: 'pointer', border: statusFilter === 'ON_LEAVE' ? '2px solid #F59E0B' : undefined }}
-              onClick={() => setStatusFilter(statusFilter === 'ON_LEAVE' ? 'ALL' : 'ON_LEAVE')}
-            >
-              <div className="stat-card-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>
-                <Calendar size={22} color="#F59E0B" />
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--warning-light)' }}>
+                <AlertTriangle size={22} color="var(--warning)" />
               </div>
-              <div className="stat-card-value">{workforceLoading ? '—' : stats.on_leave}</div>
-              <div className="stat-card-label">On Approved Leave</div>
+              <div className="stat-card-value" style={{ color: 'var(--warning)' }}>{stats.late}</div>
+              <div className="stat-card-label">Late Arrivals</div>
             </div>
 
-            <div
-              className="stat-card"
-              style={{ cursor: 'pointer', border: statusFilter === 'ABSENT' ? '2px solid var(--danger)' : undefined }}
-              onClick={() => setStatusFilter(statusFilter === 'ABSENT' ? 'ALL' : 'ABSENT')}
-            >
-              <div className="stat-card-icon" style={{ background: 'var(--error-light)' }}>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+                <Calendar size={22} color="#D97706" />
+              </div>
+              <div className="stat-card-value" style={{ color: '#D97706' }}>{stats.on_leave}</div>
+              <div className="stat-card-label">Approved Leave</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--danger-light)' }}>
                 <UserX size={22} color="var(--danger)" />
               </div>
-              <div className="stat-card-value">{workforceLoading ? '—' : stats.absent}</div>
-              <div className="stat-card-label">Not Clocked In Today</div>
+              <div className="stat-card-value" style={{ color: 'var(--danger)' }}>{stats.absent}</div>
+              <div className="stat-card-label">Not Clocked In</div>
             </div>
           </div>
 
-          {/* Filters Bar */}
-          <div className="card" style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-4)' }}>
-            <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', alignItems: 'center' }}>
-              <div className="searchbar" style={{ flex: 1 }}>
-                <Search size={18} color="var(--text-tertiary)" />
-                <input
-                  type="text"
-                  placeholder="Search employee by name, email, code, or department…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {(['ALL', 'PRESENT', 'COMPLETED', 'ON_LEAVE', 'ABSENT'] as const).map(st => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`badge ${statusFilter === st ? 'badge-primary' : 'badge-neutral'}`}
-                    style={{ cursor: 'pointer', padding: '6px 12px' }}
-                  >
-                    {st === 'ALL' ? 'All' : st === 'PRESENT' ? 'Working Now' : st === 'COMPLETED' ? 'Completed' : st === 'ON_LEAVE' ? 'On Leave' : 'Absent'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Live Attendance Stream Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Search + Status Filter Controls */}
+          <div className="card neu-card" style={{ marginBottom: 'var(--space-6)', padding: 'var(--space-4)' }}>
             <div style={{
-              padding: 'var(--space-4) var(--space-6)',
-              borderBottom: '1px solid var(--neu-bg-deep)',
               display: 'flex',
+              alignItems: 'center',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              gap: 'var(--space-4)',
+              flexWrap: 'wrap',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }} />
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Today&apos;s Workforce Attendance — {format(new Date(), 'MMMM d, yyyy')}</h2>
-              </div>
-              <span className="badge badge-neutral">{workforceItems.length} active employees</span>
-            </div>
+              <div style={{ display: 'flex', gap: 'var(--space-3)', flex: 1, minWidth: 260 }}>
+                <div className="input-wrap" style={{ flex: 1 }}>
+                  <Search size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    className="input has-icon-left"
+                    placeholder="Search by name, employee code, or department..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Filter size={16} color="var(--text-tertiary)" />
+                  <select
+                    className="input"
+                    style={{ width: 140, padding: '0 12px' }}
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value as any)}
+                  >
+                    <option value="ALL">All Status</option>
+                    <option value="PRESENT">Working / Late</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="ON_LEAVE">On Leave</option>
+                    <option value="ABSENT">Absent</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => refetchWorkforce()}
+                className={`btn btn-secondary btn-sm ${isFetching ? 'btn-loading' : ''}`}
+                style={{ height: 38 }}
+              >
+                <RefreshCw size={16} /> Refresh Stream
+              </button>
+            </div>
+          </div>
+
+          {/* Live Workforce Attendance Table */}
+          <div className="card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr>
-                    <th>Employee</th>
-                    <th>Code</th>
-                    <th>Department</th>
-                    <th>Today Status</th>
-                    <th>Clock In</th>
-                    <th>Clock Out</th>
-                    <th>Selfie & Verification</th>
+                  <tr style={{
+                    borderBottom: '1px solid var(--neu-border)',
+                    background: 'var(--neu-bg-deep)',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}>
+                    <th style={{ padding: '14px 20px' }}>Employee</th>
+                    <th style={{ padding: '14px 16px' }}>Code</th>
+                    <th style={{ padding: '14px 16px' }}>Department</th>
+                    <th style={{ padding: '14px 16px' }}>Status</th>
+                    <th style={{ padding: '14px 16px' }}>Clock In</th>
+                    <th style={{ padding: '14px 16px' }}>Clock Out</th>
+                    <th style={{ padding: '14px 20px' }}>Verification & Selfie</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {workforceLoading ? (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                        <div className="skeleton skeleton-text" style={{ width: '50%', margin: '0 auto' }} />
+                        <div style={{ color: 'var(--text-tertiary)', fontSize: '0.9375rem' }}>
+                          Loading live workforce stream...
+                        </div>
                       </td>
                     </tr>
                   ) : workforceItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
-                        No employee records match the selected filter.
+                      <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                        <div style={{ color: 'var(--text-tertiary)', fontSize: '0.9375rem' }}>
+                          No employee records match the current filter.
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -279,24 +303,31 @@ export default function AttendanceHistoryPage() {
                       const isWorkingNow = emp.liveStatus === 'PRESENT' || emp.liveStatus === 'LATE'
                       const isComplete = emp.liveStatus === 'COMPLETED'
                       const isOnLeave = emp.liveStatus === 'ON_LEAVE'
-                      const isAbsent = emp.liveStatus === 'ABSENT'
+                      const selfieUrl = emp.attendance?.clock_in_selfie_url || emp.attendance?.clock_out_selfie_url
 
                       return (
-                        <tr key={emp.user_id} style={{ background: isWorkingNow ? 'rgba(16,185,129,0.03)' : undefined }}>
-                          {/* Name + Avatar */}
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <tr key={emp.user_id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
+                          {/* Employee Name & Avatar */}
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               <div style={{
-                                width: 36, height: 36, borderRadius: '50%',
-                                background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
-                                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontWeight: 700, fontSize: '0.875rem'
+                                width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-light)',
+                                color: 'var(--accent)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '0.9375rem', overflow: 'hidden', flexShrink: 0
                               }}>
-                                {emp.full_name?.charAt(0)?.toUpperCase() ?? 'U'}
+                                {emp.avatar_url ? (
+                                  <img src={emp.avatar_url} alt={emp.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  emp.full_name.charAt(0).toUpperCase()
+                                )}
                               </div>
                               <div>
-                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{emp.full_name}</div>
-                                <div style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>{emp.email}</div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                                  {emp.full_name}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                                  {emp.email}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -362,37 +393,39 @@ export default function AttendanceHistoryPage() {
                             )}
                           </td>
 
-                          {/* Selfie + Verification Badge */}
-                          <td>
-                            {emp.attendance?.clock_in_selfie_url ? (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {/* Selfie + Verification Badge + DELETE button for Admins */}
+                          <td style={{ padding: '14px 20px' }}>
+                            {selfieUrl ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <button
                                   type="button"
                                   onClick={() => setSelectedSelfie({
-                                    url: emp.attendance.clock_in_selfie_url,
+                                    recordId: emp.attendance.id,
+                                    url: selfieUrl,
                                     name: emp.full_name,
-                                    time: format(parseISO(emp.attendance.clock_in_at), 'h:mm a')
+                                    time: emp.attendance.clock_in_at ? format(parseISO(emp.attendance.clock_in_at), 'h:mm a') : 'Today',
+                                    target: emp.attendance.clock_in_selfie_url ? 'clock_in' : 'clock_out',
                                   })}
-                                  title="Click to view full clock-in selfie"
+                                  title="Click to view full selfie"
                                   style={{
                                     border: '2px solid var(--accent)',
                                     padding: 0,
                                     borderRadius: 8,
                                     overflow: 'hidden',
                                     cursor: 'pointer',
-                                    width: 36,
-                                    height: 36,
+                                    width: 40,
+                                    height: 40,
                                     flexShrink: 0
                                   }}
                                 >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
-                                    src={emp.attendance.clock_in_selfie_url}
+                                    src={selfieUrl}
                                     alt="Selfie"
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   />
                                 </button>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', flex: 1 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent)', fontWeight: 600 }}>
                                     <Camera size={12} /> Selfie Verified
                                   </div>
@@ -402,6 +435,34 @@ export default function AttendanceHistoryPage() {
                                     </div>
                                   )}
                                 </div>
+
+                                {/* DELETE Selfie Action Button */}
+                                {isPrivileged && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingRecord({
+                                      recordId: emp.attendance.id,
+                                      name: emp.full_name,
+                                      target: 'both',
+                                    })}
+                                    title="Delete recorded selfie image"
+                                    style={{
+                                      background: 'var(--danger-light)',
+                                      color: 'var(--danger)',
+                                      border: 'none',
+                                      borderRadius: 8,
+                                      padding: '6px 10px',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                      fontSize: '0.75rem',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <Trash2 size={13} /> Delete
+                                  </button>
+                                )}
                               </div>
                             ) : emp.attendance ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>
@@ -421,11 +482,8 @@ export default function AttendanceHistoryPage() {
           </div>
         </div>
       ) : (
-        /* ─────────────────────────────────────────────────────────────
-           TAB 2: PERSONAL ATTENDANCE LOG (For Employees + Personal view)
-           ───────────────────────────────────────────────────────────── */
+        /* TAB 2: PERSONAL LOG */
         <div>
-          {/* Metric Cards */}
           <div className="grid-auto" style={{ marginBottom: 'var(--space-8)' }}>
             <div className="stat-card">
               <div className="stat-card-icon" style={{ background: 'var(--success-light)' }}>
@@ -448,97 +506,61 @@ export default function AttendanceHistoryPage() {
                 <Clock size={22} color="var(--accent)" />
               </div>
               <div className="stat-card-value">{totalWorkHours}h</div>
-              <div className="stat-card-label">Total Work Hours</div>
+              <div className="stat-card-label">Total Hours Worked</div>
             </div>
           </div>
 
-          {/* Attendance History Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--neu-bg-deep)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '1.125rem' }}>Recent Attendance Records</h2>
-              <span className="badge badge-neutral">{totalDays} entries</span>
-            </div>
-
+          <div className="card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Clock In</th>
-                    <th>Clock Out</th>
-                    <th>Duration</th>
-                    <th>Verification</th>
+                  <tr style={{
+                    borderBottom: '1px solid var(--neu-border)',
+                    background: 'var(--neu-bg-deep)',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                  }}>
+                    <th style={{ padding: '14px 20px' }}>Date</th>
+                    <th style={{ padding: '14px 16px' }}>Status</th>
+                    <th style={{ padding: '14px 16px' }}>Clock In</th>
+                    <th style={{ padding: '14px 16px' }}>Clock Out</th>
+                    <th style={{ padding: '14px 16px' }}>Duration</th>
+                    <th style={{ padding: '14px 20px' }}>Verification</th>
                   </tr>
                 </thead>
                 <tbody>
                   {personalLoading ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                        <div className="skeleton skeleton-text" style={{ width: '40%', margin: '0 auto' }} />
+                      <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
+                        Loading your log...
                       </td>
                     </tr>
-                  ) : records?.length === 0 ? (
+                  ) : (records?.length ?? 0) === 0 ? (
                     <tr>
                       <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
-                        No attendance records found yet. Click &quot;Clock In&quot; to log your first attendance!
+                        No personal attendance records found.
                       </td>
                     </tr>
                   ) : (
-                    records?.map(r => {
-                      const badgeClass =
-                        r.status === 'PRESENT' ? 'badge-present' :
-                        r.status === 'LATE'    ? 'badge-late' :
-                        r.status === 'ABSENT'  ? 'badge-absent' : 'badge-neutral'
-
-                      const hours = r.work_minutes ? Math.floor(r.work_minutes / 60) : 0
-                      const mins = r.work_minutes ? r.work_minutes % 60 : 0
-
-                      return (
-                        <tr key={r.id}>
-                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {format(parseISO(r.date), 'EEE, MMM d, yyyy')}
-                          </td>
-                          <td>
-                            <span className={`badge ${badgeClass}`}>{r.status}</span>
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                            {r.clock_in_at ? format(parseISO(r.clock_in_at), 'h:mm a') : '—'}
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>
-                            {r.clock_out_at ? format(parseISO(r.clock_out_at), 'h:mm a') : '—'}
-                          </td>
-                          <td style={{ color: 'var(--text-secondary)' }}>
-                            {r.work_minutes ? `${hours}h ${mins}m` : '—'}
-                          </td>
-                          <td>
-                            {r.clock_in_selfie_url ? (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedSelfie({
-                                  url: r.clock_in_selfie_url!,
-                                  name: 'My Clock-In Selfie',
-                                  time: format(parseISO(r.clock_in_at!), 'h:mm a')
-                                })}
-                                style={{
-                                  border: 'none', background: 'none', cursor: 'pointer',
-                                  display: 'flex', alignItems: 'center', gap: 6,
-                                  color: 'var(--accent)', fontSize: '0.8125rem'
-                                }}
-                              >
-                                <Camera size={14} /> View Selfie
-                              </button>
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-                                <Camera size={14} color="var(--accent)" />
-                                <MapPin size={14} color="var(--success)" />
-                                <span>{r.method ?? 'SELFIE_GPS'}</span>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })
+                    records!.map(r => (
+                      <tr key={r.id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
+                        <td style={{ padding: '14px 20px', fontWeight: 600 }}>{r.date}</td>
+                        <td>
+                          <span className={`badge ${
+                            r.status === 'PRESENT' ? 'badge-present' :
+                            r.status === 'LATE' ? 'badge-warning' :
+                            'badge-absent'
+                          }`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td>{r.clock_in_at ? format(parseISO(r.clock_in_at), 'h:mm a') : '—'}</td>
+                        <td>{r.clock_out_at ? format(parseISO(r.clock_out_at), 'h:mm a') : '—'}</td>
+                        <td>{r.work_minutes ? `${Math.floor(r.work_minutes / 60)}h ${r.work_minutes % 60}m` : '—'}</td>
+                        <td>{r.clock_in_selfie_url ? '📷 Verified' : 'Manual'}</td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -549,35 +571,71 @@ export default function AttendanceHistoryPage() {
 
       {/* Selfie Preview Modal */}
       {selectedSelfie && (
-        <div className="modal-overlay" onClick={() => setSelectedSelfie(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
-            <button className="modal-close" onClick={() => setSelectedSelfie(null)}>✕</button>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 4 }}>
-              📸 Clock-In Verification
-            </h3>
-            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem', marginBottom: 'var(--space-4)' }}>
-              {selectedSelfie.name} • {selectedSelfie.time}
-            </p>
-            <div style={{
-              borderRadius: 'var(--radius-lg)',
-              overflow: 'hidden',
-              border: '2px solid var(--border-subtle)',
-              marginBottom: 'var(--space-4)'
-            }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={selectedSelfie.url}
-                alt="Clock-in Selfie Preview"
-                style={{ width: '100%', height: 'auto', display: 'block' }}
-              />
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }} onClick={() => setSelectedSelfie(null)}>
+          <div style={{ background: 'var(--neu-bg)', borderRadius: 16, padding: 24, maxWidth: 440, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedSelfie.name}</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Clocked in at {selectedSelfie.time}</p>
+              </div>
+              <button onClick={() => setSelectedSelfie(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
             </div>
-            <button onClick={() => setSelectedSelfie(null)} className="btn btn-secondary" style={{ width: '100%' }}>
-              Close Preview
-            </button>
+            <img src={selectedSelfie.url} alt="Selfie Verification" style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
+
+            {isPrivileged && (
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  className="btn"
+                  style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}
+                  onClick={() => {
+                    setDeletingRecord({ recordId: selectedSelfie.recordId, name: selectedSelfie.name, target: selectedSelfie.target })
+                  }}
+                >
+                  <Trash2 size={16} /> Delete Selfie Photo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingRecord && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1050, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div style={{ background: 'var(--neu-bg)', borderRadius: 16, padding: 24, maxWidth: 420, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <AlertTriangle size={24} color="var(--danger)" />
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>Delete Selfie Photo?</h3>
+            </div>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+              Are you sure you want to delete the recorded selfie photo for <strong>{deletingRecord.name}</strong>? The file will be removed from storage and attendance verification.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setDeletingRecord(null)}
+                disabled={deleteSelfieMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn"
+                style={{ background: 'var(--danger)', color: 'white' }}
+                onClick={() => deleteSelfieMutation.mutate({ recordId: deletingRecord.recordId, target: deletingRecord.target })}
+                disabled={deleteSelfieMutation.isPending}
+              >
+                {deleteSelfieMutation.isPending ? 'Deleting...' : 'Delete Image'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
 }
-
