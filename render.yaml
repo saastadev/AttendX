@@ -10,7 +10,7 @@ services:
     region: singapore
     plan: free
     rootDir: attendx-v2
-    buildCommand: cd attendx-v2 && npm install && npm run build
+    buildCommand: cd attendx-v2 && npm install --include=dev && npm run build && cp -R .next ../.next && cp -R public ../public 2>/dev/null || true
     startCommand: cd attendx-v2 && npm run start
     autoDeploy: true
     envVars:

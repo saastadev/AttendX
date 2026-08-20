@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "cd attendx-v2 && npm install --include=dev && npm run build",
+    "build": "cd attendx-v2 && npm install --include=dev && npm run build && cp -R .next ../.next && cp -R public ../public",
     "start": "cd attendx-v2 && npm run start",
     "test": "cd attendx-v2 && npm run test"
   },
