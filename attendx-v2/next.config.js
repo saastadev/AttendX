@@ -30,6 +30,12 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
         // Apply security headers to all pages/routes EXCEPT Next.js static assets & images
         source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: [
