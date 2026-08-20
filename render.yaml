@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 services:
   - type: web
     name: attendx-v2
@@ -10,6 +11,26 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.18.0
+=======
+# ============================================================
+# AttendX v2 — Render Blueprint Configuration (render.yaml)
+# https://render.com/docs/blueprint-spec
+# ============================================================
+
+services:
+  - type: web
+    name: attendx-v2
+    env: node
+    region: singapore # Options: singapore, oregon, frankfurt, ohio
+    plan: free # Change to starter / standard for production
+    rootDir: attendx-v2
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+>>>>>>> 01ad5ae (build: add Render blueprint deployment config (render.yaml))
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_SUPABASE_URL
@@ -18,9 +39,12 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+<<<<<<< HEAD
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+=======
+>>>>>>> 01ad5ae (build: add Render blueprint deployment config (render.yaml))
       - key: NEXT_PUBLIC_APP_URL
         sync: false
