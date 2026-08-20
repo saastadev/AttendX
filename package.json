@@ -1,0 +1,13 @@
+{
+  "name": "attendx-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "cd attendx-v2 && npm install && npm run build",
+    "start": "cd attendx-v2 && npm run start",
+    "test": "cd attendx-v2 && npm run test"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
