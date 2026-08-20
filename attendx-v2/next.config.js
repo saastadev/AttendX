@@ -5,7 +5,7 @@ const cspHeader = `
   script-src 'self' 'unsafe-eval' 'unsafe-inline';
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' blob: data: https:;
-  font-src 'self' https://fonts.gstatic.com;
+  font-src 'self' https://fonts.gstatic.com data:;
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -30,7 +30,8 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        // Apply security headers to all pages/routes EXCEPT Next.js static assets & images
+        source: '/((?!_next/static|_next/image|favicon.ico).*)',
         headers: [
           { key: 'Content-Security-Policy', value: cspHeader },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
