@@ -1,13 +1,7 @@
 // AttendX v2 Service Worker
-const CACHE_NAME = 'attendx-v2-cache-v1'
+const CACHE_NAME = 'attendx-v2-cache-v2'
 const ASSETS_TO_CACHE = [
   '/',
-  '/dashboard',
-  '/attendance',
-  '/attendance/checkin',
-  '/leave',
-  '/profile',
-  '/copilot',
   '/manifest.json',
   '/favicon.ico',
 ]
@@ -15,9 +9,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch(() => {
-        // Silently skip un-fetchable dev routes during install
-      })
+      return cache.addAll(ASSETS_TO_CACHE).catch(() => {})
     })
   )
   self.skipWaiting()
@@ -39,12 +31,23 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
+  const url = new URL(event.request.url)
+
+  // NEVER cache API requests, Next.js static chunks, or external services
+  if (
+    event.request.method !== 'GET' ||
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/api/') ||
+    url.hostname.includes('supabase.co') ||
+    url.hostname.includes('openai.com')
+  ) {
+    return
+  }
 
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && url.origin === location.origin) {
           const responseToCache = networkResponse.clone()
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache)
@@ -56,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse
           if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/dashboard')
+            return caches.match('/')
           }
         })
       })
