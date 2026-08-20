@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Clock, CalendarDays, MessageSquareMore,
   User, Bell, Trophy, FileText, BarChart3, Shield,
   Users, Settings, ChevronRight, WifiOff, RefreshCcw,
-  Search,
+  Search, Camera,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
@@ -60,6 +60,7 @@ const SIDEBAR_NAV: NavGroup[] = [
       { href: '/hr/directory', icon: Users,    label: 'Directory', id: 'snav-directory', minRole: 'HR' },
       { href: '/hr/insights',  icon: BarChart2, label: 'Insights',  id: 'snav-insights',  minRole: 'HR' },
       { href: '/admin/users',  icon: Shield,   label: 'Users',     id: 'snav-users',     minRole: 'ADMIN' },
+      { href: '/admin/attendance', icon: Camera, label: 'Selfies', id: 'snav-admin-attendance', minRole: 'ADMIN' },
       { href: '/admin/settings',icon: Settings, label: 'Settings',  id: 'snav-settings',  minRole: 'ADMIN' },
     ],
   },

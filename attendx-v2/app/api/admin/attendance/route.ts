@@ -155,3 +155,86 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err.message ?? 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = await getSupabaseServerClient()
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (!user || authErr) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const serviceClient = getSupabaseServiceClient()
+
+    // Resolve caller's role
+    const { data: roleRow, error: roleErr } = await serviceClient
+      .from('user_roles')
+      .select('role, tenant_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (roleErr || !roleRow || !['SUPERADMIN', 'ADMIN', 'HR'].includes(roleRow.role)) {
+      return NextResponse.json({ error: 'Forbidden — requires Admin or HR role' }, { status: 403 })
+    }
+
+    const body = await req.json()
+    const { record_id, target: selfieTarget } = body // selfieTarget: 'clock_in' | 'clock_out' | 'both'
+
+    if (!record_id) {
+      return NextResponse.json({ error: 'Missing record_id' }, { status: 400 })
+    }
+
+    // Fetch existing attendance record
+    const { data: attRecord, error: fetchErr } = await serviceClient
+      .from('attendance_records')
+      .select('*')
+      .eq('id', record_id)
+      .eq('tenant_id', roleRow.tenant_id)
+      .maybeSingle()
+
+    if (fetchErr || !attRecord) {
+      return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 })
+    }
+
+    const updateFields: Record<string, any> = {}
+
+    if (selfieTarget === 'clock_in' || selfieTarget === 'both') {
+      updateFields.clock_in_selfie_url = null
+      if (attRecord.clock_in_selfie_url) {
+        const storagePath = attRecord.clock_in_selfie_url.split('/storage/v1/object/public/')[1]
+        if (storagePath) {
+          const [bucket, ...pathParts] = storagePath.split('/')
+          await serviceClient.storage.from(bucket).remove([pathParts.join('/')])
+        }
+      }
+    }
+
+    if (selfieTarget === 'clock_out' || selfieTarget === 'both') {
+      updateFields.clock_out_selfie_url = null
+      if (attRecord.clock_out_selfie_url) {
+        const storagePath = attRecord.clock_out_selfie_url.split('/storage/v1/object/public/')[1]
+        if (storagePath) {
+          const [bucket, ...pathParts] = storagePath.split('/')
+          await serviceClient.storage.from(bucket).remove([pathParts.join('/')])
+        }
+      }
+    }
+
+    const { error: updateErr } = await serviceClient
+      .from('attendance_records')
+      .update(updateFields)
+      .eq('id', record_id)
+
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted recorded ${selfieTarget} selfie image.`,
+    })
+  } catch (err: any) {
+    console.error('[Admin Delete Selfie API] Error:', err)
+    return NextResponse.json({ error: err.message ?? 'Internal server error' }, { status: 500 })
+  }
+}
