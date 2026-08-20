@@ -10,8 +10,8 @@ services:
     region: singapore
     plan: free
     rootDir: attendx-v2
-    buildCommand: cd attendx-v2 && npm install --include=dev && npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/ 2>/dev/null || true && cp -R public .next/standalone/ 2>/dev/null || true
-    startCommand: cd attendx-v2 && node .next/standalone/server.js
+    buildCommand: cd attendx-v2 && npm install --include=dev && npm run build
+    startCommand: cd attendx-v2 && npm run start
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
