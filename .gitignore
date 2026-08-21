@@ -25,3 +25,8 @@ yarn-error.log*
 # system
 .DS_Store
 *.pem
+
+# agent & local documentation artifacts
+.agents/
+docs/
+
