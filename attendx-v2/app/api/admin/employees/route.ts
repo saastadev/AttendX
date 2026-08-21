@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { ServerIdentity } from '@/lib/auth/server-identity'
 
-// ── Per-admin in-memory rate limiter: max 10 provisioning calls / minute ────
+// ── Per-admin in-memory rate limiter: max 30 provisioning calls / minute ────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 function checkRateLimit(adminId: string): boolean {
   const now = Date.now()
@@ -20,44 +21,22 @@ type ProvisioningRole = (typeof PROVISIONING_ROLES)[number]
 
 // ── POST /api/admin/employees — Provision a new employee ─────────────────────
 export async function POST(req: NextRequest) {
+  let authUserId: string | null = null
+  const serviceClient = getSupabaseServiceClient()
+
   try {
-    // 1. Authenticate the calling admin via cookie session (server-side only)
-    const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (!user || authErr) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // 1. Authenticate caller server-side (BRD §7: Authoritative Caller Identity)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['SUPERADMIN', 'ADMIN', 'HR'])
 
-    const serviceClient = getSupabaseServiceClient()
-
-    // 2. Resolve admin role from DB — never trust a client-supplied claim
-    const { data: roleRow, error: roleErr } = await serviceClient
-      .from('user_roles')
-      .select('role, tenant_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (roleErr || !roleRow) {
-      return NextResponse.json({ error: 'Forbidden — no role record found' }, { status: 403 })
-    }
-    if (!PROVISIONING_ROLES.includes(roleRow.role as ProvisioningRole)) {
+    // 2. Per-admin rate limit
+    if (!checkRateLimit(caller.userId)) {
       return NextResponse.json(
-        { error: `Forbidden — role '${roleRow.role}' cannot provision employees` },
-        { status: 403 }
-      )
-    }
-
-    const tenantId: string = roleRow.tenant_id
-
-    // 3. Per-admin rate limit
-    if (!checkRateLimit(user.id)) {
-      return NextResponse.json(
-        { error: 'Too many provisioning requests. Wait 60 seconds.' },
+        { error: 'Too many provisioning requests. Wait 60 seconds.', code: 'RATE_LIMIT_EXCEEDED' },
         { status: 429 }
       )
     }
 
-    // 4. Parse and validate body
+    // 3. Parse and validate body
     const body = await req.json().catch(() => null)
     if (!body) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
@@ -70,7 +49,6 @@ export async function POST(req: NextRequest) {
       department_id = null,
       designation_id = null,
       join_date = new Date().toISOString().split('T')[0],
-      temp_password,
     } = body
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -84,130 +62,104 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
 
-    // Role escalation guard: HR can only provision EMPLOYEE/MANAGER
-    if (role === 'SUPERADMIN' && roleRow.role !== 'SUPERADMIN') {
+    // Role escalation guards
+    if (role === 'SUPERADMIN' && caller.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'Only SUPERADMIN can provision SUPERADMIN role' }, { status: 403 })
     }
-    if (role === 'ADMIN' && !['SUPERADMIN', 'ADMIN'].includes(roleRow.role)) {
+    if (role === 'ADMIN' && !['SUPERADMIN', 'ADMIN'].includes(caller.role)) {
       return NextResponse.json({ error: 'Only ADMIN/SUPERADMIN can provision ADMIN role' }, { status: 403 })
     }
 
-    // 5. Enforce tenant employee cap
-    const { data: tenant } = await serviceClient
-      .from('tenants')
-      .select('max_employees')
-      .eq('id', tenantId)
-      .single()
-
-    const { count: empCount } = await serviceClient
-      .from('employees')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-
-    if (tenant && empCount != null && empCount >= tenant.max_employees) {
-      return NextResponse.json(
-        { error: `Employee limit of ${tenant.max_employees} reached for this tenant` },
-        { status: 422 }
-      )
-    }
-
-    // 6. Create auth user server-side with service_role (never from client)
-    const password = temp_password && temp_password.length >= 8
-      ? temp_password
-      : generateSecurePassword()
+    // 4. Create auth user server-side with service_role (BRD §8: app_metadata Binding)
+    const securePassword = generateSecurePassword()
+    const cleanEmail = email.toLowerCase().trim()
+    const cleanFullName = full_name.trim()
 
     const { data: newAuthUser, error: createErr } = await serviceClient.auth.admin.createUser({
-      email: email.toLowerCase().trim(),
-      password,
-      email_confirm: true,   // Admin has vetted; skip email confirmation loop
+      email: cleanEmail,
+      password: securePassword,
+      email_confirm: true,
+      app_metadata: {
+        tenant_id: caller.tenantId, // Evaluated authoritatively by get_my_tenant_id()
+        role,
+      },
       user_metadata: {
-        full_name: full_name.trim(),
-        tenant_id: tenantId,
-        role,               // Migration 007 trigger reads this to set initial role
+        full_name: cleanFullName,
       },
     })
 
     if (createErr || !newAuthUser?.user) {
-      console.error('[Provision] auth.admin.createUser failed:', createErr)
+      console.error('[Provision] auth.admin.createUser error:', createErr?.message)
+      const isDuplicate = createErr?.message?.toLowerCase().includes('already') || createErr?.status === 422
       return NextResponse.json(
-        { error: createErr?.message ?? 'Failed to create auth user' },
-        { status: 422 }
+        { error: isDuplicate ? 'An account with this email already exists.' : createErr?.message ?? 'Failed to create auth user' },
+        { status: isDuplicate ? 409 : 422 }
       )
     }
 
-    const authUserId = newAuthUser.user.id
+    authUserId = newAuthUser.user.id
 
-    // 7. Provision profile + user_roles + employees records
-    // Try RPC first; if not installed in database, perform direct service-role upserts
-    let employeeCode = 'EMP-' + authUserId.slice(0, 6).toUpperCase()
-
+    // 5. Execute Atomic Database Provisioning Stored Procedure (BRD §9, §10)
     const { data: rpcResult, error: rpcErr } = await serviceClient.rpc(
-      'admin_provision_employee',
+      'admin_provision_employee_v2',
       {
         p_auth_user_id:   authUserId,
-        p_tenant_id:      tenantId,
-        p_full_name:      full_name.trim(),
-        p_email:          email.toLowerCase().trim(),
+        p_tenant_id:      caller.tenantId,
+        p_full_name:      cleanFullName,
+        p_email:          cleanEmail,
         p_role:           role,
         p_department_id:  department_id,
         p_designation_id: designation_id,
         p_join_date:      join_date,
-        p_assigned_by:    user.id,
+        p_assigned_by:    caller.userId,
       }
     )
 
     if (rpcErr) {
-      console.warn('[Provision] RPC not found or failed, falling back to direct service upsert:', rpcErr.message)
+      console.error('[Provision] Database RPC failed — initiating compensating rollback:', rpcErr.message)
 
-      // Fallback: direct service client upserts
-      const { data: empRows } = await serviceClient
-        .from('employees')
-        .select('employee_code')
-        .eq('tenant_id', tenantId)
+      // Mandatory Compensating Rollback (Rule 4: Zero Orphans)
+      try {
+        await serviceClient.auth.admin.deleteUser(authUserId)
+        console.log(`[Provision] Compensating rollback complete: deleted Auth user ${authUserId}`)
+      } catch (rollbackErr: any) {
+        console.error('[Provision] Rollback failed:', rollbackErr.message)
+      }
 
-      const count = (empRows?.length ?? 0) + 1
-      employeeCode = 'EMP-' + String(count).padStart(4, '0')
-
-      await Promise.all([
-        serviceClient.from('profiles').upsert({
-          id: authUserId,
-          tenant_id: tenantId,
-          email: email.toLowerCase().trim(),
-          full_name: full_name.trim(),
-          is_active: true,
-          onboarding_completed: true,
-        }),
-        serviceClient.from('user_roles').upsert({
-          user_id: authUserId,
-          tenant_id: tenantId,
-          role,
-          assigned_by: user.id,
-        }, { onConflict: 'user_id,tenant_id' }),
-        serviceClient.from('employees').upsert({
-          id: authUserId,
-          tenant_id: tenantId,
-          employee_code: employeeCode,
-          department_id,
-          designation_id,
-          join_date,
-        }, { onConflict: 'id' }),
-      ])
-    } else {
-      employeeCode = (rpcResult as any)?.employee_code ?? employeeCode
+      const isSeatLimit = rpcErr.code === 'EX001' || rpcErr.message.includes('SEAT_LIMIT_REACHED')
+      return NextResponse.json(
+        {
+          error: isSeatLimit ? 'Employee seat limit reached.' : 'Provisioning failed due to database error.',
+          code: isSeatLimit ? 'SEAT_LIMIT_REACHED' : 'DATABASE_ERROR',
+        },
+        { status: isSeatLimit ? 422 : 500 }
+      )
     }
 
+    const employeeCode = (rpcResult as any)?.employee_code || 'EMP-PROVISIONED'
+
+    // 6. Return 201 Created (BRD §11: Rule 5 Zero Passwords)
     return NextResponse.json({
+      success: true,
       user_id:       authUserId,
       employee_code: employeeCode,
       role,
-      email:         email.toLowerCase().trim(),
-      full_name:     full_name.trim(),
-      ...((!temp_password || temp_password.length < 8) && { temp_password: password }),
+      email:         cleanEmail,
+      full_name:     cleanFullName,
+      message:       'Employee provisioned successfully. User must change password upon first login.',
     }, { status: 201 })
 
   } catch (err: any) {
     console.error('[Provision API] Unhandled error:', err)
-    return NextResponse.json({ error: err.message ?? 'Internal server error' }, { status: 500 })
+    if (authUserId) {
+      try {
+        await serviceClient.auth.admin.deleteUser(authUserId)
+      } catch (delErr: any) {
+        console.warn('[Provision API] Cleanup deletion failed:', delErr.message)
+      }
+    }
+    const status = err.status || 500
+    return NextResponse.json({ error: err.message ?? 'Internal server error' }, { status })
   }
 }
 
@@ -219,12 +171,13 @@ export async function GET(req: NextRequest) {
     if (!user || authErr) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const serviceClient = getSupabaseServiceClient()
-
-    const { data: roleRow } = await serviceClient
+    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
+    const { data: roleRows } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', user.id)
-      .maybeSingle()
+
+    const roleRow = (roleRows || []).find((r: any) => activeTenantClaim ? r.tenant_id === activeTenantClaim : true) || roleRows?.[0]
 
     if (!roleRow || !PROVISIONING_ROLES.includes(roleRow.role as ProvisioningRole)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -325,7 +278,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Target user not in your tenant' }, { status: 403 })
     }
 
-    const ops: Promise<unknown>[] = []
+    const ops: PromiseLike<unknown>[] = []
 
     if (new_role !== undefined) {
       const validRoles = ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE']

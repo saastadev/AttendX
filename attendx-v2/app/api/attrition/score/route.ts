@@ -87,9 +87,9 @@ export async function POST(req: NextRequest) {
           score: totalScore,
           risk_level: riskLevel,
           factors: factors,
-          calculated_at: new Date().toISOString(),
+          computed_at: new Date().toISOString(),
         },
-        { onConflict: 'employee_id' }
+        { onConflict: 'tenant_id,employee_id' }
       )
 
       scoringResults.push({ employeeId: emp.id, score: totalScore, riskLevel, factors })

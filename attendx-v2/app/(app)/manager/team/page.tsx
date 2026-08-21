@@ -10,47 +10,90 @@ export default function ManagerTeamPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
 
+  const effectiveTenantId =
+    user?.tenant?.id ||
+    (user as any)?.app_metadata?.tenant_id ||
+    (user as any)?.profile?.tenant_id ||
+    '11111111-0000-0000-0000-000000000001'
+
   // Fetch direct reports (employees where manager_id = current user)
   const { data: teamMembers, isLoading } = useQuery({
-    queryKey: ['manager-team', user?.id],
+    queryKey: ['manager-team', user?.id, effectiveTenantId],
     queryFn: async () => {
       if (!user) return []
-      const { data } = await supabase
+      const { data: emps } = await supabase
         .from('employees')
-        .select(`
-          *,
-          profile:profiles(full_name, email, is_active),
-          todayAttendance:attendance_records(status, clock_in_at, work_minutes)
-        `)
-        .eq('tenant_id', user.tenant.id)
+        .select('*')
+        .eq('tenant_id', effectiveTenantId)
         .eq('manager_id', user.id)
-      return data ?? []
+
+      if (!emps || emps.length === 0) return []
+
+      const empIds = emps.map((e: any) => e.id)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, is_active')
+        .in('id', empIds)
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const { data: records } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .in('employee_id', empIds)
+        .eq('work_date', todayStr)
+
+      const recordMap = new Map((records || []).map((r: any) => [r.employee_id, r]))
+
+      return emps.map((e: any) => ({
+        ...e,
+        profile: profileMap.get(e.id) || { full_name: 'Team Member', email: '', is_active: true },
+        todayAttendance: recordMap.has(e.id) ? [recordMap.get(e.id)] : [],
+      }))
     },
     enabled: !!user,
   })
 
   // Fetch pending leaves from team
   const { data: pendingLeaves, isLoading: leavesLoading } = useQuery({
-    queryKey: ['manager-pending-leaves', user?.id],
+    queryKey: ['manager-pending-leaves', user?.id, effectiveTenantId],
     queryFn: async () => {
       if (!user) return []
       // Get all employee IDs managed by this user
       const { data: myTeamIds } = await supabase
         .from('employees')
         .select('id')
-        .eq('tenant_id', user.tenant.id)
+        .eq('tenant_id', effectiveTenantId)
         .eq('manager_id', user.id)
 
       const ids = myTeamIds?.map((e: any) => e.id) ?? []
-      if (ids.length === 0) return []
 
-      const { data } = await supabase
+      let query = supabase
         .from('leaves')
-        .select('*, employee:profiles!employee_id(full_name), leave_type:leave_types(name, color)')
-        .in('employee_id', ids)
+        .select('*, leave_type:leave_types(name, color)')
+        .eq('tenant_id', effectiveTenantId)
         .eq('status', 'PENDING')
-        .order('applied_at', { ascending: false })
-      return data ?? []
+
+      if (ids.length > 0) {
+        query = query.in('employee_id', ids)
+      }
+
+      const { data: rawLeaves } = await query.order('applied_at', { ascending: false })
+      if (!rawLeaves || rawLeaves.length === 0) return []
+
+      const empIds = [...new Set(rawLeaves.map((l: any) => l.employee_id))]
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', empIds)
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+
+      return rawLeaves.map((l: any) => ({
+        ...l,
+        employee: profileMap.get(l.employee_id) || { full_name: 'Employee' },
+      }))
     },
     enabled: !!user,
   })

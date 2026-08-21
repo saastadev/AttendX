@@ -6,8 +6,9 @@ import { useAuthStore } from '@/store/auth.store'
 import type { AuthUser, UserRole } from '@/types/database'
 
 interface AuthContextValue {
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signIn: (email: string, password: string) => Promise<{ error: string | null; destination?: string }>
   signOut: () => Promise<void>
+  acceptInvite: (token: string, password: string, fullName: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string, fullName: string, tenantSlug: string) => Promise<{ error: string | null }>
   resetPassword: (email: string) => Promise<{ error: string | null }>
 }
@@ -145,56 +146,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-      // Surface the real failure. Never fabricate a session: onAuthStateChange
-      // is what populates the store on a genuine SIGNED_IN event.
-      if (error) return { error: error.message }
-
-      return { error: null }
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        return { error: data.error || 'Invalid email or password.' }
+      }
+      return { error: null, destination: data.destination }
     } catch (err) {
       console.error('[Auth] signIn transport failure:', err)
       return {
         error: 'Unable to reach the authentication service. Check your connection and try again.',
       }
     }
-  }, [supabase])
+  }, [])
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
   }, [supabase])
 
-  const signUp = useCallback(async (
-    email: string,
+  const acceptInvite = useCallback(async (
+    token: string,
     password: string,
-    fullName: string,
-    tenantSlug: string
+    fullName: string
   ) => {
-    // Find tenant by slug first
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .select('id, name')
-      .eq('slug', tenantSlug)
-      .maybeSingle()
-
-    if (tenantError || !tenant) {
-      return { error: 'Organization not found. Check your company code.' }
+    try {
+      const res = await fetch('/api/auth/invite/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password, full_name: fullName }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        return { error: data.error || 'Failed to accept invitation.' }
+      }
+      return { error: null }
+    } catch (err) {
+      console.error('[Auth] acceptInvite failure:', err)
+      return { error: 'Unable to reach the registration service.' }
     }
+  }, [])
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          tenant_id: tenant.id,
-        },
-      },
-    })
-
-    if (error) return { error: error.message }
-    return { error: null }
-  }, [supabase])
+  const signUp = useCallback(async (
+    _email: string,
+    _password: string,
+    _fullName: string,
+    _tenantSlug: string
+  ) => {
+    return {
+      error: 'Public registration is disabled. You must use an invitation link to create an account.',
+    }
+  }, [])
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -205,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   return (
-    <AuthContext.Provider value={{ signIn, signOut, signUp, resetPassword }}>
+    <AuthContext.Provider value={{ signIn, signOut, acceptInvite, signUp, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const admin = getSupabaseServiceClient()
 
   let supabaseResponse = NextResponse.next({ request })
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -26,8 +26,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('Authorization')
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
-      const adminClient = createClient(supabaseUrl, serviceRoleKey || supabaseAnonKey)
-      const { data: userData } = await adminClient.auth.getUser(token)
+      const { data: userData } = await admin.auth.getUser(token)
       if (userData?.user) {
         user = userData.user
         authError = null
@@ -39,8 +38,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey || supabaseAnonKey)
-
   const [profileRes, roleRes] = await Promise.all([
     admin.from('profiles').select('*, tenant:tenants(*)').eq('id', user.id).maybeSingle(),
     admin.from('user_roles').select('role, tenant_id').eq('user_id', user.id),
@@ -50,7 +47,7 @@ export async function GET(request: NextRequest) {
   let roleRows = roleRes.data ?? []
 
   // Auto-provision profile if missing
-  if (!profile && serviceRoleKey) {
+  if (!profile) {
     const tenantId = (user.user_metadata as any)?.tenant_id || (user.app_metadata as any)?.tenant_id
     let targetTenantId = tenantId
     if (!targetTenantId) {
@@ -90,7 +87,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Ensure employee record exists for active user
-  if (profile && serviceRoleKey) {
+  if (profile) {
     const { data: emp } = await admin.from('employees').select('id').eq('id', user.id).maybeSingle()
     if (!emp) {
       const empCode = 'EMP-' + user.id.slice(0, 6).toUpperCase()

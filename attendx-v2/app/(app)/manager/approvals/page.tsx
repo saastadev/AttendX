@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { CheckCircle, XCircle, CalendarDays, Clock, AlertTriangle, Filter } from 'lucide-react'
+import { CheckCircle, XCircle, CalendarDays, Clock, AlertTriangle, Filter, RefreshCcw } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -20,58 +20,119 @@ export default function ManagerApprovalsPage() {
   const qc = useQueryClient()
   const [activeType, setActiveType] = useState<ApprovalType>('ALL')
 
-  // Fetch team employee IDs
-  const { data: teamIds } = useQuery({
-    queryKey: ['team-ids', user?.id],
-    queryFn: async () => {
-      if (!user) return []
-      const { data } = await supabase.from('employees').select('id').eq('manager_id', user.id)
-      return data?.map((e: any) => e.id) ?? []
-    },
-    enabled: !!user,
-  })
+  const effectiveTenantId =
+    user?.tenant?.id ||
+    (user as any)?.app_metadata?.tenant_id ||
+    (user as any)?.profile?.tenant_id ||
+    '11111111-0000-0000-0000-000000000001'
 
-  // Pending leave requests from team
-  const { data: pendingLeaves, isLoading: leavesLoading } = useQuery({
-    queryKey: ['manager-pending-leaves', user?.id, teamIds],
+  // Fetch pending approvals from authoritative backend API
+  const { data: approvalsData, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['manager-approvals', user?.id, effectiveTenantId],
     queryFn: async () => {
-      if (!teamIds?.length) return []
-      const { data } = await supabase
+      // 1. Try server API with explicit Bearer token first
+      try {
+        const { data: sessData } = await supabase.auth.getSession()
+        const headers: Record<string, string> = {}
+        if (sessData?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+        }
+
+        const res = await fetch('/api/manager/approvals', { headers, credentials: 'include' })
+        if (res.ok) {
+          const json = await res.json()
+          return {
+            leaves: json.leaves || [],
+            corrections: json.corrections || [],
+            totalPending: json.totalPending || 0,
+          }
+        }
+      } catch (e) {
+        console.warn('[Approvals] Server API fetch error, falling back to browser query:', e)
+      }
+
+      // 2. Direct browser fallback
+      const { data: rawLeaves } = await supabase
         .from('leaves')
-        .select('*, employee:profiles!employee_id(full_name, email), leave_type:leave_types(name, color)')
-        .in('employee_id', teamIds)
+        .select('*, leave_types(name, code, color)')
         .eq('status', 'PENDING')
-        .order('applied_at', { ascending: true })
-      return data ?? []
+        .order('applied_at', { ascending: false })
+
+      const { data: rawCorrections } = await supabase
+        .from('attendance_corrections')
+        .select('*')
+        .eq('status', 'PENDING')
+        .order('created_at', { ascending: false })
+
+      const allEmpIds = [
+        ...new Set([
+          ...(rawLeaves || []).map((l: any) => l.employee_id),
+          ...(rawCorrections || []).map((c: any) => c.employee_id),
+        ]),
+      ]
+
+      let profileMap = new Map<string, any>()
+      if (allEmpIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', allEmpIds)
+        profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+      }
+
+      const leaves = (rawLeaves || []).map((l: any) => ({
+        ...l,
+        leave_type: l.leave_types || { name: 'Leave', color: '#6366f1' },
+        employee: profileMap.get(l.employee_id) || { full_name: 'Employee', email: '' },
+      }))
+
+      const corrections = (rawCorrections || []).map((c: any) => ({
+        ...c,
+        employee: profileMap.get(c.employee_id) || { full_name: 'Employee', email: '' },
+      }))
+
+      return {
+        leaves,
+        corrections,
+        totalPending: leaves.length + corrections.length,
+      }
     },
-    enabled: !!teamIds,
+    enabled: true,
+    refetchInterval: 4000, // Live poll every 4s for new requests
   })
 
-  // Pending attendance corrections from team
-  const { data: pendingCorrections, isLoading: correctionsLoading } = useQuery({
-    queryKey: ['manager-pending-corrections', user?.id, teamIds],
-    queryFn: async () => {
-      if (!teamIds?.length) return []
-      const { data } = await supabase
-        .from('attendance_corrections')
-        .select('*, employee:profiles!employee_id(full_name)')
-        .in('employee_id', teamIds)
-        .eq('status', 'PENDING')
-        .order('created_at', { ascending: true })
-      return data ?? []
-    },
-    enabled: !!teamIds,
-  })
+  const pendingLeaves = approvalsData?.leaves ?? []
+  const pendingCorrections = approvalsData?.corrections ?? []
+  const totalPending = approvalsData?.totalPending ?? 0
 
   const leaveMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: 'APPROVED' | 'REJECTED' }) => {
-      const { error: err } = await supabase.from('leaves')
-        .update({ status: action, reviewed_by: user?.id, reviewed_at: new Date().toISOString() })
-        .eq('id', id)
-      if (err) throw err
+    mutationFn: async ({ id, action, leave }: { id: string; action: 'APPROVED' | 'REJECTED'; leave?: any }) => {
+      // 1. Try server decision API with Bearer token
+      const { data: sessData } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (sessData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+      }
+
+      const res = await fetch(`/api/manager/approvals/${id}`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ type: 'LEAVE', action }),
+      })
+
+      if (!res.ok) {
+        // Direct browser fallback
+        const { error: err } = await supabase.from('leaves')
+          .update({ status: action, reviewed_by: user?.id, reviewed_at: new Date().toISOString() })
+          .eq('id', id)
+        if (err) throw err
+      }
     },
     onSuccess: (_, { action }) => {
-      qc.invalidateQueries({ queryKey: ['manager-pending-leaves'] })
+      qc.invalidateQueries({ queryKey: ['manager-approvals'] })
+      qc.invalidateQueries({ queryKey: ['leave-balances'] })
+      qc.invalidateQueries({ queryKey: ['my-leaves'] })
       success(`Leave ${action === 'APPROVED' ? 'approved ✓' : 'rejected'}`)
     },
     onError: (err: any) => error('Action failed', err.message),
@@ -79,35 +140,57 @@ export default function ManagerApprovalsPage() {
 
   const correctionMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: 'APPROVED' | 'REJECTED' }) => {
-      const { error: err } = await supabase.from('attendance_corrections')
-        .update({ status: action, reviewed_by: user?.id })
-        .eq('id', id)
-      if (err) throw err
+      const { data: sessData } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (sessData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+      }
+
+      const res = await fetch(`/api/manager/approvals/${id}`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ type: 'CORRECTION', action }),
+      })
+
+      if (!res.ok) {
+        const { error: err } = await supabase.from('attendance_corrections')
+          .update({ status: action, reviewed_by: user?.id })
+          .eq('id', id)
+        if (err) throw err
+      }
     },
     onSuccess: (_, { action }) => {
-      qc.invalidateQueries({ queryKey: ['manager-pending-corrections'] })
+      qc.invalidateQueries({ queryKey: ['manager-approvals'] })
       success(`Correction ${action === 'APPROVED' ? 'approved ✓' : 'rejected'}`)
     },
     onError: (err: any) => error('Action failed', err.message),
   })
 
-  const totalPending = (pendingLeaves?.length ?? 0) + (pendingCorrections?.length ?? 0)
-  const isLoading = leavesLoading || correctionsLoading
-
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Approvals</h1>
           <p className="page-subtitle">
             {totalPending > 0 ? `${totalPending} request${totalPending > 1 ? 's' : ''} awaiting your decision` : 'Queue is clear — great job!'}
           </p>
         </div>
-        {totalPending > 0 && (
-          <span className="badge badge-pending" style={{ fontSize: '1rem', padding: '8px 16px' }}>
-            {totalPending} pending
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <button
+            onClick={() => refetch()}
+            className={`btn btn-secondary btn-sm ${isFetching ? 'btn-loading' : ''}`}
+            id="btn-refresh-approvals"
+            title="Refresh queue"
+          >
+            <RefreshCcw size={14} className={isFetching ? 'anim-spin' : ''} /> Refresh
+          </button>
+          {totalPending > 0 && (
+            <span className="badge badge-pending" style={{ fontSize: '0.9375rem', padding: '6px 14px' }}>
+              {totalPending} pending
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -157,7 +240,7 @@ export default function ManagerApprovalsPage() {
                 <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
                   <motion.button
                     whileTap={{ scale: 0.94 }}
-                    onClick={() => leaveMutation.mutate({ id: l.id, action: 'APPROVED' })}
+                    onClick={() => leaveMutation.mutate({ id: l.id, action: 'APPROVED', leave: l })}
                     disabled={leaveMutation.isPending}
                     className="btn btn-success btn-sm"
                     id={`btn-approve-leave-${l.id}`}
@@ -166,7 +249,7 @@ export default function ManagerApprovalsPage() {
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.94 }}
-                    onClick={() => leaveMutation.mutate({ id: l.id, action: 'REJECTED' })}
+                    onClick={() => leaveMutation.mutate({ id: l.id, action: 'REJECTED', leave: l })}
                     disabled={leaveMutation.isPending}
                     className="btn btn-danger btn-sm"
                     id={`btn-reject-leave-${l.id}`}

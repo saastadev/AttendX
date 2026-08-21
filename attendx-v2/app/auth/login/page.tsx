@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, SPRING_BOUNCY, SPRING_STIFF, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
 /* ---- CSS 3D Animated Hero ---- */
@@ -137,14 +138,18 @@ function AuthHero() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = getSupabaseBrowserClient()
-  const next = searchParams.get('next') ?? '/dashboard'
+  const next = searchParams.get('next') ?? undefined
+  const initialErrorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    initialErrorParam === 'account_deactivated'
+      ? 'Your account has been deactivated. Please contact your organization administrator.'
+      : ''
+  )
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
 
   function validate() {
@@ -162,15 +167,55 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
-    const { error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: targetPw })
-    setLoading(false)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: targetPw,
+          next,
+        }),
+      })
 
-    if (authErr) {
-      setError(authErr.message)
-      return
+      const data = await res.json()
+      setLoading(false)
+
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Invalid email or password.')
+        return
+      }
+
+      // Synchronize browser Supabase client session
+      if (data.tokens?.access_token && data.tokens?.refresh_token) {
+        try {
+          const supabase = getSupabaseBrowserClient()
+          await supabase.auth.setSession({
+            access_token: data.tokens.access_token,
+            refresh_token: data.tokens.refresh_token,
+          })
+        } catch (e) {
+          console.warn('Browser session sync warning:', e)
+        }
+      }
+
+      // Populate client state store
+      if (data.user && data.role) {
+        useAuthStore.getState().setUser({
+          id: data.user.id,
+          email: data.user.email,
+          role: data.role,
+          tenant: data.user.tenant_id ? { id: data.user.tenant_id, name: 'Active Workspace', slug: 'active' } as any : undefined,
+          profile: { id: data.user.id, email: data.user.email, full_name: data.user.full_name, is_active: true } as any
+        })
+      }
+
+      const destination = data.destination || '/admin/users'
+      window.location.href = destination
+    } catch (err: any) {
+      setLoading(false)
+      setError('Unable to reach the authentication service. Please check your connection.')
     }
-
-    router.push(next)
   }
 
   async function handleSubmit(e: React.FormEvent) {

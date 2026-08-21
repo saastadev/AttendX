@@ -386,42 +386,105 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Modal: Provision Member — uses secure server API (no client signUp) */}
+      {/* Modal: Invite / Provision Member */}
       {showInviteModal && (
-        <div className="modal-overlay" onClick={() => { setShowInviteModal(false); setInviteResult(null) }}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <button className="modal-close" onClick={() => { setShowInviteModal(false); setInviteResult(null) }}>✕</button>
-            <h2 className="modal-title">Provision Employee</h2>
-            <p className="modal-subtitle">Creates an active account — employee can log in immediately</p>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10, 12, 24, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => { setShowInviteModal(false); setInviteResult(null) }}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--neu-bg, #1a1d2d)',
+              borderRadius: 20,
+              border: '1px solid var(--glass-border, rgba(255,255,255,0.1))',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+              maxWidth: 520,
+              width: '100%',
+              padding: 28,
+              position: 'relative',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Invite & Provision Member
+                </h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', margin: '4px 0 0' }}>
+                  Create an active account or generate a shareable invite link
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowInviteModal(false); setInviteResult(null) }}
+                style={{
+                  background: 'var(--neu-bg-deep, #121420)',
+                  border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
+                  borderRadius: '50%',
+                  width: 34,
+                  height: 34,
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1rem',
+                }}
+              >
+                ✕
+              </button>
+            </div>
 
             {inviteResult ? (
-              /* Success screen — show credentials to admin */ 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+              /* Success screen — show credentials & invite link to admin */ 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                 <div style={{
-                  background: 'var(--success-light)', borderRadius: 'var(--radius-lg)',
-                  padding: 'var(--space-4)', border: '1px solid rgba(16,185,129,0.25)'
+                  background: 'rgba(16,185,129,0.12)',
+                  borderRadius: 14,
+                  padding: 18,
+                  border: '1px solid rgba(16,185,129,0.3)',
                 }}>
-                  <div style={{ fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>✅ Account provisioned!</div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div><strong>Employee Code:</strong> {inviteResult.employee_code}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--success, #10b981)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle size={18} /> Account Provisioned Successfully!
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div><strong>Employee Code:</strong> <span style={{ color: 'var(--accent, #6366f1)', fontWeight: 600 }}>{inviteResult.employee_code}</span></div>
                     {inviteResult.temp_password && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <KeyRound size={14} color="var(--warning)" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <KeyRound size={14} color="var(--warning, #f59e0b)" />
                         <strong>Temp Password:</strong>
                         <code style={{
-                          background: 'var(--neu-bg-deep)', padding: '2px 8px', borderRadius: 6,
-                          fontFamily: 'monospace', fontSize: '0.85rem'
+                          background: 'rgba(0,0,0,0.3)', padding: '4px 10px', borderRadius: 6,
+                          fontFamily: 'monospace', fontSize: '0.9rem', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)'
                         }}>{inviteResult.temp_password}</code>
                       </div>
                     )}
-                    <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--warning)' }}>
-                      ⚠️ Share this password securely (once). It will not be shown again.
+                    <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                      💡 The user can log in immediately at <code>/auth/login</code> using this email & temporary password.
                     </div>
                   </div>
                 </div>
                 <button
-                  onClick={() => { setShowInviteModal(false); setInviteResult(null); setInviteName(''); setInviteEmail(''); setInviteRole('EMPLOYEE') }}
-                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowInviteModal(false)
+                    setInviteResult(null)
+                    setInviteName('')
+                    setInviteEmail('')
+                    setInviteRole('EMPLOYEE')
+                  }}
+                  className="btn btn-primary btn-block"
+                  style={{ height: 44 }}
                 >
                   Done
                 </button>
@@ -434,43 +497,53 @@ export default function AdminUsersPage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      email: inviteEmail,
-                      full_name: inviteName,
+                      email: inviteEmail.trim(),
+                      full_name: inviteName.trim(),
                       role: inviteRole,
                     }),
                   })
                   const data = await res.json()
-                  if (!res.ok) throw new Error(data.error ?? 'Failed to provision')
+                  if (!res.ok) throw new Error(data.error ?? 'Failed to provision member')
                   setInviteResult({ employee_code: data.employee_code, temp_password: data.temp_password })
                   queryClient.invalidateQueries({ queryKey: ['admin-users'] })
                   queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] })
+                  success('Member provisioned', `Created account for ${inviteName}`)
                 } catch (err: any) {
                   error('Failed to provision member', err.message)
                 }
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
                   <div className="input-group">
-                    <label className="input-label input-label-required">Full Name</label>
+                    <label className="input-label input-label-required" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Full Name
+                    </label>
                     <input
-                      type="text" className="input" placeholder="Jordan Lee"
+                      type="text" className="input" placeholder="e.g. Jordan Lee"
                       value={inviteName} onChange={e => setInviteName(e.target.value)}
                       id="provision-full-name" required
+                      style={{ height: 44 }}
                     />
                   </div>
                   <div className="input-group">
-                    <label className="input-label input-label-required">Work Email</label>
+                    <label className="input-label input-label-required" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Work Email
+                    </label>
                     <input
-                      type="email" className="input" placeholder="jordan@company.com"
+                      type="email" className="input" placeholder="e.g. jordan@acme-tech.com"
                       value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                       id="provision-email" required
+                      style={{ height: 44 }}
                     />
                   </div>
                   <div className="input-group">
-                    <label className="input-label input-label-required">Role</label>
+                    <label className="input-label input-label-required" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Assigned Role
+                    </label>
                     <select
                       className="input select" value={inviteRole}
                       onChange={e => setInviteRole(e.target.value as UserRole)}
                       id="provision-role"
+                      style={{ height: 44 }}
                     >
                       <option value="EMPLOYEE">EMPLOYEE</option>
                       <option value="MANAGER">MANAGER</option>
@@ -478,9 +551,23 @@ export default function AdminUsersPage() {
                       <option value="ADMIN">ADMIN</option>
                     </select>
                   </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-                    <button type="button" onClick={() => setShowInviteModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }} id="provision-submit-btn">Provision Account</button>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowInviteModal(false)}
+                      className="btn btn-secondary"
+                      style={{ flex: 1, height: 44 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{ flex: 1, height: 44 }}
+                      id="provision-submit-btn"
+                    >
+                      Provision Account
+                    </button>
                   </div>
                 </div>
               </form>

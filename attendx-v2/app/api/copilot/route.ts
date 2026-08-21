@@ -1,50 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getAuthoritativeAIContext, AIAuthError } from '@/lib/ai/ai-auth-helper'
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await getSupabaseServerClient()
-    let { data: { user }, error: authErr } = await supabase.auth.getUser()
+    // 1. Authoritative Server-Side AI Context Resolution (BRD §29)
+    const aiContext = await getAuthoritativeAIContext(req)
 
-    if (!user || authErr) {
-      const authHeader = req.headers.get('Authorization')
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7)
-        const serviceClient = getSupabaseServiceClient()
-        const { data: userData } = await serviceClient.auth.getUser(token)
-        if (userData?.user) {
-          user = userData.user
-          authErr = null
-        }
-      }
-    }
+    const serviceClient = getSupabaseServiceClient()
 
-    if (!user || authErr) {
-      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 })
-    }
-
-    // Derive tenant_id safely from claims, user_roles, profiles, or default
-    const activeTenantId = (user.app_metadata as Record<string, any>)?.tenant_id || (user.user_metadata as Record<string, any>)?.tenant_id
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('tenant_id, role')
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle()
-
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    const tenantId = activeTenantId || roleData?.tenant_id || profileData?.tenant_id || '11111111-0000-0000-0000-000000000001'
-
-    // Check kill-switch via tenants.features.copilot
-    const { data: tenant } = await supabase
+    // 2. Check kill-switch via tenants.features.copilot
+    const { data: tenant } = await serviceClient
       .from('tenants')
       .select('features')
-      .eq('id', tenantId)
+      .eq('id', aiContext.tenantId)
       .maybeSingle()
 
     const copilotEnabled = tenant?.features?.copilot ?? true
@@ -61,7 +30,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message payload required' }, { status: 400 })
     }
 
-    const serviceClient = getSupabaseServiceClient()
     const textLower = message.toLowerCase()
 
     let reply = ''
@@ -74,7 +42,7 @@ export async function POST(req: NextRequest) {
       const { data: balances } = await serviceClient
         .from('leave_balances')
         .select('allocated_days, used_days, leave_type:leave_types(name)')
-        .eq('employee_id', user.id)
+        .eq('employee_id', aiContext.userId)
 
       toolResult = balances
       if (balances && balances.length > 0) {
@@ -88,7 +56,7 @@ export async function POST(req: NextRequest) {
       const { data: todayAtt } = await serviceClient
         .from('attendance_records')
         .select('date, check_in, check_out, status')
-        .eq('employee_id', user.id)
+        .eq('employee_id', aiContext.userId)
         .order('date', { ascending: false })
         .limit(1)
 
@@ -104,7 +72,7 @@ export async function POST(req: NextRequest) {
       const { data: docs } = await serviceClient
         .from('skill_embeddings')
         .select('title, content')
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', aiContext.tenantId)
         .limit(3)
 
       toolResult = docs
@@ -129,7 +97,7 @@ export async function POST(req: NextRequest) {
               messages: [
                 {
                   role: 'system',
-                  content: 'You are AttendX HR Copilot, an intelligent AI HR assistant. Help employees with work-related questions, policy summaries, attendance advice, and workplace professional communication. Keep responses helpful, concise, professional, and well-formatted in markdown.',
+                  content: `You are AttendX HR Copilot for ${aiContext.tenantName}. Help employees with work-related questions, policy summaries, attendance advice, and workplace professional communication. User ID: ${aiContext.userId}, Role: ${aiContext.role}, Timezone: ${aiContext.timezone}.`,
                 },
                 { role: 'user', content: message },
               ],
@@ -157,8 +125,8 @@ export async function POST(req: NextRequest) {
     // Mandatory: Log every tool invocation to audit_log
     if (toolInvoked) {
       await serviceClient.from('audit_log').insert({
-        tenant_id: tenantId,
-        actor_id: user.id,
+        tenant_id: aiContext.tenantId,
+        actor_id: aiContext.userId,
         action: `COPILOT_TOOL_INVOKED:${toolInvoked}`,
         table_name: 'skill_embeddings',
         new_data: { message, toolInvoked, toolResult },
@@ -168,9 +136,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       reply,
       toolInvoked,
-      tenantId,
+      tenantId: aiContext.tenantId,
+      correlation_id: aiContext.correlationId,
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    if (err instanceof AIAuthError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.statusCode })
+    }
+    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 })
   }
 }

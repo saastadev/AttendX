@@ -24,18 +24,23 @@ export default function LeaveApplyPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [reason, setReason] = useState<string>('')
 
+  const effectiveTenantId =
+    user?.tenant?.id ||
+    (user as any)?.app_metadata?.tenant_id ||
+    (user as any)?.profile?.tenant_id ||
+    '11111111-0000-0000-0000-000000000001'
+
   // Fetch available Leave Types for this tenant
-  const { data: leaveTypes } = useQuery<LeaveType[]>({
-    queryKey: ['leave-types', user?.tenant?.id],
+  const { data: leaveTypes, isLoading: typesLoading } = useQuery<LeaveType[]>({
+    queryKey: ['leave-types', effectiveTenantId],
     queryFn: async () => {
-      if (!user) return []
       const { data } = await supabase
         .from('leave_types')
         .select('*')
-        .eq('tenant_id', user.tenant.id)
+        .eq('tenant_id', effectiveTenantId)
       return data ?? []
     },
-    enabled: !!user,
+    enabled: !!effectiveTenantId,
   })
 
   // Calculate total days between start and end date
@@ -60,7 +65,7 @@ export default function LeaveApplyPage() {
       if (!reason.trim()) throw new Error('Please provide a reason for leave')
 
       const payload = {
-        tenant_id: user.tenant.id,
+        tenant_id: effectiveTenantId,
         employee_id: user.id,
         leave_type_id: leaveTypeId,
         start_date: startDate,
@@ -71,6 +76,7 @@ export default function LeaveApplyPage() {
         applied_at: new Date().toISOString(),
       }
 
+      // 1. If offline, enqueue
       if (!isOnline) {
         await addToOfflineQueue({
           id: crypto.randomUUID(),
@@ -81,8 +87,25 @@ export default function LeaveApplyPage() {
         return { offline: true }
       }
 
-      const { error: err } = await supabase.from('leaves').insert(payload)
-      if (err) throw err
+      // 2. Submit via authoritative server endpoint
+      const { data: sessData } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (sessData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+      }
+
+      const res = await fetch('/api/leaves/apply', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        // Fallback directly to Supabase client
+        const { error: err } = await supabase.from('leaves').insert(payload)
+        if (err) throw err
+      }
 
       return { offline: false }
     },

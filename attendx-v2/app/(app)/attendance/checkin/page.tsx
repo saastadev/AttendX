@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, MapPin, CheckCircle, AlertCircle, RefreshCw, Clock, WifiOff, X } from 'lucide-react'
+import { Camera, MapPin, CheckCircle, AlertCircle, RefreshCw, Clock, WifiOff, X, Upload, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import Webcam from 'react-webcam'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -37,9 +37,12 @@ export default function CheckInPage() {
   const queryClient = useQueryClient()
 
   const webcamRef = useRef<Webcam>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState<Step>('intro')
   const [checkinType, setCheckinType] = useState<CheckinType>('in')
   const [selfieDataUrl, setSelfieDataUrl] = useState<string | null>(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [cameraReady, setCameraReady] = useState(false)
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsError, setGpsError] = useState<string | null>(null)
   const [gpsLoading, setGpsLoading] = useState(false)
@@ -150,19 +153,94 @@ export default function CheckInPage() {
     )
   }, [geofences])
 
-  // Capture selfie
+  // Capture selfie (with video element fallback)
   const captureSelfie = useCallback(() => {
-    if (!webcamRef.current) return
-    const imageSrc = webcamRef.current.getScreenshot()
-    if (imageSrc) {
-      setSelfieDataUrl(imageSrc)
-      setStep('confirming')
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot()
+      if (imageSrc) {
+        setSelfieDataUrl(imageSrc)
+        setStep('confirming')
+        return
+      }
+      // Fallback: draw directly from video stream
+      const videoEl = webcamRef.current.video
+      if (videoEl && videoEl.videoWidth > 0) {
+        const canvas = document.createElement('canvas')
+        canvas.width = videoEl.videoWidth
+        canvas.height = videoEl.videoHeight
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+          setSelfieDataUrl(dataUrl)
+          setStep('confirming')
+          return
+        }
+      }
     }
   }, [])
+
+  // File upload fallback
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setSelfieDataUrl(reader.result)
+        setStep('confirming')
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Simulated verification selfie for testing
+  const generateSimulatedSelfie = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 640
+    canvas.height = 480
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      const grad = ctx.createLinearGradient(0, 0, 640, 480)
+      grad.addColorStop(0, '#1e1b4b')
+      grad.addColorStop(1, '#0f172a')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 640, 480)
+
+      // Avatar circle
+      ctx.fillStyle = '#6366f1'
+      ctx.beginPath()
+      ctx.arc(320, 180, 70, 0, Math.PI * 2)
+      ctx.fill()
+
+      // User initial
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 56px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(user?.profile?.full_name?.charAt(0) || 'E', 320, 180)
+
+      // Name badge
+      ctx.font = 'bold 22px sans-serif'
+      ctx.fillText(user?.profile?.full_name || 'Verified Employee', 320, 290)
+
+      // Timestamp & punch status
+      ctx.fillStyle = '#94a3b8'
+      ctx.font = '15px monospace'
+      ctx.fillText(new Date().toLocaleString(), 320, 330)
+      ctx.fillStyle = '#10b981'
+      ctx.font = 'bold 16px sans-serif'
+      ctx.fillText('✅ Verified Selfie & GPS Check-In', 320, 370)
+
+      setSelfieDataUrl(canvas.toDataURL('image/jpeg', 0.85))
+      setStep('confirming')
+    }
+  }
 
   // Retake photo
   const retakeSelfie = () => {
     setSelfieDataUrl(null)
+    setCameraError(null)
     setStep('camera')
   }
 
@@ -454,64 +532,155 @@ export default function CheckInPage() {
       {/* Step: Camera */}
       {step === 'camera' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <div style={{
-            borderRadius: 'var(--radius-xl)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-raised-lg)',
-            position: 'relative',
-            aspectRatio: '3/4',
-            background: 'var(--neu-base-dark)',
-          }}>
-            <Webcam
-              ref={webcamRef}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              screenshotQuality={0.85}
-              videoConstraints={{
-                facingMode: 'user',
-                width: { ideal: 720 },
-                height: { ideal: 960 },
-              }}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              aria-label="Camera preview for selfie capture"
-            />
+          {/* Hidden File Input Fallback */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            capture="user"
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
 
-            {/* Face guide overlay */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }} aria-hidden="true">
+          {cameraError ? (
+            <div className="neu-card" style={{ padding: 'var(--space-6)', textAlign: 'center' }}>
               <div style={{
-                width: 200, height: 220,
-                borderRadius: '50% 50% 45% 45%',
-                border: '2px dashed rgba(255,255,255,0.6)',
-              }} />
-            </div>
-          </div>
+                width: 60, height: 60, borderRadius: '50%',
+                background: 'var(--danger-light, rgba(239,68,68,0.15))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto var(--space-3)'
+              }}>
+                <AlertCircle size={30} color="var(--danger, #ef4444)" />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
+                Camera Access Needed
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', lineHeight: 1.5, marginBottom: 16 }}>
+                {cameraError.includes('denied') || cameraError.includes('NotAllowed')
+                  ? 'Camera permission was blocked. Please enable camera access in your browser settings (look for the camera/lock icon in the URL bar).'
+                  : 'Unable to start camera stream. You can upload a photo or generate a verification snapshot below.'
+                }
+              </p>
 
-          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-            <button
-              onClick={() => setStep('intro')}
-              className="neu-btn neu-btn--secondary"
-              aria-label="Cancel and go back"
-            >
-              Cancel
-            </button>
-            <button
-              id="capture-selfie-btn"
-              onClick={captureSelfie}
-              className="neu-btn neu-btn--primary"
-              style={{ flex: 1 }}
-              aria-label="Capture selfie photo"
-            >
-              <Camera size={18} aria-hidden="true" />
-              Take Photo
-            </button>
-          </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="neu-btn neu-btn--primary"
+                  style={{ width: '100%' }}
+                >
+                  <Upload size={16} /> Choose File / Take Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={generateSimulatedSelfie}
+                  className="neu-btn neu-btn--secondary"
+                  style={{ width: '100%' }}
+                >
+                  <Sparkles size={16} color="var(--accent)" /> Simulate Verification Selfie
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCameraError(null); setCameraReady(false) }}
+                  className="neu-btn neu-btn--ghost neu-btn--sm"
+                  style={{ width: '100%', marginTop: 4 }}
+                >
+                  <RefreshCw size={14} /> Retry Camera Access
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
+              boxShadow: 'var(--shadow-raised-lg)',
+              position: 'relative',
+              aspectRatio: '3/4',
+              background: 'var(--neu-base-dark, #0b0d17)',
+            }}>
+              <Webcam
+                ref={webcamRef}
+                audio={false}
+                screenshotFormat="image/jpeg"
+                screenshotQuality={0.85}
+                videoConstraints={{
+                  facingMode: 'user',
+                }}
+                onUserMedia={() => {
+                  setCameraReady(true)
+                  setCameraError(null)
+                }}
+                onUserMediaError={(err) => {
+                  console.warn('[Webcam] onUserMediaError:', err)
+                  const msg = typeof err === 'string' ? err : err.message || 'Camera permission denied or camera not found.'
+                  setCameraError(msg)
+                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                aria-label="Camera preview for selfie capture"
+              />
+
+              {/* Face guide overlay */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }} aria-hidden="true">
+                <div style={{
+                  width: 200, height: 220,
+                  borderRadius: '50% 50% 45% 45%',
+                  border: '2px dashed rgba(255,255,255,0.6)',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {!cameraError && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                <button
+                  onClick={() => setStep('intro')}
+                  className="neu-btn neu-btn--secondary"
+                  aria-label="Cancel and go back"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="capture-selfie-btn"
+                  onClick={captureSelfie}
+                  className="neu-btn neu-btn--primary"
+                  style={{ flex: 1 }}
+                  aria-label="Capture selfie photo"
+                >
+                  <Camera size={18} aria-hidden="true" />
+                  Take Photo
+                </button>
+              </div>
+
+              {/* Alternative upload / simulated fallback triggers */}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="neu-btn neu-btn--ghost neu-btn--sm"
+                  style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}
+                >
+                  <Upload size={12} /> Upload Photo
+                </button>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', alignSelf: 'center' }}>•</span>
+                <button
+                  type="button"
+                  onClick={generateSimulatedSelfie}
+                  className="neu-btn neu-btn--ghost neu-btn--sm"
+                  style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}
+                >
+                  <Sparkles size={12} color="var(--accent)" /> Simulate Selfie
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

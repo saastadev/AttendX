@@ -15,6 +15,12 @@ EXCEPTION WHEN OTHERS THEN
   END IF;
 END $$;
 
+-- Ensure standard privileges across schemas
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO postgres, anon, authenticated, service_role;
+
 -- ------------------------------------------------------------
 -- Local-Postgres portability shims.
 --
@@ -174,11 +180,36 @@ AS $$
 $$;
 
 -- Helper function — check if calling user has one of the given roles
-CREATE OR REPLACE FUNCTION has_role(allowed_roles user_role[])
+CREATE OR REPLACE FUNCTION public.has_role(VARIADIC allowed_roles user_role[])
 RETURNS BOOLEAN
 LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
-  SELECT get_my_role() = ANY(allowed_roles);
+  SELECT COALESCE(public.get_my_role() = ANY(allowed_roles), FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_role(VARIADIC allowed_roles text[])
+RETURNS BOOLEAN
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role()::text = ANY(allowed_roles), FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_role(allowed_roles user_role[])
+RETURNS BOOLEAN
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role() = ANY(allowed_roles), FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_role(allowed_roles text[])
+RETURNS BOOLEAN
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role()::text = ANY(allowed_roles), FALSE);
 $$;
 
 -- ============================================================
@@ -756,10 +787,18 @@ CREATE TABLE active_sessions (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  session_token TEXT NOT NULL UNIQUE,
-  device_name   TEXT,
-  user_agent    TEXT,
-  ip_address    INET,
+  auth_session_id UUID,
+  session_token TEXT,
+  session_token_hash TEXT,
+  device_name   TEXT NOT NULL DEFAULT 'Unknown Device',
+  browser       TEXT NOT NULL DEFAULT 'Unknown Browser',
+  os            TEXT NOT NULL DEFAULT 'Unknown OS',
+  ip_address    TEXT,
+  city          TEXT,
+  country       TEXT,
+  user_agent    TEXT NOT NULL DEFAULT '',
+  is_revoked    BOOLEAN NOT NULL DEFAULT false,
+  revoked_at    TIMESTAMPTZ DEFAULT NULL,
   last_active   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
