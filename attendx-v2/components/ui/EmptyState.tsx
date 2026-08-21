@@ -5,7 +5,7 @@ import { SPRING_GENTLE } from './MotionConfig'
 
 type Variant =
   | 'leaves' | 'attendance' | 'notifications' | 'recognition'
-  | 'cases' | 'performance' | 'team' | 'generic'
+  | 'cases' | 'performance' | 'team' | 'onboarding' | 'generic'
 
 interface EmptyStateProps {
   variant?: Variant
@@ -83,6 +83,13 @@ const ILLUSTRATIONS: Record<Variant, React.ReactNode> = {
       <path d="M18 82 C18 72 26 65 36 65" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.45" />
       <circle cx="84" cy="52" r="10" fill="var(--accent)" opacity="0.45" />
       <path d="M102 82 C102 72 94 65 84 65" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.45" />
+    </svg>
+  ),
+  onboarding: (
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+      <circle cx="60" cy="60" r="56" fill="var(--accent-light)" />
+      <path d="M40 45 L60 30 L80 45 L80 80 L40 80 Z" fill="var(--accent)" opacity="0.2" stroke="var(--accent)" strokeWidth="3" strokeLinejoin="round" />
+      <polyline points="50,60 58,68 72,52" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   generic: (

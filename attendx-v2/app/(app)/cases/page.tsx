@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const PRIORITY_BADGE: Record<string, string> = {
   LOW: 'badge-neutral', MEDIUM: 'badge-pending', HIGH: 'badge-rejected', URGENT: 'badge-absent',
@@ -73,7 +75,7 @@ export default function CasesPage() {
   const openCount = cases?.filter((c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length ?? 0
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 960, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Support Cases</h1>
@@ -88,11 +90,16 @@ export default function CasesPage() {
         {isLoading ? (
           [1, 2, 3].map(i => <div key={i} className="card skeleton" style={{ height: 96 }} />)
         ) : cases?.length === 0 ? (
-          <div className="empty-state">
-            <MessageSquare size={48} color="var(--text-tertiary)" />
-            <h3>No cases found</h3>
-            <p>Submit a case to get help from HR or IT support</p>
-          </div>
+          <EmptyState
+            variant="cases"
+            title="No support cases found"
+            body="Submit a case to get help from HR or IT support."
+            action={
+              <button onClick={() => setShowCreate(true)} className="btn btn-primary" style={{ marginTop: 12 }}>
+                Create New Case
+              </button>
+            }
+          />
         ) : (
           cases?.map((c: any) => (
             <div
@@ -202,6 +209,6 @@ export default function CasesPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

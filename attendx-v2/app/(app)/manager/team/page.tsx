@@ -5,6 +5,9 @@ import { Users, Clock, CheckCircle, AlertTriangle, TrendingDown } from 'lucide-r
 import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function ManagerTeamPage() {
   const supabase = getSupabaseBrowserClient()
@@ -62,7 +65,7 @@ export default function ManagerTeamPage() {
   ).length ?? 0
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">My Team</h1>
@@ -167,6 +170,6 @@ export default function ManagerTeamPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

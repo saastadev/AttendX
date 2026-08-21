@@ -6,6 +6,9 @@ import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function PerformancePage() {
   const supabase = getSupabaseBrowserClient()
@@ -58,7 +61,7 @@ export default function PerformancePage() {
   const goalPct = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Performance</h1>
@@ -183,6 +186,6 @@ export default function PerformancePage() {
           )}
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

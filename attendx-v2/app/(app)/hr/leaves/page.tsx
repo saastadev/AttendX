@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
@@ -61,7 +62,7 @@ export default function HRLeavesPage() {
   const pendingCount = leaves?.filter((l: any) => l.status === 'PENDING').length ?? 0
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Leave Management</h1>
@@ -201,6 +202,6 @@ export default function HRLeavesPage() {
           </table>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

@@ -9,6 +9,8 @@ import { Users, TrendingDown, TrendingUp, CalendarDays } from 'lucide-react'
 import { format, subDays, parseISO, eachDayOfInterval } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
 
 const RISK_COLORS = ['#10B981', '#F59E0B', '#EF4444']
 
@@ -94,7 +96,7 @@ export default function HRInsightsPage() {
   })
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Workforce Insights</h1>
@@ -181,6 +183,6 @@ export default function HRInsightsPage() {
           )}
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

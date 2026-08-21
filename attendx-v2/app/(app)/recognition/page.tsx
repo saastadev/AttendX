@@ -7,6 +7,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
   users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown,
@@ -117,7 +118,7 @@ export default function RecognitionPage() {
   })
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Recognition & Kudos</h1>
@@ -346,6 +347,6 @@ export default function RecognitionPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

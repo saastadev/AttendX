@@ -9,6 +9,7 @@ import {
 import Image from 'next/image'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 interface AttendanceItem {
   user_id: string
@@ -92,7 +93,7 @@ export default function AdminAttendancePage() {
   const stats = responseData?.stats ?? { total: 0, present: 0, completed: 0, late: 0, on_leave: 0, absent: 0 }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 'var(--space-8)' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 'var(--space-8)' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -359,6 +360,6 @@ export default function AdminAttendancePage() {
           </div>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

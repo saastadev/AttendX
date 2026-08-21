@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle, RefreshCcw, Home } from 'lucide-react'
-import Link from 'next/link'
 
 export default function GlobalError({
   error,
@@ -33,11 +32,13 @@ export default function GlobalError({
           boxShadow: '12px 12px 30px #C2C6D6, -12px -12px 30px #FFFFFF',
           padding: '2.5rem',
           textAlign: 'center',
+          animation: 'errFadeIn 0.5s cubic-bezier(0.22,1,0.36,1) both',
         }}>
           <div style={{
             width: 72, height: 72, borderRadius: 20, margin: '0 auto 1.5rem',
             background: 'rgba(239,68,68,0.1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'errPulse 2.5s ease-in-out infinite',
           }}>
             <AlertTriangle size={36} color="#DC2626" />
           </div>
@@ -92,7 +93,18 @@ export default function GlobalError({
             </a>
           </div>
         </div>
+        <style>{`
+          @keyframes errFadeIn {
+            from { opacity: 0; transform: translateY(24px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes errPulse {
+            0%, 100% { transform: scale(1); }
+            50%       { transform: scale(1.08); }
+          }
+        `}</style>
       </body>
     </html>
   )
 }
+

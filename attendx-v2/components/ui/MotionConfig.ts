@@ -37,3 +37,17 @@ export const PAGE_TRANSITION = {
   exit:      { opacity: 0, y: -6 },
   transition: SPRING_GENTLE,
 }
+
+/* Slide from bottom (bottom sheet / modals) */
+export const SLIDE_UP = {
+  hidden:  { opacity: 0, y: '100%' },
+  visible: { opacity: 1, y: 0, transition: SPRING_GENTLE },
+  exit:    { opacity: 0, y: '100%', transition: { duration: 0.2 } },
+}
+
+/* Micro-interaction tap effect */
+export const PRESS_TAP = {
+  scale: 0.97,
+  transition: { duration: 0.1 },
+}
+

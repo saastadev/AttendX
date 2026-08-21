@@ -8,10 +8,11 @@ import {
   LayoutDashboard, Clock, CalendarDays, MessageSquareMore,
   User, Bell, Trophy, FileText, BarChart3, Shield,
   Users, Settings, ChevronRight, WifiOff, RefreshCcw,
-  Search, Camera,
+  Search, Camera, Sun, Moon,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
+import { useTheme } from '@/hooks/useTheme'
 import type { UserRole } from '@/types/database'
 
 /* Alias must be defined before SIDEBAR_NAV uses it */
@@ -234,6 +235,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(s => s.user)
   const isLoading = useAuthStore(s => s.isLoading)
   const { isOnline, pendingCount } = useOfflineSync()
+  const { theme, toggleTheme } = useTheme()
   const [cmdOpen, setCmdOpen] = useState(false)
 
   // Redirect if unauthenticated
@@ -412,6 +414,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   {user.email}
                 </div>
               </div>
+              <button
+                onClick={toggleTheme}
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                style={{
+                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                  border: 'none', background: 'var(--neu-bg)',
+                  boxShadow: 'var(--elev-1)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-secondary)', transition: 'all var(--dur-fast)'
+                }}
+              >
+                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+              </button>
             </div>
           </div>
         </motion.nav>

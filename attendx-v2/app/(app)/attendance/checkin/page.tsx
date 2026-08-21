@@ -485,6 +485,7 @@ export default function CheckInPage() {
               justifyContent: 'center',
               pointerEvents: 'none',
             }} aria-hidden="true">
+              <div className="scan-line" />
               <div style={{
                 width: 200, height: 220,
                 borderRadius: '50% 50% 45% 45%',

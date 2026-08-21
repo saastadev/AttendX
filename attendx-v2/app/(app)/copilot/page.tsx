@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 type Message = {
   id: string
@@ -223,7 +224,7 @@ export default function CopilotPage() {
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', height: 'calc(100dvh - 80px)', display: 'flex', flexDirection: 'column' }}>
+    <PageWrapper style={{ maxWidth: 820, margin: '0 auto', height: 'calc(100dvh - 80px)', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)', marginBottom: 'var(--space-5)', flexShrink: 0 }}>
         <AmbientOrb thinking={thinking} />
@@ -329,6 +330,6 @@ export default function CopilotPage() {
           <Send size={18} />
         </button>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

@@ -7,6 +7,7 @@ import { Laptop, Smartphone, Shield, LogOut, Globe, Clock, CheckCircle } from 'l
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/components/ui/Toast'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import { STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
 export default function ActiveSessionsPage() {
@@ -46,7 +47,7 @@ export default function ActiveSessionsPage() {
   })
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Active Devices & Sessions</h1>
@@ -106,6 +107,6 @@ export default function ActiveSessionsPage() {
           })}
         </motion.div>
       )}
-    </div>
+    </PageWrapper>
   )
 }
