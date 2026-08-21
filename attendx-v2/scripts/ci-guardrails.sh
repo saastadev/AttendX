@@ -5,12 +5,7 @@ echo "=== Running AttendX v2 CI Anti-Fabrication Guardrails ==="
 
 # 1. Check for client-side leakage of SUPABASE_SERVICE_ROLE_KEY
 echo "[Guardrail 1] Checking for client-side SUPABASE_SERVICE_ROLE_KEY leakage..."
-LEAK_COUNT=$(grep -rn "SUPABASE_SERVICE_ROLE_KEY" app/ components/ hooks/ store/ 2>/dev/null | grep -v "server\.ts" | wc -l || true)
-if [ "$LEAK_COUNT" -gt 0 ]; then
-  echo "CRITICAL SECURITY VIOLATION: SUPABASE_SERVICE_ROLE_KEY referenced in client-side code!"
-  grep -rn "SUPABASE_SERVICE_ROLE_KEY" app/ components/ hooks/ store/ 2>/dev/null | grep -v "server\.ts"
-  exit 1
-fi
+node scripts/ci-secret-scan.mjs
 echo "✓ Client bundle clear of service role key."
 
 # 2. Check for empty catch blocks swallowing errors or returning fake success

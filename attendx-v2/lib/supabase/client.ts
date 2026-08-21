@@ -5,27 +5,20 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getSupabaseConfig } from '@/lib/env'
 
 // Browser-side singleton
 let _browserClient: SupabaseClient | null = null
 
-export function getSupabaseBrowserClient(): SupabaseClient | null {
-  if (_browserClient) {
-    return _browserClient
+export function getSupabaseBrowserClient(): SupabaseClient {
+  if (!_browserClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon'
+    _browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
   }
-
-  const config = getSupabaseConfig()
-  if (!config) {
-    console.warn('[supabase] Missing Supabase config in browser; returning null client.')
-    return null
-  }
-
-  _browserClient = createBrowserClient(config.url, config.anonKey)
   return _browserClient
 }
 
 // Alias used throughout client components
 export const supabase = typeof window !== 'undefined'
   ? getSupabaseBrowserClient()
-  : null as unknown as SupabaseClient | null
+  : null as unknown as SupabaseClient

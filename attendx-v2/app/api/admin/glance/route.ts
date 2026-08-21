@@ -1,19 +1,30 @@
+// ============================================================
+// AttendX v2 — Admin Attendance Glance API (Scope E.30)
+// Spec: docs/specs/29_31_ai_data_engine_handoff_spec.md
+// ============================================================
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import type { AttendanceGlanceMetrics } from '@/types/reporting'
 
 const ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN', 'HR'] as const
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID()
+
   try {
     const supabase = await getSupabaseServerClient()
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (!user || authErr) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'UNAUTHENTICATED' },
+        { status: 401, headers: { 'x-correlation-id': correlationId } }
+      )
     }
 
     const serviceClient = getSupabaseServiceClient()
 
-    // Resolve caller role server-side
+    // 1. Authoritative Role Verification
     const { data: roleRow } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
@@ -21,11 +32,26 @@ export async function GET(_req: NextRequest) {
       .maybeSingle()
 
     if (!roleRow || !ALLOWED_ROLES.includes(roleRow.role as any)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden: Insufficient privileges', code: 'FORBIDDEN_ROLE' },
+        { status: 403, headers: { 'x-correlation-id': correlationId } }
+      )
     }
 
-    // Try RPC first, fallback to direct query if RPC is not yet installed in Supabase
-    let glance: Record<string, number> = {
+    // 2. Execute Data Engine Canonical RPC (Strictly Zero API-Layer Math - BRD §30)
+    const { data: rpcRows, error: rpcErr } = await serviceClient.rpc('admin_attendance_glance', {
+      p_tenant_id: roleRow.tenant_id,
+    })
+
+    if (rpcErr || !rpcRows) {
+      console.error('[Admin Glance RPC Error]:', rpcErr)
+      return NextResponse.json(
+        { error: 'Data engine reporting query failed', code: 'INTERNAL_ERROR' },
+        { status: 500, headers: { 'x-correlation-id': correlationId } }
+      )
+    }
+
+    const glance: AttendanceGlanceMetrics = {
       PRESENT: 0,
       COMPLETED: 0,
       ON_LEAVE: 0,
@@ -33,43 +59,31 @@ export async function GET(_req: NextRequest) {
       TOTAL: 0,
     }
 
-    const { data, error: rpcErr } = await serviceClient.rpc('admin_attendance_glance', {
-      p_tenant_id: roleRow.tenant_id,
-    })
-
-    if (!rpcErr && data) {
-      for (const row of data) {
+    for (const row of rpcRows as Array<{ status: keyof AttendanceGlanceMetrics; employee_count: string | number }>) {
+      if (row.status in glance) {
         glance[row.status] = Number(row.employee_count)
       }
-    } else {
-      // Fallback: direct table queries
-      const today = new Date().toISOString().split('T')[0]
-      const [profilesRes, recordsRes] = await Promise.all([
-        serviceClient.from('profiles').select('id').eq('tenant_id', roleRow.tenant_id).eq('is_active', true),
-        serviceClient.from('attendance_records').select('employee_id, clock_in_at, clock_out_at, status').eq('tenant_id', roleRow.tenant_id).eq('date', today),
-      ])
-
-      const total = profilesRes.data?.length ?? 0
-      const records = (recordsRes.data ?? []) as any[]
-      const present = records.filter((r: any) => r.clock_in_at && !r.clock_out_at).length
-      const completed = records.filter((r: any) => r.clock_out_at).length
-      const onLeave = records.filter((r: any) => r.status === 'ON_LEAVE').length
-      const absent = Math.max(0, total - (present + completed + onLeave))
-
-      glance = { PRESENT: present, COMPLETED: completed, ON_LEAVE: onLeave, ABSENT: absent, TOTAL: total }
     }
 
     return NextResponse.json(
-      { glance },
+      {
+        success: true,
+        tenant_id: roleRow.tenant_id,
+        glance,
+      },
       {
         status: 200,
         headers: {
           'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+          'x-correlation-id': correlationId,
         },
       }
     )
   } catch (err: any) {
-    console.error('[Admin Glance] Unhandled error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('[Admin Glance API Error]:', err)
+    return NextResponse.json(
+      { error: err.message || 'Failed to retrieve attendance glance metrics', code: 'INTERNAL_ERROR' },
+      { status: 500, headers: { 'x-correlation-id': correlationId } }
+    )
   }
 }

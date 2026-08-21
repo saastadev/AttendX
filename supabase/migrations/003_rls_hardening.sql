@@ -94,6 +94,26 @@ AS $$
    LIMIT 1;
 $$;
 
+CREATE OR REPLACE FUNCTION public.has_role(VARIADIC allowed_roles user_role[])
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role() = ANY(allowed_roles), FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_role(VARIADIC allowed_roles text[])
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role()::text = ANY(allowed_roles), FALSE);
+$$;
+
 CREATE OR REPLACE FUNCTION public.has_role(allowed_roles user_role[])
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -102,6 +122,16 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
   SELECT COALESCE(public.get_my_role() = ANY(allowed_roles), FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_role(allowed_roles text[])
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT COALESCE(public.get_my_role()::text = ANY(allowed_roles), FALSE);
 $$;
 
 -- ------------------------------------------------------------

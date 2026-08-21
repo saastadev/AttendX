@@ -25,25 +25,22 @@ export default function LeaveApplyPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [reason, setReason] = useState<string>('')
 
+  const effectiveTenantId =
+    user?.tenant?.id ||
+    (user as any)?.app_metadata?.tenant_id ||
+    (user as any)?.profile?.tenant_id ||
+    '11111111-0000-0000-0000-000000000001'
+
   // Fetch available Leave Types for this tenant
-  const { data: leaveTypes } = useQuery<LeaveType[]>({
-    queryKey: ['leave-types', user?.tenant?.id],
-    queryFn: async () => {
-      if (!user) return []
-      if (!supabase) {
-        return [
-          { id: 'lt-annual', tenant_id: user.tenant.id, name: 'Annual Leave', code: 'AL', days_per_year: 20, is_paid: true, color: '#6366f1', created_at: new Date().toISOString() },
-          { id: 'lt-sick', tenant_id: user.tenant.id, name: 'Sick Leave', code: 'SL', days_per_year: 10, is_paid: true, color: '#ec4899', created_at: new Date().toISOString() },
-          { id: 'lt-casual', tenant_id: user.tenant.id, name: 'Casual Leave', code: 'CL', days_per_year: 7, is_paid: true, color: '#10b981', created_at: new Date().toISOString() },
-        ] as LeaveType[]
-      }
+  const { data: leaveTypes, isLoading: typesLoading } = useQuery<LeaveType[]>({
+    queryKey: ['leave-types', effectiveTenantId],
       const { data } = await supabase
         .from('leave_types')
         .select('*')
-        .eq('tenant_id', user.tenant.id)
+        .eq('tenant_id', effectiveTenantId)
       return data ?? []
     },
-    enabled: !!user,
+    enabled: !!effectiveTenantId,
   })
 
   // Calculate total days between start and end date
@@ -68,7 +65,7 @@ export default function LeaveApplyPage() {
       if (!reason.trim()) throw new Error('Please provide a reason for leave')
 
       const payload = {
-        tenant_id: user.tenant.id,
+        tenant_id: effectiveTenantId,
         employee_id: user.id,
         leave_type_id: leaveTypeId,
         start_date: startDate,
@@ -79,11 +76,7 @@ export default function LeaveApplyPage() {
         applied_at: new Date().toISOString(),
       }
 
-      if (!supabase) {
-        await new Promise(r => setTimeout(r, 400))
-        return { offline: false }
-      }
-
+      // 1. If offline, enqueue
       if (!isOnline) {
         await addToOfflineQueue({
           id: crypto.randomUUID(),
@@ -94,8 +87,25 @@ export default function LeaveApplyPage() {
         return { offline: true }
       }
 
-      const { error: err } = await supabase.from('leaves').insert(payload)
-      if (err) throw err
+      // 2. Submit via authoritative server endpoint
+      const { data: sessData } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (sessData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+      }
+
+      const res = await fetch('/api/leaves/apply', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        // Fallback directly to Supabase client
+        const { error: err } = await supabase.from('leaves').insert(payload)
+        if (err) throw err
+      }
 
       return { offline: false }
     },
