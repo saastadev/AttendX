@@ -4,29 +4,51 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, ChevronDown, CheckCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { SPRING_GENTLE, SPRING_BOUNCY, SPRING_STIFF, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
-/* ---- CSS 3D Animated Hero ---- */
+/* ---- Mobile Brand Strip (shown on mobile instead of full hero) ---- */
+function MobileBrandStrip() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: 'calc(var(--space-5) + env(safe-area-inset-top, 0px)) var(--space-5) var(--space-5)',
+      borderBottom: '1px solid rgba(128,128,180,0.08)',
+      marginBottom: 'var(--space-2)',
+    }} aria-label="AttendX branding">
+      <div style={{
+        width: 40, height: 40, borderRadius: 11,
+        background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: 'var(--elev-accent)', flexShrink: 0,
+      }}>
+        <svg width="22" height="22" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+          <rect x="6" y="4" width="24" height="28" rx="4" fill="white" fillOpacity="0.9"/>
+          <rect x="10" y="10" width="10" height="2" rx="1" fill="var(--accent)"/>
+          <rect x="10" y="15" width="16" height="2" rx="1" fill="var(--accent)"/>
+          <rect x="10" y="20" width="12" height="2" rx="1" fill="var(--accent)"/>
+        </svg>
+      </div>
+      <div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>AttendX</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Workforce Platform</div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- Auth Hero (desktop only) ---- */
 function AuthHero() {
   return (
     <div className="auth-hero" role="complementary" aria-label="AttendX hero">
-      {/* Animated gradient mesh background */}
       <div className="gradient-mesh" aria-hidden="true" />
-
-      {/* Floating 3D card stack (pure CSS 3D) */}
-      <div aria-hidden="true" style={{
-        position: 'relative', width: 260, height: 280,
-        perspective: 800, marginBottom: '1.5rem',
-      }}>
+      <div aria-hidden="true" style={{ position: 'relative', width: 260, height: 280, perspective: 800, marginBottom: '1.5rem' }}>
         {/* Back card */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: 24,
-          border: '1px solid rgba(255,255,255,0.2)',
+          background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
+          borderRadius: 24, border: '1px solid rgba(255,255,255,0.2)',
           transform: 'perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px)',
           animation: 'hero-float-back 6s ease-in-out infinite',
           boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
@@ -37,45 +59,29 @@ function AuthHero() {
             <div style={{ height: 8, background: 'rgba(255,255,255,0.25)', borderRadius: 999, width: '60%' }} />
           </div>
         </div>
-
         {/* Front card */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(255,255,255,0.18)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: 24,
-          border: '1px solid rgba(255,255,255,0.35)',
+          background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(16px)',
+          borderRadius: 24, border: '1px solid rgba(255,255,255,0.35)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 32px 80px rgba(0,0,0,0.25)',
           transform: 'perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(20px)',
           animation: 'hero-float-front 6s ease-in-out infinite',
           overflow: 'hidden',
         }}>
-          {/* Inner refraction highlight */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent)',
-          }} />
-
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent)' }} />
           <div style={{ padding: 28 }}>
-            {/* Avatar + name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.125rem', fontWeight: 800, color: '#4F46E5',
-              }}>A</div>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.125rem', fontWeight: 800, color: '#4F46E5' }}>A</div>
               <div>
                 <div style={{ height: 12, background: 'rgba(255,255,255,0.9)', borderRadius: 999, width: 100, marginBottom: 6 }} />
-                <div style={{ height: 8,  background: 'rgba(255,255,255,0.5)', borderRadius: 999, width: 70 }} />
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 999, width: 70 }} />
               </div>
             </div>
-
-            {/* Status rows */}
             {[
               { label: 'Clock In', color: '#10B981', pct: '100%' },
-              { label: 'Leave',    color: '#F59E0B', pct: '60%' },
-              { label: 'Goals',    color: 'rgba(255,255,255,0.7)', pct: '80%' },
+              { label: 'Leave', color: '#F59E0B', pct: '60%' },
+              { label: 'Goals', color: 'rgba(255,255,255,0.7)', pct: '80%' },
             ].map(row => (
               <div key={row.label} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -90,45 +96,37 @@ function AuthHero() {
           </div>
         </div>
       </div>
-
-      {/* Hero text */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         <h2 className="auth-hero-title">Your Workforce,<br/>Intelligently Managed</h2>
-        <p className="auth-hero-subtitle">
-          Clock in, manage leave, track performance — all in one beautifully crafted platform.
-        </p>
+        <p className="auth-hero-subtitle">Clock in, manage leave, track performance — all in one beautifully crafted platform.</p>
       </div>
-
-      {/* Floating stat bubbles */}
-      {[
-        { label: '12k+ Employees', top: '18%', left: '5%',  delay: '0s' },
-        { label: '99.9% Uptime',   top: '72%', right: '5%', delay: '1.4s' },
-        { label: 'PWA Offline',    top: '48%', left: '0%',  delay: '0.7s' },
-      ].map(b => (
-        <div key={b.label} aria-hidden="true" style={{
-          position: 'absolute', top: b.top, left: b.left, right: (b as any).right,
-          background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.25)',
-          borderRadius: 999, padding: '6px 16px',
-          fontSize: '0.8125rem', fontWeight: 600, color: 'white',
-          animation: `float 4s ${b.delay} ease-in-out infinite`,
-          whiteSpace: 'nowrap',
-        }}>
-          {b.label}
-        </div>
-      ))}
-
-      <style>{`
-        @keyframes hero-float-front {
-          0%,100% { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(20px) translateY(0); }
-          50%      { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(20px) translateY(-12px); }
-        }
-        @keyframes hero-float-back {
-          0%,100% { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px) translateY(0); }
-          50%      { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px) translateY(-6px); }
-        }
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-      `}</style>
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: '18%', left: '5%',
+        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.25)',
+        borderRadius: 999, padding: '6px 16px',
+        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
+        animation: 'float 4s 0s ease-in-out infinite',
+        whiteSpace: 'nowrap',
+      }}>12k+ Employees</div>
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: '72%', right: '5%',
+        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.25)',
+        borderRadius: 999, padding: '6px 16px',
+        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
+        animation: 'float 4s 1.4s ease-in-out infinite',
+        whiteSpace: 'nowrap',
+      }}>99.9% Uptime</div>
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: '48%', left: '0%',
+        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.25)',
+        borderRadius: 999, padding: '6px 16px',
+        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
+        animation: 'float 4s 0.7s ease-in-out infinite',
+        whiteSpace: 'nowrap',
+      }}>PWA Offline</div>
     </div>
   )
 }
@@ -145,7 +143,9 @@ function LoginForm() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+  const [showDemo, setShowDemo] = useState(false)
 
   function validate() {
     const errs: typeof fieldErrors = {}
@@ -162,6 +162,47 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
+    // Bypass network if placeholder
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder')) {
+      // Mock delay
+      await new Promise(r => setTimeout(r, 600))
+      
+      const { useAuthStore } = await import('@/store/auth.store')
+      let role = 'EMPLOYEE'
+      if (cleanEmail.includes('admin')) role = 'ADMIN'
+      if (cleanEmail.includes('superadmin')) role = 'SUPERADMIN'
+      if (cleanEmail.includes('hr')) role = 'HR'
+      if (cleanEmail.includes('manager')) role = 'MANAGER'
+
+      useAuthStore.getState().setUser({
+        id: 'mock-user-123',
+        email: cleanEmail,
+        role: role as any,
+        tenant: { id: 'mock-tenant', name: 'Demo Organization', slug: 'demo', plan: 'ENTERPRISE', is_active: true } as any,
+        profile: {
+          id: 'mock-profile-123',
+          tenant_id: 'mock-tenant',
+          email: cleanEmail,
+          full_name: 'Demo User',
+          avatar_url: null,
+          phone: null,
+          is_active: true,
+          face_enrolled: false,
+          onboarding_completed: true,
+          last_seen_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as any
+      })
+      useAuthStore.getState().setInitialized(true)
+      useAuthStore.getState().setLoading(false)
+
+      setLoading(false)
+      setSuccess(true)
+      setTimeout(() => router.push(next), 600)
+      return
+    }
+
     const { error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: targetPw })
     setLoading(false)
 
@@ -170,7 +211,8 @@ function LoginForm() {
       return
     }
 
-    router.push(next)
+    setSuccess(true)
+    setTimeout(() => router.push(next), 600)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -187,8 +229,8 @@ function LoginForm() {
       initial="hidden"
       animate="visible"
     >
-      {/* Logo mark */}
-      <motion.div variants={STAGGER_ITEM} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+      {/* Logo mark (desktop shows this too) */}
+      <motion.div variants={STAGGER_ITEM} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
           background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
@@ -203,19 +245,13 @@ function LoginForm() {
           </svg>
         </div>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)' }}>
-            AttendX
-          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)' }}>AttendX</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Workforce Platform</div>
         </div>
       </motion.div>
 
-      <motion.h1 variants={STAGGER_ITEM} style={{ fontSize: 'var(--text-2xl)', marginBottom: 6, fontFamily: 'var(--font-display)', fontWeight: 800 }}>
-        Welcome back
-      </motion.h1>
-      <motion.p variants={STAGGER_ITEM} style={{ color: 'var(--text-tertiary)', marginBottom: 28, fontSize: 'var(--text-sm)' }}>
-        Sign in to your workspace
-      </motion.p>
+      <motion.h1 variants={STAGGER_ITEM} style={{ fontSize: 'var(--text-2xl)', marginBottom: 4, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Welcome back</motion.h1>
+      <motion.p variants={STAGGER_ITEM} style={{ color: 'var(--text-tertiary)', marginBottom: 24, fontSize: 'var(--text-sm)' }}>Sign in to your workspace</motion.p>
 
       <form onSubmit={handleSubmit} noValidate>
         <motion.div variants={STAGGER_ITEM} className="form-section">
@@ -242,6 +278,28 @@ function LoginForm() {
             )}
           </AnimatePresence>
 
+          {/* Success feedback */}
+          <AnimatePresence>
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={SPRING_BOUNCY}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  background: 'var(--success-light)', borderRadius: 10,
+                  border: '1px solid rgba(var(--success-rgb), 0.2)',
+                  borderLeft: '3px solid var(--success)',
+                }}
+                role="status"
+              >
+                <CheckCircle size={18} color="var(--success)" aria-hidden="true" />
+                <span style={{ fontSize: '0.875rem', color: 'var(--success-dark)', fontWeight: 600 }}>Signed in! Redirecting…</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Email */}
           <div className="input-group">
             <label className="input-label" htmlFor="login-email">Work Email</label>
@@ -257,6 +315,7 @@ function LoginForm() {
                 autoComplete="email"
                 aria-describedby={fieldErrors.email ? 'login-email-err' : undefined}
                 aria-invalid={!!fieldErrors.email}
+                style={{ height: 52 }}
               />
             </div>
             <AnimatePresence>
@@ -273,9 +332,7 @@ function LoginForm() {
           <div className="input-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label className="input-label" htmlFor="login-password">Password</label>
-              <Link href="/auth/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--accent)', fontWeight: 500 }}>
-                Forgot?
-              </Link>
+              <Link href="/auth/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--accent)', fontWeight: 500 }}>Forgot?</Link>
             </div>
             <div className="input-wrap">
               <Lock size={18} className="input-icon" aria-hidden="true" />
@@ -283,7 +340,7 @@ function LoginForm() {
                 id="login-password"
                 type={showPw ? 'text' : 'password'}
                 className="input has-icon-left"
-                style={{ paddingRight: 44 }}
+                style={{ paddingRight: 52, height: 52 }}
                 placeholder="••••••••"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })) }}
@@ -296,12 +353,14 @@ function LoginForm() {
                 onClick={() => setShowPw(v => !v)}
                 aria-label={showPw ? 'Hide password' : 'Show password'}
                 style={{
-                  position: 'absolute', right: 12, background: 'none', border: 'none',
-                  cursor: 'pointer', color: 'var(--text-tertiary)', padding: 4,
+                  position: 'absolute', right: 0, top: 0, bottom: 0,
+                  width: 52, background: 'none', border: 'none',
+                  cursor: 'pointer', color: 'var(--text-tertiary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                 }}
               >
-                {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPw ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
               </button>
             </div>
             <AnimatePresence>
@@ -314,63 +373,81 @@ function LoginForm() {
             </AnimatePresence>
           </div>
 
+          {/* Submit */}
           <motion.button
             type="submit"
-            disabled={loading}
+            id="login-submit"
+            disabled={loading || success}
             className={`btn btn-primary btn-block ${loading ? 'btn-loading' : ''}`}
-            style={{ height: 52, fontSize: '1rem' }}
+            style={{ height: 56, fontSize: '1rem', borderRadius: 'var(--radius-lg)' }}
             whileTap={{ scale: 0.98 }}
             transition={SPRING_STIFF}
           >
-            {!loading && <LogIn size={18} aria-hidden="true" />}
-            {loading ? 'Signing in…' : 'Sign In'}
+            {!loading && !success && <LogIn size={18} aria-hidden="true" />}
+            {success ? 'Signed in!' : loading ? 'Signing in…' : 'Sign In'}
           </motion.button>
 
           <p style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>
-            Don&apos;t have an account?{' '}
-            <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>
-              Sign up
-            </Link>
+            Don't have an account?{' '}
+            <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign up</Link>
           </p>
 
-          {/* Quick Demo Login Credentials */}
-          <div style={{
-            marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-subtle)',
-          }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Quick Demo Accounts (Password: Password123!)
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {[
-                { role: 'Super Admin', email: 'superadmin@acme-tech.com' },
-                { role: 'Admin', email: 'admin@acme-tech.com' },
-                { role: 'HR', email: 'hr@acme-tech.com' },
-                { role: 'Employee', email: 'employee@acme-tech.com' },
-                { role: 'Sridhar', email: 'hitlergaripellam05@gmail.com' },
-              ].map(demo => (
-                <button
-                  key={demo.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(demo.email)
-                    setPassword('Password123!')
-                    doSignIn(demo.email, 'Password123!')
-                  }}
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-card-hover)',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
+          {/* Demo credentials (collapsible) */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowDemo(v => !v)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600,
+                borderTop: '1px solid rgba(128,128,180,0.10)',
+              }}
+              aria-expanded={showDemo}
+            >
+              <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Accounts</span>
+              <motion.div animate={{ rotate: showDemo ? 180 : 0 }} transition={SPRING_GENTLE}>
+                <ChevronDown size={14} aria-hidden="true" />
+              </motion.div>
+            </button>
+            <AnimatePresence>
+              {showDemo && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={SPRING_GENTLE}
+                  style={{ overflow: 'hidden' }}
                 >
-                  {demo.role}
-                </button>
-              ))}
-            </div>
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: 8 }}>Password: Password123!</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {[
+                      { role: 'Super Admin', email: 'superadmin@acme-tech.com' },
+                      { role: 'Admin', email: 'admin@acme-tech.com' },
+                      { role: 'HR', email: 'hr@acme-tech.com' },
+                      { role: 'Employee', email: 'employee@acme-tech.com' },
+                      { role: 'Sridhar', email: 'hitlergaripellam05@gmail.com' },
+                    ].map(demo => (
+                      <button
+                        key={demo.email}
+                        type="button"
+                        onClick={() => { setEmail(demo.email); setPassword('Password123!'); doSignIn(demo.email, 'Password123!') }}
+                        style={{
+                          fontSize: '0.75rem', padding: '5px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid rgba(128,128,180,0.15)',
+                          background: 'var(--neu-bg-deep)',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer', fontWeight: 500,
+                          transition: 'all var(--dur-fast)',
+                          minHeight: 32,
+                        }}
+                      >{demo.role}</button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       </form>
@@ -378,7 +455,6 @@ function LoginForm() {
   )
 }
 
-/* This wraps the part that uses useSearchParams in Suspense */
 function LoginFormWithSuspense() {
   return (
     <Suspense fallback={<div className="loading-spinner" aria-label="Loading form…" />}>
@@ -391,23 +467,10 @@ export default function LoginPage() {
   return (
     <div className="auth-shell">
       <AuthHero />
-      <div className="auth-hero-mobile mobile-only" style={{ display: 'none' }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
-        }}>
-          <svg width="24" height="24" viewBox="0 0 36 36" fill="none">
-            <rect x="6" y="4" width="24" height="28" rx="4" fill="white" fillOpacity="0.9"/>
-            <rect x="10" y="10" width="10" height="2" rx="1" fill="#4F46E5"/>
-            <rect x="10" y="15" width="16" height="2" rx="1" fill="#4F46E5"/>
-            <rect x="10" y="20" width="12" height="2" rx="1" fill="#4F46E5"/>
-          </svg>
+      <div className="auth-form-panel" style={{ overflowY: 'auto' }}>
+        <div className="auth-mobile-brand">
+          <MobileBrandStrip />
         </div>
-        <h2 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', fontWeight: 800 }}>AttendX</h2>
-        <p style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: 4 }}>Workforce Intelligence Platform</p>
-      </div>
-      <div className="auth-form-panel">
         <LoginFormWithSuspense />
       </div>
     </div>
