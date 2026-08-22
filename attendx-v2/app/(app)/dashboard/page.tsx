@@ -10,6 +10,8 @@ import {
 import Link from 'next/link'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { AttendanceRecord, Announcement, Notification, LeaveBalance } from '@/types/database'
 
 // ---- Skeleton loaders ----
@@ -356,7 +358,7 @@ export default function DashboardPage() {
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
             <div className="neu-stat-card-value">
-              {totalLeaveAvailable != null ? totalLeaveAvailable.toFixed(1) : '0.0'}
+              <AnimatedValue value={totalLeaveAvailable ?? 0} formatter={(val) => val.toFixed(1)} />
             </div>
             <div className="neu-stat-card-label">Leave Days Available</div>
           </div>
@@ -391,7 +393,9 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
-            <div className="neu-stat-card-value">{recognitionPoints}</div>
+            <div className="neu-stat-card-value">
+              <AnimatedValue value={recognitionPoints ?? 0} />
+            </div>
             <div className="neu-stat-card-label">Recognition Points</div>
           </div>
         </Link>
@@ -405,7 +409,9 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
-            <div className="neu-stat-card-value">{activeGoalsCount}</div>
+            <div className="neu-stat-card-value">
+              <AnimatedValue value={activeGoalsCount ?? 0} />
+            </div>
             <div className="neu-stat-card-label">Active Goals</div>
           </div>
         </Link>

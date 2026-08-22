@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { CalendarDays, Plus, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Leave, LeaveBalance, LeaveType } from '@/types/database'
 
 export default function LeavePage() {
@@ -42,7 +45,7 @@ export default function LeavePage() {
   })
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Leave Management</h1>
@@ -80,7 +83,7 @@ export default function LeavePage() {
                 </div>
 
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  {available} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-tertiary)' }}>/ {b.entitled_days} days left</span>
+                  <AnimatedValue value={available} /> <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-tertiary)' }}>/ {b.entitled_days} days left</span>
                 </div>
 
                 <div className="progress-track progress-track-sm" style={{ marginTop: 'var(--space-3)' }}>
@@ -106,72 +109,79 @@ export default function LeavePage() {
       {/* Leave Application History */}
       <h2 style={{ fontSize: '1.25rem', marginBottom: 'var(--space-4)' }}>Leave Application History</h2>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Dates</th>
-                <th>Days</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Applied On</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leavesLoading ? (
+      {leaves?.length === 0 && !leavesLoading ? (
+        <EmptyState
+          variant="leaves"
+          title="No leave requests yet"
+          body="Submit your first leave request to get approval from your manager."
+          action={
+            <Link href="/leave/apply" className="btn btn-primary" style={{ marginTop: 12 }}>
+              Apply for Leave
+            </Link>
+          }
+        />
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                    <div className="skeleton skeleton-text" style={{ width: '40%', margin: '0 auto' }} />
-                  </td>
+                  <th>Type</th>
+                  <th>Dates</th>
+                  <th>Days</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                  <th>Applied On</th>
                 </tr>
-              ) : leaves?.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
-                    No leave requests submitted yet
-                  </td>
-                </tr>
-              ) : (
-                leaves?.map(l => {
-                  const lt = (l as any).leave_type as LeaveType
-                  const badgeClass =
-                    l.status === 'APPROVED' ? 'badge-approved' :
-                    l.status === 'REJECTED' ? 'badge-rejected' :
-                    l.status === 'PENDING'  ? 'badge-pending' : 'badge-neutral'
+              </thead>
+              <tbody>
+                {leavesLoading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                      <div className="skeleton skeleton-text" style={{ width: '40%', margin: '0 auto' }} />
+                    </td>
+                  </tr>
+                ) : (
+                  leaves?.map(l => {
+                    const lt = (l as any).leave_type as LeaveType
+                    const badgeClass =
+                      l.status === 'APPROVED' ? 'badge-approved' :
+                      l.status === 'REJECTED' ? 'badge-rejected' :
+                      l.status === 'PENDING'  ? 'badge-pending' : 'badge-neutral'
 
-                  return (
-                    <tr key={l.id}>
-                      <td>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {lt?.name ?? 'Leave'}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                        {l.start_date} → {l.end_date}
-                      </td>
-                      <td style={{ fontWeight: 700 }}>
-                        {l.total_days} {l.total_days === 1 ? 'day' : 'days'}
-                      </td>
-                      <td style={{ maxWidth: 240 }} className="truncate" title={l.reason}>
-                        {l.reason}
-                      </td>
-                      <td>
-                        <span className={`badge ${badgeClass}`}>
-                          {l.status}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-                        {new Date(l.applied_at || l.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+                    return (
+                      <tr key={l.id}>
+                        <td>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {lt?.name ?? 'Leave'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {l.start_date} → {l.end_date}
+                        </td>
+                        <td style={{ fontWeight: 700 }}>
+                          {l.total_days} {l.total_days === 1 ? 'day' : 'days'}
+                        </td>
+                        <td style={{ maxWidth: 240 }} className="truncate" title={l.reason}>
+                          {l.reason}
+                        </td>
+                        <td>
+                          <span className={`badge ${badgeClass}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
+                          {new Date(l.applied_at || l.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </PageWrapper>
   )
 }

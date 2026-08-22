@@ -1,20 +1,25 @@
 /* Global not-found page — branded 404 */
-import Link from 'next/link'
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = { title: 'Page Not Found | AttendX' }
+import Link from 'next/link'
+import { motion } from 'framer-motion'
 
 export default function NotFound() {
   return (
-    <div style={{
-      minHeight: '100dvh',
-      background: 'var(--neu-bg)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: '2rem',
-      gap: '1.5rem',
-      textAlign: 'center',
-    }}>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        minHeight: '100dvh',
+        background: 'var(--neu-bg)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '2rem',
+        gap: '1.5rem',
+        textAlign: 'center',
+      }}
+    >
       {/* Subtle CSS 3D card tilt — no WebGL needed */}
       <div style={{
         width: 160, height: 160,
@@ -62,6 +67,6 @@ export default function NotFound() {
       <style>{`
         @keyframes float { 0%,100%{transform:perspective(600px) rotateX(8deg) rotateY(-8deg) translateY(0)} 50%{transform:perspective(600px) rotateX(8deg) rotateY(-8deg) translateY(-10px)} }
       `}</style>
-    </div>
+    </motion.div>
   )
 }

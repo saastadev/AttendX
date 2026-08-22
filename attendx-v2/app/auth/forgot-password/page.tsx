@@ -60,6 +60,22 @@ export default function ForgotPasswordPage() {
   return (
     <div className="auth-shell">
       <ForgotHero />
+      <div className="auth-hero-mobile mobile-only" style={{ display: 'none' }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+        }}>
+          <svg width="24" height="24" viewBox="0 0 36 36" fill="none">
+            <rect x="6" y="4" width="24" height="28" rx="4" fill="white" fillOpacity="0.9"/>
+            <rect x="10" y="10" width="10" height="2" rx="1" fill="#4F46E5"/>
+            <rect x="10" y="15" width="16" height="2" rx="1" fill="#4F46E5"/>
+            <rect x="10" y="20" width="12" height="2" rx="1" fill="#4F46E5"/>
+          </svg>
+        </div>
+        <h2 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', fontWeight: 800 }}>Reset Password</h2>
+        <p style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: 4 }}>AttendX Security</p>
+      </div>
 
       <div className="auth-form-panel">
         <motion.div

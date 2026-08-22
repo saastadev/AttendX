@@ -10,6 +10,7 @@ import {
   User, Mail, Phone, Building, Shield, Calendar,
   Sun, Moon, Eye, LogOut, CheckCircle, Save
 } from 'lucide-react'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 export default function ProfilePage() {
   const user = useAuthStore(s => s.user)
@@ -42,7 +43,7 @@ export default function ProfilePage() {
   if (!user) return null
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 860, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">My Profile</h1>
@@ -190,6 +191,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

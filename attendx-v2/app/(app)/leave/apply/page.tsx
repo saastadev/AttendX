@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { addToOfflineQueue } from '@/lib/offline/queue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { LeaveType } from '@/types/database'
 
 export default function LeaveApplyPage() {
@@ -104,7 +105,7 @@ export default function LeaveApplyPage() {
   })
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 640, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
         <button onClick={() => router.back()} className="btn btn-secondary btn-icon" aria-label="Go back">
           <ArrowLeft size={18} />
@@ -214,6 +215,6 @@ export default function LeaveApplyPage() {
           </div>
         </form>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

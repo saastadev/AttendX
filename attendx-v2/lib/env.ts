@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a valid URL'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a valid URL').optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required').optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
@@ -12,6 +12,21 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 })
+
+export function getSupabaseConfig(): { url: string; anonKey: string } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+
+  if (!url || !anonKey) {
+    return null
+  }
+
+  if (url.includes('placeholder.supabase.co') || anonKey.includes('placeholder')) {
+    return null
+  }
+
+  return { url, anonKey }
+}
 
 export function validateEnv() {
   const parsed = envSchema.safeParse({
@@ -24,20 +39,21 @@ export function validateEnv() {
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     VAPID_SUBJECT: process.env.VAPID_SUBJECT,
-    NODE_ENV: process.env.NODE_ENV,
+    NODE_ENV: process.env.NODE_ENV ?? 'development',
   })
 
-  if (!parsed.success) {
+  const isProduction = (process.env.NODE_ENV ?? 'development') === 'production'
+  if (!parsed.success && isProduction) {
     const issues = parsed.error.issues.map(i => `  - ${i.path.join('.')}: ${i.message}`).join('\n')
     console.error(`❌ [ENV ERROR] Invalid or missing environment variables:\n${issues}`)
   }
 
-  // Check for placeholder URL
+  // In local development, missing Supabase credentials are allowed to fall back to a no-auth mode.
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   if (url.includes('placeholder.supabase.co')) {
     console.warn(
       `⚠️ [ENV WARNING] NEXT_PUBLIC_SUPABASE_URL is set to a placeholder string ("${url}"). ` +
-      `Local mock auth mode will be active.`
+      `Local no-auth mode is active.`
     )
   }
 

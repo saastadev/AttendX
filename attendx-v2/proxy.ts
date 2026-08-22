@@ -5,6 +5,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseConfig } from '@/lib/env'
 
 const PUBLIC_ROUTES = [
   '/auth/login',
@@ -24,9 +25,15 @@ const ROLE_ROUTES: Record<string, string[]> = {
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  const supabaseConfig = getSupabaseConfig()
+  if (!supabaseConfig) {
+    console.warn('[proxy] Supabase environment is not configured; skipping auth enforcement for this request.')
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.anonKey,
     {
       cookies: {
         getAll() {

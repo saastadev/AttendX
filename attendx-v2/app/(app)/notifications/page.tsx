@@ -7,6 +7,8 @@ import { formatDistanceToNow, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Notification } from '@/types/database'
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -79,7 +81,7 @@ export default function NotificationsPage() {
   })
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 760, margin: '0 auto' }}>
       {/* Header */}
       <div className="page-header">
         <div>
@@ -129,11 +131,11 @@ export default function NotificationsPage() {
             </div>
           ))
         ) : notifications?.length === 0 ? (
-          <div className="empty-state">
-            <BellOff size={48} color="var(--text-tertiary)" />
-            <h3>No notifications</h3>
-            <p>You're up to date. Check back later!</p>
-          </div>
+          <EmptyState
+            variant="notifications"
+            title="All caught up!"
+            body="You have no notifications right now. Check back later."
+          />
         ) : (
           notifications?.map(n => (
             <div
@@ -190,6 +192,6 @@ export default function NotificationsPage() {
           ))
         )}
       </div>
-    </div>
+    </PageWrapper>
   )
 }

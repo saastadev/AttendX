@@ -9,6 +9,7 @@ import {
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { Profile, UserRole, AuditLogEntry } from '@/types/database'
 
 interface UserWithRole extends Profile {
@@ -139,7 +140,7 @@ export default function AdminUsersPage() {
   })
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       {/* Page Header */}
       <div className="page-header">
         <div>
@@ -488,6 +489,6 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

@@ -6,6 +6,7 @@ import { Building, Palette, Sliders, Save, CheckCircle, Shield, Sparkles } from 
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 export default function AdminSettingsPage() {
   const supabase = getSupabaseBrowserClient()
@@ -65,7 +66,7 @@ export default function AdminSettingsPage() {
   })
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 900, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Organization & Branding</h1>
@@ -174,6 +175,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

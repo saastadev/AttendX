@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { SPRING_GENTLE } from '@/components/ui/MotionConfig'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 
 const STEPS = [
   { id: 1, title: 'Company Details', icon: Building2 },
@@ -68,7 +69,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ maxWidth: 680, margin: '2rem auto', padding: '0 1rem' }}>
+    <PageWrapper style={{ maxWidth: 680, margin: '2rem auto', padding: '0 1rem' }}>
       {/* Progress Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2.5rem', position: 'relative' }}>
         {STEPS.map((s) => {
@@ -197,6 +198,6 @@ export default function OnboardingPage() {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

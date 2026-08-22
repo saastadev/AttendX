@@ -9,6 +9,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import { STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
 type ApprovalType = 'ALL' | 'LEAVE' | 'CORRECTION'
@@ -95,7 +96,7 @@ export default function ManagerApprovalsPage() {
   const isLoading = leavesLoading || correctionsLoading
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 860, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Approvals</h1>
@@ -212,6 +213,6 @@ export default function ManagerApprovalsPage() {
           ))}
         </motion.div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

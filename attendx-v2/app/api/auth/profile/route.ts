@@ -1,10 +1,18 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseConfig } from '@/lib/env'
 
 export async function GET(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabaseConfig = getSupabaseConfig()
+  if (!supabaseConfig) {
+    return NextResponse.json(
+      { error: 'Supabase is not configured.' },
+      { status: 503 }
+    )
+  }
+
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = supabaseConfig
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   let supabaseResponse = NextResponse.next({ request })

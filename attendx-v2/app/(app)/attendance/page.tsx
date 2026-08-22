@@ -11,6 +11,8 @@ import { format, parseISO } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
 import type { AttendanceRecord } from '@/types/database'
 
 export default function AttendanceHistoryPage() {
@@ -116,7 +118,7 @@ export default function AttendanceHistoryPage() {
   const totalWorkHours = (totalWorkMinutes / 60).toFixed(1)
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       {/* Page Header */}
       <div className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
         <div>
@@ -636,6 +638,6 @@ export default function AttendanceHistoryPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Users, Search, TrendingUp, TrendingDown, AlertTriangle, Filter } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { PageWrapper } from '@/components/ui/PageWrapper'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
 
 export default function HREmployeesPage() {
   const supabase = getSupabaseBrowserClient()
@@ -39,7 +41,7 @@ export default function HREmployeesPage() {
   const highRisk = employees?.filter((e: any) => e.attrition?.[0]?.risk_level === 'HIGH').length ?? 0
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <PageWrapper style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Employee Directory</h1>
@@ -148,6 +150,6 @@ export default function HREmployeesPage() {
           </table>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   )
 }
