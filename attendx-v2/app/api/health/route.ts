@@ -22,6 +22,16 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseServiceClient()
+    if (!supabase) {
+      return NextResponse.json({
+        status: 'healthy',
+        mode: 'local_fallback',
+        database: 'not_configured',
+        latency_ms: Date.now() - startTime,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
     const { data, error } = await supabase.from('tenants').select('id').limit(1)
     const latency = Date.now() - startTime
 

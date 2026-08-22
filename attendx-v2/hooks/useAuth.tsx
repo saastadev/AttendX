@@ -19,6 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, clearUser, setLoading, setInitialized } = useAuthStore()
 
   const loadUserProfile = useCallback(async (userId: string): Promise<AuthUser | null> => {
+    if (!supabase) return null
+
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const headers: Record<string, string> = {}
@@ -94,6 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false)
+      setInitialized(true)
+      return
+    }
+
     // Initial session check
     const initAuth = async () => {
       try {
@@ -144,6 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, loadUserProfile, setUser, clearUser, setLoading, setInitialized, applyTenantBranding])
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      return {
+        error: 'Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      }
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -161,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   const signOut = useCallback(async () => {
+    if (!supabase) return
     await supabase.auth.signOut()
   }, [supabase])
 
@@ -170,6 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName: string,
     tenantSlug: string
   ) => {
+    if (!supabase) {
+      return {
+        error: 'Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      }
+    }
+
     // Find tenant by slug first
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
@@ -197,6 +218,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   const resetPassword = useCallback(async (email: string) => {
+    if (!supabase) {
+      return {
+        error: 'Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      }
+    }
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
     })
