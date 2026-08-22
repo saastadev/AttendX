@@ -68,14 +68,9 @@ export default function RootLayout({
       data-theme="light"
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${jakarta.variable}`}
-      suppressHydrationWarning // for theme switching
+      suppressHydrationWarning
     >
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-      </head>
-      <body>
+      <body suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>
