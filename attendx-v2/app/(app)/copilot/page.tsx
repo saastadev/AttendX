@@ -181,7 +181,11 @@ export default function CopilotPage() {
 
     try {
       const supabase = getSupabaseBrowserClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      let session = null
+      if (supabase) {
+        const { data } = await supabase.auth.getSession()
+        session = data.session
+      }
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (session?.access_token) {

@@ -38,6 +38,11 @@ export default function ResetPasswordPage() {
   const onSubmit = async (data: ResetFormData) => {
     setServerError(null)
 
+    if (!supabase) {
+      setServerError('Authentication client is unavailable. Please check your Supabase configuration.')
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({
       password: data.password,
     })
