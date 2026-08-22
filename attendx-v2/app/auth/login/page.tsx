@@ -162,8 +162,8 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
-    // Bypass network if placeholder
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder')) {
+    // Bypass network if placeholder or no supabase client configured
+    if (!supabase || process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
       // Mock delay
       await new Promise(r => setTimeout(r, 600))
       
@@ -183,7 +183,7 @@ function LoginForm() {
           id: 'mock-profile-123',
           tenant_id: 'mock-tenant',
           email: cleanEmail,
-          full_name: 'Demo User',
+          full_name: cleanEmail.split('@')[0],
           avatar_url: null,
           phone: null,
           is_active: true,
@@ -200,6 +200,12 @@ function LoginForm() {
       setLoading(false)
       setSuccess(true)
       setTimeout(() => router.push(next), 600)
+      return
+    }
+
+    if (!supabase?.auth) {
+      setError('Authentication client is unavailable. Please check your Supabase configuration.')
+      setLoading(false)
       return
     }
 
