@@ -29,4 +29,6 @@ yarn-error.log*
 # agent & local documentation artifacts
 .agents/
 docs/
+*.pdf
+
 
