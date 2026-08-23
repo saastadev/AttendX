@@ -63,7 +63,210 @@ export interface Profile {
 }
 
 // ============================================================
-// USER ROLE
+// TENANT INVITES
+// ============================================================
+export interface TenantInvite {
+  id: string
+  tenant_id: string
+  email: string
+  role: UserRole
+  token_hash: string
+  invited_by: string
+  expires_at: string
+  used_at: string | null
+  revoked_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+  // Joined
+  tenant?: Tenant
+  inviter?: Profile
+}
+
+export interface InviteCreateRequest {
+  email: string
+  role: UserRole
+  metadata?: {
+    full_name?: string
+    department?: string
+    employee_code?: string
+  }
+}
+
+export interface InviteVerifyResponse {
+  valid: boolean
+  email?: string
+  tenant_name?: string
+  role?: UserRole
+  error?: string
+}
+
+export interface InviteAcceptRequest {
+  token: string
+  password: string
+  full_name: string
+}
+
+export interface FirstLoginPasswordRequest {
+  new_password: string
+  confirm_password: string
+}
+
+export interface FirstLoginPasswordResponse {
+  success: boolean
+  message: string
+  redirect_url?: string
+  error?: string
+}
+
+// ============================================================
+// ACTIVE SESSIONS & DEVICE TRACKING
+// ============================================================
+export interface ActiveSession {
+  id: string
+  user_id: string
+  tenant_id: string
+  auth_session_id?: string | null
+  session_token_hash: string
+  device_name: string
+  browser: string
+  os: string
+  ip_address?: string | null
+  city?: string | null
+  country?: string | null
+  user_agent: string
+  is_revoked: boolean
+  revoked_at?: string | null
+  last_active: string
+  created_at: string
+  is_current?: boolean
+}
+
+export interface SessionRevokeRequest {
+  sessionId?: string
+}
+
+export interface SessionRevokeResponse {
+  success: boolean
+  message: string
+  revokedId?: string
+  error?: string
+}
+
+// ============================================================
+// ACCOUNT DEACTIVATION & INACTIVE ACCOUNTS
+// ============================================================
+export interface UserDeactivateRequest {
+  reason?: string
+}
+
+export interface UserDeactivateResponse {
+  success: boolean
+  message: string
+  target_user_id?: string
+  is_active?: boolean
+  error?: string
+}
+
+export interface UserReactivateResponse {
+  success: boolean
+  message: string
+  target_user_id?: string
+  is_active?: boolean
+  error?: string
+}
+
+// ============================================================
+// PASSWORD RESETS & RATE LIMITS
+// ============================================================
+export interface PasswordResetRecord {
+  id: string
+  user_id: string
+  tenant_id: string
+  token_hash: string
+  expires_at: string
+  used_at?: string | null
+  ip_address?: string | null
+  user_agent?: string | null
+  created_at: string
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean
+  message: string
+  error?: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  new_password: string
+  confirm_password: string
+}
+
+export interface ResetPasswordResponse {
+  success: boolean
+  message: string
+  redirect_url?: string
+  error?: string
+}
+
+// ============================================================
+// ADMIN PROVISIONING & ROLLBACK
+// ============================================================
+export interface AdminProvisionEmployeeRequest {
+  email: string
+  full_name: string
+  role?: UserRole
+  department_id?: string | null
+  designation_id?: string | null
+  join_date?: string
+}
+
+export interface AdminProvisionEmployeeResponse {
+  success: boolean
+  user_id?: string
+  employee_code?: string
+  email?: string
+  full_name?: string
+  role?: UserRole
+  message: string
+  error?: string
+}
+
+// ============================================================
+// MULTI-TENANT SWITCHER & CONTEXT
+// ============================================================
+export interface AvailableTenant {
+  tenant_id: string
+  tenant_name: string
+  tenant_slug?: string
+  role: UserRole
+  is_current: boolean
+}
+
+export interface GetAvailableTenantsResponse {
+  tenants: AvailableTenant[]
+  requires_selection: boolean
+  error?: string
+}
+
+export interface TenantSwitchRequest {
+  target_tenant_id: string
+}
+
+export interface TenantSwitchResponse {
+  success: boolean
+  active_tenant_id?: string
+  role?: UserRole
+  redirect_url?: string
+  message?: string
+  error?: string
+}
+
 // ============================================================
 export interface UserRoleRecord {
   id: string
@@ -563,3 +766,4 @@ export interface PaginatedResponse<T> {
   pageSize: number
   hasMore: boolean
 }
+

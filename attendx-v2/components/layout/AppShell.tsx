@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useTheme } from '@/hooks/useTheme'
+import { TenantSwitcher } from '@/components/navigation/tenant-switcher'
 import type { UserRole } from '@/types/database'
 
 /* Alias must be defined before SIDEBAR_NAV uses it */
@@ -327,6 +328,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="neu-sidebar-logo-name">{user.tenant?.app_name ?? 'AttendX'}</div>
               <div className="neu-sidebar-logo-role">{user.role}</div>
             </div>
+          </div>
+
+          {/* Organization / Tenant Switcher */}
+          <div style={{ padding: '0 var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <TenantSwitcher />
           </div>
 
           {/* Search pill / cmd trigger */}

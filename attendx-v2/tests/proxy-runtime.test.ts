@@ -17,7 +17,7 @@ test('proxy does not crash when Supabase env vars are missing', async () => {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL
   delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  const { proxy } = await import('../proxy.ts')
+  const { proxy } = await import('../proxy')
   const request = new NextRequest('http://localhost:3000/dashboard')
 
   await assert.doesNotReject(async () => {

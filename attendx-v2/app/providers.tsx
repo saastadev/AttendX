@@ -32,6 +32,35 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      if (process.env.NODE_ENV === 'production') {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then((reg) => {
+            console.log('[PWA] Service Worker registered with scope:', reg.scope)
+          })
+          .catch((err) => {
+            console.warn('[PWA] Service Worker registration failed:', err.message)
+          })
+      } else {
+        // In development: unregister service workers and clear cache to avoid stale Turbopack chunk hydration
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister()
+          }
+        })
+        if ('caches' in window) {
+          caches.keys().then((names) => {
+            for (const name of names) {
+              caches.delete(name)
+            }
+          })
+        }
+      }
+    }
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

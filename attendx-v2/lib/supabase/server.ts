@@ -3,21 +3,17 @@
 // ============================================================
 
 import { createServerClient } from '@supabase/ssr'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { getSupabaseConfig } from '@/lib/env'
 
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies()
-  const config = getSupabaseConfig()
-
-  if (!config) {
-    console.warn('[supabase] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY; returning null client.')
-    return null
-  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon'
 
   return createServerClient(
-    config.url,
-    config.anonKey,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -39,17 +35,12 @@ export async function getSupabaseServerClient() {
 
 // Service role client for Edge Function-equivalent server actions
 // Only used in Server Actions / Route Handlers, never exposed to client
-export function getSupabaseServiceClient() {
-  const config = getSupabaseConfig()
-  if (!config) {
-    console.warn('[supabase] Missing Supabase configuration; service client unavailable.')
-    return null
-  }
-
-  const { createClient } = require('@supabase/supabase-js')
+export function getSupabaseServiceClient(): SupabaseClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_service'
   return createClient(
-    config.url,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || config.anonKey,
+    supabaseUrl,
+    serviceKey,
     {
       auth: {
         autoRefreshToken: false,

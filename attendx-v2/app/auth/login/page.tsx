@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, ChevronDown, CheckCircle } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, SPRING_BOUNCY, SPRING_STIFF, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
 /* ---- Mobile Brand Strip (shown on mobile instead of full hero) ---- */
@@ -97,36 +98,9 @@ function AuthHero() {
         </div>
       </div>
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <h2 className="auth-hero-title">Your Workforce,<br/>Intelligently Managed</h2>
-        <p className="auth-hero-subtitle">Clock in, manage leave, track performance — all in one beautifully crafted platform.</p>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.75rem', color: '#ffffff', marginBottom: 8, lineHeight: 1.2 }}>Next-Gen Workforce OS</h2>
+        <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9375rem', lineHeight: 1.5, maxWidth: 320 }}>Automated attendance, AI scheduling, and real-time operations in one platform.</p>
       </div>
-      <div aria-hidden="true" style={{
-        position: 'absolute', top: '18%', left: '5%',
-        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.25)',
-        borderRadius: 999, padding: '6px 16px',
-        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
-        animation: 'float 4s 0s ease-in-out infinite',
-        whiteSpace: 'nowrap',
-      }}>12k+ Employees</div>
-      <div aria-hidden="true" style={{
-        position: 'absolute', top: '72%', right: '5%',
-        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.25)',
-        borderRadius: 999, padding: '6px 16px',
-        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
-        animation: 'float 4s 1.4s ease-in-out infinite',
-        whiteSpace: 'nowrap',
-      }}>99.9% Uptime</div>
-      <div aria-hidden="true" style={{
-        position: 'absolute', top: '48%', left: '0%',
-        background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.25)',
-        borderRadius: 999, padding: '6px 16px',
-        fontSize: '0.8125rem', fontWeight: 600, color: 'white',
-        animation: 'float 4s 0.7s ease-in-out infinite',
-        whiteSpace: 'nowrap',
-      }}>PWA Offline</div>
     </div>
   )
 }
@@ -135,14 +109,20 @@ function AuthHero() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = getSupabaseBrowserClient()
-  const next = searchParams.get('next') ?? '/dashboard'
+  const next = searchParams.get('next') ?? undefined
+  const initialErrorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    initialErrorParam === 'account_deactivated'
+      ? 'Your account has been deactivated. Please contact your organization administrator.'
+      : initialErrorParam === 'session_revoked'
+      ? 'Your session was remotely revoked. Please sign in again.'
+      : ''
+  )
   const [success, setSuccess] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [showDemo, setShowDemo] = useState(false)
@@ -162,63 +142,57 @@ function LoginForm() {
     setError('')
     setLoading(true)
 
-    // Bypass network if placeholder or no supabase client configured
-    if (!supabase || process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      // Mock delay
-      await new Promise(r => setTimeout(r, 600))
-      
-      const { useAuthStore } = await import('@/store/auth.store')
-      let role = 'EMPLOYEE'
-      if (cleanEmail.includes('admin')) role = 'ADMIN'
-      if (cleanEmail.includes('superadmin')) role = 'SUPERADMIN'
-      if (cleanEmail.includes('hr')) role = 'HR'
-      if (cleanEmail.includes('manager')) role = 'MANAGER'
-
-      useAuthStore.getState().setUser({
-        id: 'mock-user-123',
-        email: cleanEmail,
-        role: role as any,
-        tenant: { id: 'mock-tenant', name: 'Demo Organization', slug: 'demo', plan: 'ENTERPRISE', is_active: true } as any,
-        profile: {
-          id: 'mock-profile-123',
-          tenant_id: 'mock-tenant',
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           email: cleanEmail,
-          full_name: cleanEmail.split('@')[0],
-          avatar_url: null,
-          phone: null,
-          is_active: true,
-          face_enrolled: false,
-          onboarding_completed: true,
-          last_seen_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        } as any
+          password: targetPw,
+          next,
+        }),
+        credentials: 'include',
       })
-      useAuthStore.getState().setInitialized(true)
-      useAuthStore.getState().setLoading(false)
 
+      const data = await res.json()
       setLoading(false)
+
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Invalid email or password.')
+        return
+      }
+
+      // Synchronize browser Supabase client session
+      if (data.tokens?.access_token && data.tokens?.refresh_token) {
+        try {
+          const supabase = getSupabaseBrowserClient()
+          await supabase.auth.setSession({
+            access_token: data.tokens.access_token,
+            refresh_token: data.tokens.refresh_token,
+          })
+        } catch (e) {
+          console.warn('Browser session sync warning:', e)
+        }
+      }
+
+      // Populate client state store
+      if (data.user && data.role) {
+        useAuthStore.getState().setUser({
+          id: data.user.id,
+          email: data.user.email,
+          role: data.role,
+          tenant: data.user.tenant_id ? { id: data.user.tenant_id, name: 'Active Workspace', slug: 'active' } as any : undefined,
+          profile: { id: data.user.id, email: data.user.email, full_name: data.user.full_name, is_active: true } as any
+        })
+      }
+
       setSuccess(true)
-      setTimeout(() => router.push(next), 600)
-      return
-    }
-
-    if (!supabase?.auth) {
-      setError('Authentication client is unavailable. Please check your Supabase configuration.')
+      const destination = data.destination || next || '/dashboard'
+      window.location.href = destination
+    } catch (err: any) {
       setLoading(false)
-      return
+      setError('Unable to reach the authentication service. Please check your connection.')
     }
-
-    const { error: authErr } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: targetPw })
-    setLoading(false)
-
-    if (authErr) {
-      setError(authErr.message)
-      return
-    }
-
-    setSuccess(true)
-    setTimeout(() => router.push(next), 600)
   }
 
   async function handleSubmit(e: React.FormEvent) {
