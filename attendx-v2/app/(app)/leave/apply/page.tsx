@@ -30,6 +30,13 @@ export default function LeaveApplyPage() {
     queryKey: ['leave-types', user?.tenant?.id],
     queryFn: async () => {
       if (!user) return []
+      if (!supabase) {
+        return [
+          { id: 'lt-annual', tenant_id: user.tenant.id, name: 'Annual Leave', code: 'AL', days_per_year: 20, is_paid: true, color: '#6366f1', created_at: new Date().toISOString() },
+          { id: 'lt-sick', tenant_id: user.tenant.id, name: 'Sick Leave', code: 'SL', days_per_year: 10, is_paid: true, color: '#ec4899', created_at: new Date().toISOString() },
+          { id: 'lt-casual', tenant_id: user.tenant.id, name: 'Casual Leave', code: 'CL', days_per_year: 7, is_paid: true, color: '#10b981', created_at: new Date().toISOString() },
+        ] as LeaveType[]
+      }
       const { data } = await supabase
         .from('leave_types')
         .select('*')
@@ -70,6 +77,11 @@ export default function LeaveApplyPage() {
         reason,
         status: 'PENDING' as const,
         applied_at: new Date().toISOString(),
+      }
+
+      if (!supabase) {
+        await new Promise(r => setTimeout(r, 400))
+        return { offline: false }
       }
 
       if (!isOnline) {

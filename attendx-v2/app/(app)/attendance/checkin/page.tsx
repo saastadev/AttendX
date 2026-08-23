@@ -175,7 +175,11 @@ export default function CheckInPage() {
       const now = new Date().toISOString()
       let selfieUrl: string | null = null
 
-      const { data: { session } } = await supabase.auth.getSession()
+      let session = null
+      if (supabase) {
+        const { data } = await supabase.auth.getSession()
+        session = data.session
+      }
       const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
       if (session?.access_token) {
         authHeaders['Authorization'] = `Bearer ${session.access_token}`
