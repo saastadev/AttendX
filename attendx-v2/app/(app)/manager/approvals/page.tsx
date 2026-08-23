@@ -296,6 +296,6 @@ export default function ManagerApprovalsPage() {
           ))}
         </motion.div>
       )}
-    </PageWrapper>
+    </div>
   )
 }

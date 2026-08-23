@@ -313,6 +313,6 @@ export default function HRLeavesPage() {
           </table>
         </div>
       </div>
-    </PageWrapper>
+    </div>
   )
 }

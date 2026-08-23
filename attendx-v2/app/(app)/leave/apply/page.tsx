@@ -34,6 +34,7 @@ export default function LeaveApplyPage() {
   // Fetch available Leave Types for this tenant
   const { data: leaveTypes, isLoading: typesLoading } = useQuery<LeaveType[]>({
     queryKey: ['leave-types', effectiveTenantId],
+    queryFn: async () => {
       const { data } = await supabase
         .from('leave_types')
         .select('*')

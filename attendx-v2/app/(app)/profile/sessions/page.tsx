@@ -183,6 +183,6 @@ export default function ActiveSessionsPage() {
           })}
         </motion.div>
       )}
-    </PageWrapper>
+    </div>
   )
 }
