@@ -54,7 +54,8 @@ ALTER TABLE public.active_sessions FORCE ROW LEVEL SECURITY;
 
 -- 4. RLS Policies
 DROP POLICY IF EXISTS active_sessions_self_select ON public.active_sessions;
-CREATE POLICY active_sessions_self_select ON public.active_sessions
+DROP POLICY IF EXISTS "active_sessions_self_select" ON public.active_sessions;
+CREATE POLICY "active_sessions_self_select" ON public.active_sessions
   FOR SELECT
   TO authenticated
   USING (
@@ -63,7 +64,8 @@ CREATE POLICY active_sessions_self_select ON public.active_sessions
   );
 
 DROP POLICY IF EXISTS active_sessions_admin_select ON public.active_sessions;
-CREATE POLICY active_sessions_admin_select ON public.active_sessions
+DROP POLICY IF EXISTS "active_sessions_admin_select" ON public.active_sessions;
+CREATE POLICY "active_sessions_admin_select" ON public.active_sessions
   FOR SELECT
   TO authenticated
   USING (
@@ -72,7 +74,8 @@ CREATE POLICY active_sessions_admin_select ON public.active_sessions
   );
 
 DROP POLICY IF EXISTS active_sessions_service_modify ON public.active_sessions;
-CREATE POLICY active_sessions_service_modify ON public.active_sessions
+DROP POLICY IF EXISTS "active_sessions_service_modify" ON public.active_sessions;
+CREATE POLICY "active_sessions_service_modify" ON public.active_sessions
   FOR ALL
   TO authenticated
   USING (current_setting('request.jwt.claim.role', true) = 'service_role')
