@@ -5,6 +5,7 @@
 
 DROP POLICY IF EXISTS "tenants_public_slug_read" ON tenants;
 
+DROP POLICY IF EXISTS "tenants_public_slug_read" ON tenants;
 CREATE POLICY "tenants_public_slug_read" ON tenants
   FOR SELECT
   USING (true);

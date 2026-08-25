@@ -35,7 +35,8 @@ ALTER TABLE public.tenant_invites FORCE ROW LEVEL SECURITY;
 
 -- RLS Policy: Only ADMIN, SUPERADMIN, and HR within the active tenant can view & manage invites
 DROP POLICY IF EXISTS tenant_invites_admin_all ON public.tenant_invites;
-CREATE POLICY tenant_invites_admin_all ON public.tenant_invites
+DROP POLICY IF EXISTS "tenant_invites_admin_all" ON public.tenant_invites;
+CREATE POLICY "tenant_invites_admin_all" ON public.tenant_invites
   FOR ALL
   TO authenticated
   USING (
