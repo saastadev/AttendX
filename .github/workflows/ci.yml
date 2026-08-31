@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['**']
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+
+jobs:
+  static:
+    name: Static checks (secrets, types, guardrails)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: attendx-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: attendx-v2/package-lock.json
+      - run: npm ci
+
+      # Must run before anything else: a leaked service-role key in a client
+      # bundle is unrecoverable once shipped.
+      - name: Secret scan
+        run: npm run scan:secrets
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Anti-fabrication guardrails
+        run: ./scripts/ci-guardrails.sh
+
+  migrations-and-rls:
+    name: Migrations + real RLS isolation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: attendx-v2
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: attendx_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/attendx_test
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: attendx-v2/package-lock.json
+      - run: npm ci
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # Fails the build on duplicate migration prefixes. Two files sharing a
+      # number apply in arbitrary alphabetical order, which silently diverges
+      # schemas between environments.
+      - name: Assert unique migration numbering
+        working-directory: .
+        run: |
+          dupes=$(ls supabase/migrations/*.sql | xargs -n1 basename \
+            | cut -d_ -f1 | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::Duplicate migration prefixes: $dupes"
+            ls supabase/migrations/*.sql | xargs -n1 basename | sort
+            exit 1
+          fi
+          echo "✓ All migration numbers unique."
+
+      - name: Apply migrations to a fresh database
+        working-directory: .
+        run: |
+          set -e
+          psql "$DATABASE_URL" -q -f attendx-v2/tests/db/00_bootstrap_supabase_roles.sql
+          for m in supabase/migrations/*.sql; do
+            echo "--- applying $(basename "$m")"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$m"
+          done
+          echo "✓ All migrations applied."
+
+      # Real isolation tests: live Postgres, real rows, SET ROLE authenticated
+      # plus JWT claims. Never skipped in CI.
+      - name: RLS isolation suite
+        run: node --test tests/db/rls-real.test.js
+
+      # The guard against a vacuous suite: turn RLS off and require the suite
+      # to fail. If it still passes, it was never testing RLS.
+      - name: RLS meta-test (suite must fail with RLS disabled)
+        run: ./scripts/ci-rls-metatest.sh
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: attendx-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: attendx-v2/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    needs: [static]
+    defaults:
+      run:
+        working-directory: attendx-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: attendx-v2/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-key

@@ -149,8 +149,13 @@ test('RLS Integrity, Positive Controls & Anti-Regression Suite', async (t) => {
       await client.query(`UPDATE profiles SET tenant_id = '${foreignTenantId}' WHERE id = '${empUid}';`)
       assert.fail('REGRESSION LOCK FAILED: User was able to rewrite their own tenant_id!')
     } catch (err) {
+      // The write may be refused by any of three layers, all valid:
+      //   - 003 guard trigger  -> 'tenant_id is not self-editable'
+      //   - 011 guard trigger  -> 'tenant_id is immutable'
+      //   - the RLS policy      -> 'row-level security'
+      // What matters is that it is refused, not which layer refuses it.
       assert.ok(
-        err.message.includes('tenant_id is not self-editable') || err.message.includes('row-level security'),
+        /tenant_id is not self-editable|tenant_id is immutable|row-level security/i.test(err.message),
         `Expected tenant_id edit rejection, got: ${err.message}`
       )
     } finally {
