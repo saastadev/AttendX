@@ -10,6 +10,7 @@ import { format, subDays, eachDayOfInterval } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { resolveTenantId } from '@/lib/tenant'
 
 // --- Custom Pure SVG Area Chart (Turbopack-Safe & Ultra-Fast) ---
 function AttendanceSvgChart({ data }: { data: Array<{ date: string; present: number; absent: number; late: number }> }) {
@@ -282,11 +283,7 @@ export default function HRInsightsPage() {
   const { success, error: toastError } = useToast()
   const queryClient = useQueryClient()
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // 1. 30-day attendance trend
   const { data: attendanceTrend, isLoading: trendLoading } = useQuery({
@@ -322,6 +319,7 @@ export default function HRInsightsPage() {
         return { date: format(d, 'MMM d'), ...(grouped[key] ?? { present: 0, absent: 0, late: 0 }) }
       })
     },
+    enabled: !!effectiveTenantId,
   })
 
   // 2. Full Attrition risk scores and distribution
@@ -366,6 +364,7 @@ export default function HRInsightsPage() {
         lowRiskCount: counts.LOW ?? 0,
       }
     },
+    enabled: !!effectiveTenantId,
   })
 
   // 3. Run AI Attrition Scoring Mutation

@@ -5,15 +5,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { requireSupabaseConfig, requireServiceRoleKey } from '@/lib/env'
 
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon'
+  const { url, anonKey } = requireSupabaseConfig()
 
   return createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -36,10 +36,10 @@ export async function getSupabaseServerClient() {
 // Service role client for Edge Function-equivalent server actions
 // Only used in Server Actions / Route Handlers, never exposed to client
 export function getSupabaseServiceClient(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_service'
+  const { url } = requireSupabaseConfig()
+  const serviceKey = requireServiceRoleKey()
   return createClient(
-    supabaseUrl,
+    url,
     serviceKey,
     {
       auth: {

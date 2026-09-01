@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 
 type Theme = 'light' | 'dark'
 type Contrast = 'normal' | 'high'
@@ -20,6 +20,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light')
   const [contrast, setContrast] = useState<Contrast>('normal')
   const [reduceMotion, setReduceMotion] = useState(false)
+
+  // The OS dark-mode listener below is registered once (deps: []) but needs the
+  // CURRENT contrast setting. Reading `contrast` directly captured its initial
+  // value forever, so after a user switched to high contrast, an OS light/dark
+  // change re-applied the stale 'normal' value. A ref keeps the listener stable
+  // while still seeing live state.
+  const contrastRef = useRef<Contrast>(contrast)
+  useEffect(() => { contrastRef.current = contrast }, [contrast])
 
   useEffect(() => {
     // Load saved preferences
@@ -44,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const handleDarkChange = (e: MediaQueryListEvent) => {
       if (!localStorage.getItem('attendx-theme')) {
-        applyTheme(e.matches ? 'dark' : 'light', contrast)
+        applyTheme(e.matches ? 'dark' : 'light', contrastRef.current)
         setThemeState(e.matches ? 'dark' : 'light')
       }
     }

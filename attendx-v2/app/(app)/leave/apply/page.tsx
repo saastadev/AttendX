@@ -11,6 +11,7 @@ import { addToOfflineQueue } from '@/lib/offline/queue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { LeaveType } from '@/types/database'
+import { resolveTenantId } from '@/lib/tenant'
 
 export default function LeaveApplyPage() {
   const router = useRouter()
@@ -25,11 +26,7 @@ export default function LeaveApplyPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [reason, setReason] = useState<string>('')
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // Fetch available Leave Types for this tenant
   const { data: leaveTypes, isLoading: typesLoading } = useQuery<LeaveType[]>({

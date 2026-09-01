@@ -11,6 +11,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
+import { resolveTenantId } from '@/lib/tenant'
 
 type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
@@ -24,11 +25,7 @@ export default function HRLeavesPage() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'requests' | 'quotas'>('requests')
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // 1. Fetch Leave Requests
   const { data: leaves, isLoading } = useQuery({
@@ -57,6 +54,7 @@ export default function HRLeavesPage() {
         employee: profileMap.get(l.employee_id) || { full_name: 'Employee', email: '' },
       }))
     },
+    enabled: !!effectiveTenantId,
   })
 
   // 2. Fetch Leave Policy Quotas
@@ -70,6 +68,7 @@ export default function HRLeavesPage() {
         .order('name')
       return data || []
     },
+    enabled: !!effectiveTenantId,
   })
 
   const approveMutation = useMutation({
