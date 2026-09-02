@@ -8,16 +8,13 @@ import { useAuthStore } from '@/store/auth.store'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { AnimatedValue } from '@/components/ui/AnimatedValue'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { resolveTenantId } from '@/lib/tenant'
 
 export default function ManagerTeamPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // Fetch direct reports (employees where manager_id = current user)
   const { data: teamMembers, isLoading } = useQuery({
@@ -55,7 +52,7 @@ export default function ManagerTeamPage() {
         todayAttendance: recordMap.has(e.id) ? [recordMap.get(e.id)] : [],
       }))
     },
-    enabled: !!user,
+    enabled: !!user && !!effectiveTenantId,
   })
 
   // Fetch pending leaves from team
@@ -98,7 +95,7 @@ export default function ManagerTeamPage() {
         employee: profileMap.get(l.employee_id) || { full_name: 'Employee' },
       }))
     },
-    enabled: !!user,
+    enabled: !!user && !!effectiveTenantId,
   })
 
   const presentToday = teamMembers?.filter((m: any) =>

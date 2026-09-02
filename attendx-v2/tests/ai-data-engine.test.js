@@ -58,8 +58,8 @@ test('AI & Data Engine Handoff Suite (Specs 29-31)', async (t) => {
   })
 
   await t.test('DATA-ENG-01: admin_attendance_glance RPC migration exists and defines timezone logic', () => {
-    const migrationPath = path.join(rootDir, '..', 'supabase', 'migrations', '016_canonical_reporting_rpcs.sql')
-    assert.ok(fs.existsSync(migrationPath), 'Migration 016 must exist')
+    const migrationPath = path.join(rootDir, '..', 'supabase', 'migrations', '015_canonical_reporting_rpcs.sql')
+    assert.ok(fs.existsSync(migrationPath), 'Migration 015 (canonical reporting RPCs) must exist')
     const sql = fs.readFileSync(migrationPath, 'utf8')
 
     assert.ok(sql.includes('admin_attendance_glance'), 'Must define admin_attendance_glance function')

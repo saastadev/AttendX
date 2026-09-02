@@ -265,12 +265,14 @@ export default function CheckInPage() {
 
       // Upload selfie via server API (if online)
       if (isOnline && selfieDataUrl) {
-        const fileName = `${user.tenant.id}/${user.id}/${today}-${checkinType}-${Date.now()}.jpg`
         try {
+          // The storage path is derived server-side from the authenticated
+          // user's tenant + id. Sending a client-chosen fileName previously
+          // let a caller target another employee's object.
           const selfieRes = await fetch('/api/attendance/selfie', {
             method: 'POST',
             headers: authHeaders,
-            body: JSON.stringify({ selfieDataUrl, fileName }),
+            body: JSON.stringify({ selfieDataUrl, kind: checkinType }),
           })
           if (selfieRes.ok) {
             const { publicUrl } = await selfieRes.json()

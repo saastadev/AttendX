@@ -11,11 +11,15 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "node --test tests/*.test.js",
     "test:security": "node --test tests/security-regression-matrix.test.js",
     "scan:secrets": "node scripts/ci-secret-scan.mjs",
-    "ci": "npm run scan:secrets && npm run typecheck && npm run test && npm run test:security && npm run lint && ./scripts/ci-guardrails.sh"
+    "ci": "npm run scan:secrets && npm run typecheck && npm run lint && npm run test && npm run test:security && ./scripts/ci-guardrails.sh",
+    "lint:strict": "eslint . --max-warnings=0",
+    "db:test:setup": "bash scripts/db-test-setup.sh",
+    "test:rls": "node --test tests/db/rls-real.test.js",
+    "test:rls:meta": "bash scripts/ci-rls-metatest.sh"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -46,5 +50,9 @@
     "typescript": "^5.3.3",
     "zod": "^4.4.3",
     "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.1"
   }
 }

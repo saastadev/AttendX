@@ -32,7 +32,37 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
 
-    const tenantId = emp?.tenant_id || (user.user_metadata as any)?.tenant_id || '11111111-0000-0000-0000-000000000001'
+    // Tenant is resolved ONLY from server-owned records.
+    //
+    // The previous chain fell back to `user.user_metadata.tenant_id` and then
+    // to a hardcoded tenant UUID. user_metadata is CLIENT-WRITABLE in Supabase,
+    // so a user could set their own tenant_id and have an employee row created
+    // inside another organisation. The hardcoded fallback silently filed
+    // orphaned users' attendance against one specific tenant.
+    let tenantId = emp?.tenant_id ?? null
+
+    if (!tenantId) {
+      const { data: prof } = await serviceClient
+        .from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+      tenantId = prof?.tenant_id ?? null
+    }
+    if (!tenantId) {
+      const { data: roles } = await serviceClient
+        .from('user_roles').select('tenant_id').eq('user_id', user.id)
+      if (roles?.length === 1) tenantId = roles[0].tenant_id
+      else if ((roles?.length ?? 0) > 1) {
+        return NextResponse.json(
+          { error: 'Ambiguous tenant membership — select an organisation first' },
+          { status: 409 }
+        )
+      }
+    }
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'No tenant membership found for this user. Ask an administrator to provision your account.' },
+        { status: 403 }
+      )
+    }
 
     if (!emp) {
       const empCode = 'EMP-' + user.id.slice(0, 6).toUpperCase()

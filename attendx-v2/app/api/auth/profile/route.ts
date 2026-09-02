@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { requireSupabaseConfig } from '@/lib/env'
 
 export async function GET(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://attendx.supabase.co'
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_anon'
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = requireSupabaseConfig()
   const admin = getSupabaseServiceClient()
 
   let supabaseResponse = NextResponse.next({ request })
@@ -46,13 +46,35 @@ export async function GET(request: NextRequest) {
   let profile = profileRes.data
   let roleRows = roleRes.data ?? []
 
-  // Auto-provision profile if missing
+  // Auto-provision profile if missing.
+  //
+  // Tenant comes ONLY from app_metadata, which is server-controlled and set by
+  // the admin provisioning flow. The previous chain preferred user_metadata
+  // (client-writable, so a user could choose their own organisation) and then
+  // fell back to "whatever tenant is first in the table" / a hardcoded UUID —
+  // which quietly turned this endpoint into open self-provisioning into an
+  // arbitrary tenant, defeating admin-only account creation.
   if (!profile) {
-    const tenantId = (user.user_metadata as any)?.tenant_id || (user.app_metadata as any)?.tenant_id
-    let targetTenantId = tenantId
+    const targetTenantId = (user.app_metadata as any)?.tenant_id
+
     if (!targetTenantId) {
-      const { data: t } = await admin.from('tenants').select('id').limit(1).maybeSingle()
-      targetTenantId = t?.id || '11111111-0000-0000-0000-000000000001'
+      return NextResponse.json(
+        {
+          error: 'Account is not provisioned to an organisation.',
+          detail: 'An administrator must create your employee record before you can sign in.',
+        },
+        { status: 403 }
+      )
+    }
+
+    // A claim only counts if the tenant actually exists.
+    const { data: tenantRow } = await admin
+      .from('tenants').select('id').eq('id', targetTenantId).maybeSingle()
+    if (!tenantRow) {
+      return NextResponse.json(
+        { error: 'Account references an organisation that no longer exists.' },
+        { status: 403 }
+      )
     }
 
     const fullName = (user.user_metadata as any)?.full_name || user.email?.split('@')[0] || 'User'

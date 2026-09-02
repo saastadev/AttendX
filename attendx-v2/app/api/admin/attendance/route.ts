@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { todayInTimezone, isValidDateParam } from '@/lib/tenant-time'
 
 const PRIVILEGED_ROLES = ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'] as const
 
@@ -30,7 +31,20 @@ export async function GET(req: NextRequest) {
 
     const tenantId = roleRow.tenant_id
     const { searchParams } = new URL(req.url)
-    const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0]
+
+    // "Today" must be the tenant's calendar day, not the server's. Using UTC
+    // here showed an Asia/Kolkata org the previous day's board every morning.
+    const { data: tenantRow } = await serviceClient
+      .from('tenants').select('timezone').eq('id', tenantId).maybeSingle()
+    const tz = tenantRow?.timezone || 'UTC'
+
+    const dateParam = searchParams.get('date')
+    if (dateParam && !isValidDateParam(dateParam)) {
+      return NextResponse.json(
+        { error: 'Invalid date parameter (expected YYYY-MM-DD)' }, { status: 400 }
+      )
+    }
+    const targetDate = dateParam ?? todayInTimezone(tz)
 
     // Fetch active profiles, employees, departments, and attendance records for the target date
     const [profilesRes, employeesRes, departmentsRes, recordsRes, leavesRes] = await Promise.all([

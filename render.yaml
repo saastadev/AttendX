@@ -9,9 +9,10 @@ services:
     env: node
     region: singapore
     plan: free
-    rootDir: attendx-v2
-    buildCommand: cd attendx-v2 && npm install --include=dev && npm run build
-    startCommand: cd attendx-v2 && npm run start
+    # No rootDir: the repo-root package.json scripts already cd into
+    # attendx-v2. Setting both made the effective path attendx-v2/attendx-v2.
+    buildCommand: npm run build
+    startCommand: npm run start
     autoDeploy: true
     envVars:
       - key: NODE_VERSION

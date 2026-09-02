@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
+import { resolveTenantId } from '@/lib/tenant'
 
 const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
   users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown,
@@ -25,11 +26,7 @@ export default function RecognitionPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [message, setMessage] = useState('')
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // Leaderboard
   const { data: leaderboard, isLoading: lbLoading } = useQuery({

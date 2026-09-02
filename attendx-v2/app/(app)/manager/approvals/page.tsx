@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
+import { resolveTenantId } from '@/lib/tenant'
 
 type ApprovalType = 'ALL' | 'LEAVE' | 'CORRECTION'
 
@@ -21,11 +22,7 @@ export default function ManagerApprovalsPage() {
   const qc = useQueryClient()
   const [activeType, setActiveType] = useState<ApprovalType>('ALL')
 
-  const effectiveTenantId =
-    user?.tenant?.id ||
-    (user as any)?.app_metadata?.tenant_id ||
-    (user as any)?.profile?.tenant_id ||
-    '11111111-0000-0000-0000-000000000001'
+  const effectiveTenantId = resolveTenantId(user)
 
   // Fetch pending approvals from authoritative backend API
   const { data: approvalsData, isLoading, refetch, isFetching } = useQuery({
@@ -98,7 +95,7 @@ export default function ManagerApprovalsPage() {
         totalPending: leaves.length + corrections.length,
       }
     },
-    enabled: true,
+    enabled: !!effectiveTenantId,
     refetchInterval: 4000, // Live poll every 4s for new requests
   })
 
