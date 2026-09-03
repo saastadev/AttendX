@@ -212,9 +212,13 @@ export default function DashboardPage() {
 
   const clockedIn = !!todayAttendance?.clock_in_at && !todayAttendance?.clock_out_at
   const clockedOut = !!todayAttendance?.clock_out_at
-  const totalLeaveAvailable = leaveBalances
-    ?.filter(b => (b as any).leave_type?.is_paid)
-    .reduce((sum, b) => sum + (b.entitled_days - b.used_days), 0)
+  const totalLeaveAvailable = (leaveBalances || [])
+    .filter(b => (b as any).leave_type?.is_paid)
+    .reduce((sum, b) => {
+      const entitled = Number(b.entitled_days) || 0
+      const used = Number(b.used_days) || 0
+      return sum + (entitled - used)
+    }, 0) || 0
 
   const greeting = () => {
     const hour = new Date().getHours()

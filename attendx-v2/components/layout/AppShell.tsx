@@ -273,6 +273,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [user?.tenant?.accent_color])
 
+  // Emergency timeout fallback for unauthenticated navigation
+  useEffect(() => {
+    if (!user) {
+      const timer = setTimeout(() => {
+        window.location.href = '/auth/login'
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [user])
+
   if (isLoading || !user) {
     return (
       <div className="loading-screen" aria-label="Loading AttendX…">
@@ -293,7 +303,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="loading-spinner" aria-hidden="true" />
         <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>Loading your workspace…</p>
-        <style>{`@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }`}</style>
+        <a
+          href="/auth/login"
+          style={{
+            marginTop: 12,
+            fontSize: '0.8125rem',
+            color: 'var(--accent)',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+          }}
+        >
+          Taking a moment? Click here to Sign In
+        </a>
       </div>
     )
   }

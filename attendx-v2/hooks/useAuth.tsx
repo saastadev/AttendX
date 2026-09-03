@@ -29,7 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
 
-      const res = await fetch('/api/auth/profile', { headers, credentials: 'include' })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3500)
+      const res = await fetch('/api/auth/profile', { headers, credentials: 'include', signal: controller.signal })
+      clearTimeout(timeoutId)
       if (res.ok) {
         const json = await res.json()
         if (json.user) return json.user
@@ -39,41 +42,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Direct client query fallback using maybeSingle to avoid 406 errors
-    const [profileRes, roleRes] = await Promise.all([
-      supabase.from('profiles').select('*, tenant:tenants(*)').eq('id', userId).maybeSingle(),
-      supabase.from('user_roles').select('role, tenant_id').eq('user_id', userId),
-    ])
+    try {
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from('profiles').select('*, tenant:tenants(*)').eq('id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role, tenant_id').eq('user_id', userId),
+      ])
 
-    const profile = profileRes.data
-    const roleRows = roleRes.data ?? []
+      const profile = profileRes.data
+      const roleRows = roleRes.data ?? []
 
-    if (!profile) {
-      console.error('[Auth] Failed to load profile for user', userId)
-      return null
-    }
+      if (!profile) {
+        console.error('[Auth] Failed to load profile for user', userId)
+        return null
+      }
 
-    const tenant = profile.tenant as any
-    const roleRow = roleRows.find(r => r.tenant_id === profile.tenant_id) ?? { role: 'EMPLOYEE', tenant_id: profile.tenant_id }
+      const tenant = profile.tenant as any
+      const roleRow = roleRows.find(r => r.tenant_id === profile.tenant_id) ?? { role: 'EMPLOYEE', tenant_id: profile.tenant_id }
 
-    return {
-      id: userId,
-      email: profile.email,
-      profile: {
-        id: profile.id,
-        tenant_id: profile.tenant_id,
+      return {
+        id: userId,
         email: profile.email,
-        full_name: profile.full_name,
-        avatar_url: profile.avatar_url,
-        phone: profile.phone,
-        is_active: profile.is_active,
-        face_enrolled: profile.face_enrolled,
-        onboarding_completed: profile.onboarding_completed,
-        last_seen_at: profile.last_seen_at,
-        created_at: profile.created_at,
-        updated_at: profile.updated_at,
-      },
-      role: roleRow.role as UserRole,
-      tenant,
+        profile: {
+          id: profile.id,
+          tenant_id: profile.tenant_id,
+          email: profile.email,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          phone: profile.phone,
+          is_active: profile.is_active,
+          face_enrolled: profile.face_enrolled,
+          onboarding_completed: profile.onboarding_completed,
+          last_seen_at: profile.last_seen_at,
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+        },
+        role: roleRow.role as UserRole,
+        tenant,
+      }
+    } catch (directErr) {
+      console.error('[Auth] Direct profile query error:', directErr)
+      return null
     }
   }, [supabase])
 
@@ -103,10 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initial session check
+    // Initial session check with 3.5s fail-fast timeout
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 3500)
+        )
+        const { data: { session } } = await Promise.race([
+          supabase.auth.getSession(),
+          timeoutPromise
+        ])
 
         if (session?.user) {
           const authUser = await loadUserProfile(session.user.id)
@@ -114,10 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(authUser)
             applyTenantBranding(authUser)
           } else {
-            await supabase.auth.signOut()
+            await supabase.auth.signOut().catch(() => {})
             clearUser()
           }
+        } else {
+          clearUser()
         }
+      } catch (err) {
+        console.warn('[Auth] initAuth error:', err)
+        clearUser()
       } finally {
         setLoading(false)
         setInitialized(true)

@@ -70,10 +70,18 @@ export async function proxy(request: NextRequest) {
   )
 
   const { pathname } = request.nextUrl
+  const allCookies = request.cookies.getAll()
+  const hasAuthCookies = allCookies.some(c => c.name.includes('auth-token') || c.name.startsWith('sb-'))
+
+  // 1. Fast-path unauthenticated public routes without blocking on network
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
+  if (isPublicRoute && !hasAuthCookies) {
+    return supabaseResponse
+  }
+
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  // 1. Allow unauthenticated public routes
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+  if (isPublicRoute) {
     if (user && !userError && !pathname.startsWith('/api/')) {
       // If logged in and visiting auth pages, check onboarding before dashboard
       return NextResponse.redirect(new URL('/dashboard', request.url))
