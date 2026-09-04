@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 interface AnimatedValueProps {
-  value: number | string
+  value: number | string | null | undefined
   duration?: number
   className?: string
   style?: React.CSSProperties
@@ -15,16 +15,17 @@ export function AnimatedValue({
   duration = 800,
   className = '',
   style = {},
-  formatter = (v) => Math.round(v).toString(),
+  formatter = (v) => (isNaN(v) ? '0' : Math.round(v).toString()),
 }: AnimatedValueProps) {
-  const numericValue = typeof value === 'number' ? value : parseFloat(value)
-  const isNumeric = !isNaN(numericValue)
+  const safeValue = value ?? 0
+  const numericValue = typeof safeValue === 'number' ? safeValue : parseFloat(String(safeValue))
+  const isNumeric = typeof numericValue === 'number' && !isNaN(numericValue) && isFinite(numericValue)
 
-  const [displayValue, setDisplayValue] = useState(isNumeric ? 0 : value)
+  const [displayValue, setDisplayValue] = useState<number | string>(isNumeric ? 0 : String(safeValue ?? '0'))
 
   useEffect(() => {
     if (!isNumeric) {
-      setDisplayValue(value)
+      setDisplayValue(String(safeValue ?? '0'))
       return
     }
 
@@ -36,19 +37,34 @@ export function AnimatedValue({
       if (!startTimestamp) startTimestamp = timestamp
       const progress = Math.min((timestamp - startTimestamp) / duration, 1)
       const current = startVal + progress * (endVal - startVal)
-      setDisplayValue(current)
+      setDisplayValue(isNaN(current) ? 0 : current)
 
       if (progress < 1) {
         window.requestAnimationFrame(step)
       }
     }
 
-    window.requestAnimationFrame(step)
-  }, [value, duration, isNumeric, numericValue])
+    const rafId = window.requestAnimationFrame(step)
+    return () => window.cancelAnimationFrame(rafId)
+  }, [value, duration, isNumeric, numericValue, safeValue])
+
+  const renderContent = () => {
+    if (isNumeric && typeof displayValue === 'number' && !isNaN(displayValue)) {
+      try {
+        return formatter(displayValue)
+      } catch {
+        return displayValue.toString()
+      }
+    }
+    if (typeof displayValue === 'number' && isNaN(displayValue)) {
+      return '0'
+    }
+    return String(displayValue ?? '0')
+  }
 
   return (
     <span className={`num ${className}`} style={{ fontVariantNumeric: 'tabular-nums', ...style }}>
-      {isNumeric && typeof displayValue === 'number' ? formatter(displayValue) : displayValue}
+      {renderContent()}
     </span>
   )
 }
