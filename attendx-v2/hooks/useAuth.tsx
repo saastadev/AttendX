@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3500)
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
       const res = await fetch('/api/auth/profile', { headers, credentials: 'include', signal: controller.signal })
       clearTimeout(timeoutId)
       if (res.ok) {
@@ -111,11 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initial session check with 3.5s fail-fast timeout
+    // Initial session check with 10s resilient timeout
     const initAuth = async () => {
       try {
         const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 3500)
+          setTimeout(() => resolve({ data: { session: null } }), 10000)
         )
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),
@@ -128,8 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(authUser)
             applyTenantBranding(authUser)
           } else {
-            await supabase.auth.signOut().catch(() => {})
-            clearUser()
+            console.warn('[Auth] Profile could not be loaded on init; keeping session')
           }
         } else {
           clearUser()
@@ -154,8 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(authUser)
             applyTenantBranding(authUser)
           } else {
-            await supabase.auth.signOut()
-            clearUser()
+            console.warn('[Auth] Profile could not be loaded on SIGNED_IN; retaining session')
           }
         } else if (event === 'SIGNED_OUT') {
           clearUser()
