@@ -1107,7 +1107,18 @@ p { color: var(--text-secondary); }
 @media (max-width: 768px) {
   .auth-shell { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
+  /* MobileBrandStrip already shows the logo above the form — hide the duplicate inside the card */
+  .auth-card-logo { display: none !important; }
+  /* Hide desktop layout, show mobile splash layout */
+  .auth-shell-desktop { display: none !important; }
+  .auth-shell-mobile { display: block; }
 }
+@media (min-width: 769px) {
+  /* Hide mobile splash layout on desktop */
+  .auth-shell-mobile { display: none !important; }
+  .auth-shell-desktop { display: grid; }
+}
+
 
 .auth-hero {
   position: relative; overflow: hidden;
@@ -1260,6 +1271,19 @@ p { color: var(--text-secondary); }
   /* Show sidebar, hide bottom nav */
   .mobile-only { display: none !important; }
   .desktop-only { display: flex !important; }
+}
+
+/* ---- Quick Actions Grid (2x2 on mobile/tablet, 4-col on desktop) ---- */
+.neu-quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+@media (min-width: 1024px) {
+  .neu-quick-actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* ============================================================

@@ -282,6 +282,41 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Quick Actions */}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>Quick Actions</h2>
+        <div className="neu-quick-actions-grid">
+          {[
+            { href: '/attendance/checkin', icon: Clock, label: 'Check In/Out', color: '#10B981', id: 'quick-checkin' },
+            { href: '/leave/apply', icon: CalendarDays, label: 'Apply Leave', color: '#6C63FF', id: 'quick-leave' },
+            { href: '/cases/new', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
+            { href: '/recognition', icon: Trophy, label: 'Recognize', color: '#0EA5E9', id: 'quick-recognize' },
+          ].map(action => {
+            const Icon = action.icon
+            return (
+              <Link key={action.href} href={action.href} id={action.id} style={{ textDecoration: 'none' }}>
+                <div
+                  className="neu-card neu-card--interactive"
+                  style={{ textAlign: 'center', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', height: '100%' }}
+                >
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: `${action.color}18`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto var(--space-2)',
+                  }}>
+                    <Icon size={22} color={action.color} aria-hidden="true" />
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {action.label}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Announcements */}
       {(announcements?.length ?? 0) > 0 && (
         <div style={{ marginBottom: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -421,44 +456,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>Quick Actions</h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: 'var(--space-3)',
-        }}>
-          {[
-            { href: '/attendance/checkin', icon: Clock, label: 'Check In/Out', color: '#10B981', id: 'quick-checkin' },
-            { href: '/leave/apply', icon: CalendarDays, label: 'Apply Leave', color: '#6C63FF', id: 'quick-leave' },
-            { href: '/cases/new', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
-            { href: '/recognition', icon: Trophy, label: 'Recognize', color: '#0EA5E9', id: 'quick-recognize' },
-          ].map(action => {
-            const Icon = action.icon
-            return (
-              <Link key={action.href} href={action.href} id={action.id} style={{ textDecoration: 'none' }}>
-                <div
-                  className="neu-card neu-card--interactive"
-                  style={{ textAlign: 'center', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)' }}
-                >
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: `${action.color}18`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto var(--space-2)',
-                  }}>
-                    <Icon size={22} color={action.color} aria-hidden="true" />
-                  </div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {action.label}
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </div>
+
     </div>
   )
 }

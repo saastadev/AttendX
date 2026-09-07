@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -209,8 +209,8 @@ function LoginForm() {
       initial="hidden"
       animate="visible"
     >
-      {/* Logo mark (desktop shows this too) */}
-      <motion.div variants={STAGGER_ITEM} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+      {/* Logo mark — hidden on mobile because MobileBrandStrip already shows it */}
+      <motion.div variants={STAGGER_ITEM} className="auth-card-logo" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
           background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
@@ -444,15 +444,59 @@ function LoginFormWithSuspense() {
 }
 
 export default function LoginPage() {
+  const [showForm, setShowForm] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowForm(true), 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
-    <div className="auth-shell">
-      <AuthHero />
-      <div className="auth-form-panel" style={{ overflowY: 'auto' }}>
-        <div className="auth-mobile-brand">
-          <MobileBrandStrip />
+    <>
+      {/* ── Desktop: unchanged side-by-side layout ── */}
+      <div className="auth-shell auth-shell-desktop">
+        <AuthHero />
+        <div className="auth-form-panel" style={{ overflowY: 'auto' }}>
+          <div className="auth-mobile-brand">
+            <MobileBrandStrip />
+          </div>
+          <LoginFormWithSuspense />
         </div>
-        <LoginFormWithSuspense />
       </div>
-    </div>
+
+      {/* ── Mobile: hero splash → login form ── */}
+      <div className="auth-shell-mobile">
+        <AnimatePresence mode="wait">
+          {!showForm ? (
+            /* Step 1 — full-screen hero splash */
+            <motion.div
+              key="splash"
+              style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column' }}
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -40, scale: 0.97 }}
+              transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <AuthHero />
+              </div>
+            </motion.div>
+          ) : (
+            /* Step 2 — login form slides up */
+            <motion.div
+              key="form"
+              style={{ minHeight: '100dvh', overflowY: 'auto', background: 'var(--neu-bg)' }}
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <div className="auth-mobile-brand">
+                <MobileBrandStrip />
+              </div>
+              <LoginFormWithSuspense />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   )
 }
