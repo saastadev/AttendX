@@ -10,6 +10,8 @@ import {
 import Link from 'next/link'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { AnimatedValue } from '@/components/ui/AnimatedValue'
+import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { AttendanceRecord, Announcement, Notification, LeaveBalance } from '@/types/database'
 
 // ---- Skeleton loaders ----
@@ -210,9 +212,13 @@ export default function DashboardPage() {
 
   const clockedIn = !!todayAttendance?.clock_in_at && !todayAttendance?.clock_out_at
   const clockedOut = !!todayAttendance?.clock_out_at
-  const totalLeaveAvailable = leaveBalances
-    ?.filter(b => (b as any).leave_type?.is_paid)
-    .reduce((sum, b) => sum + (b.entitled_days - b.used_days), 0)
+  const totalLeaveAvailable = (leaveBalances || [])
+    .filter(b => (b as any).leave_type?.is_paid)
+    .reduce((sum, b) => {
+      const entitled = Number(b.entitled_days) || 0
+      const used = Number(b.used_days) || 0
+      return sum + (entitled - used)
+    }, 0) || 0
 
   const greeting = () => {
     const hour = new Date().getHours()
@@ -274,6 +280,41 @@ export default function DashboardPage() {
             </span>
           )}
         </Link>
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>Quick Actions</h2>
+        <div className="neu-quick-actions-grid">
+          {[
+            { href: '/attendance/checkin', icon: Clock, label: 'Check In/Out', color: '#10B981', id: 'quick-checkin' },
+            { href: '/leave/apply', icon: CalendarDays, label: 'Apply Leave', color: '#6C63FF', id: 'quick-leave' },
+            { href: '/cases/new', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
+            { href: '/recognition', icon: Trophy, label: 'Recognize', color: '#0EA5E9', id: 'quick-recognize' },
+          ].map(action => {
+            const Icon = action.icon
+            return (
+              <Link key={action.href} href={action.href} id={action.id} style={{ textDecoration: 'none' }}>
+                <div
+                  className="neu-card neu-card--interactive"
+                  style={{ textAlign: 'center', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', height: '100%' }}
+                >
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: `${action.color}18`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto var(--space-2)',
+                  }}>
+                    <Icon size={22} color={action.color} aria-hidden="true" />
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {action.label}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       {/* Announcements */}
@@ -356,7 +397,7 @@ export default function DashboardPage() {
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
             <div className="neu-stat-card-value">
-              {totalLeaveAvailable != null ? totalLeaveAvailable.toFixed(1) : '0.0'}
+              <AnimatedValue value={totalLeaveAvailable ?? 0} formatter={(val) => val.toFixed(1)} />
             </div>
             <div className="neu-stat-card-label">Leave Days Available</div>
           </div>
@@ -391,7 +432,9 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
-            <div className="neu-stat-card-value">{recognitionPoints}</div>
+            <div className="neu-stat-card-value">
+              <AnimatedValue value={recognitionPoints ?? 0} />
+            </div>
             <div className="neu-stat-card-label">Recognition Points</div>
           </div>
         </Link>
@@ -405,50 +448,15 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight size={18} color="var(--text-tertiary)" />
             </div>
-            <div className="neu-stat-card-value">{activeGoalsCount}</div>
+            <div className="neu-stat-card-value">
+              <AnimatedValue value={activeGoalsCount ?? 0} />
+            </div>
             <div className="neu-stat-card-label">Active Goals</div>
           </div>
         </Link>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: 'var(--space-4)', color: 'var(--text-primary)' }}>Quick Actions</h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: 'var(--space-3)',
-        }}>
-          {[
-            { href: '/attendance/checkin', icon: Clock, label: 'Check In/Out', color: '#10B981', id: 'quick-checkin' },
-            { href: '/leave/apply', icon: CalendarDays, label: 'Apply Leave', color: '#6C63FF', id: 'quick-leave' },
-            { href: '/cases/new', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
-            { href: '/recognition', icon: Trophy, label: 'Recognize', color: '#0EA5E9', id: 'quick-recognize' },
-          ].map(action => {
-            const Icon = action.icon
-            return (
-              <Link key={action.href} href={action.href} id={action.id} style={{ textDecoration: 'none' }}>
-                <div
-                  className="neu-card neu-card--interactive"
-                  style={{ textAlign: 'center', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)' }}
-                >
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: `${action.color}18`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    margin: '0 auto var(--space-2)',
-                  }}>
-                    <Icon size={22} color={action.color} aria-hidden="true" />
-                  </div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {action.label}
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      </div>
+
     </div>
   )
 }
