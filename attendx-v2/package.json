@@ -12,13 +12,13 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "node --test tests/*.test.js",
-    "test:security": "node --test tests/security-regression-matrix.test.js",
+    "test": "node --experimental-strip-types --test tests/*.test.js",
+    "test:security": "node --experimental-strip-types --test tests/security-regression-matrix.test.js",
     "scan:secrets": "node scripts/ci-secret-scan.mjs",
     "ci": "npm run scan:secrets && npm run typecheck && npm run lint && npm run test && npm run test:security && ./scripts/ci-guardrails.sh",
     "lint:strict": "eslint . --max-warnings=0",
     "db:test:setup": "bash scripts/db-test-setup.sh",
-    "test:rls": "node --test tests/db/rls-real.test.js",
+    "test:rls": "node --experimental-strip-types --test tests/db/rls-real.test.js",
     "test:rls:meta": "bash scripts/ci-rls-metatest.sh"
   },
   "dependencies": {
