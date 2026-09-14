@@ -10,6 +10,10 @@ CREATE INDEX IF NOT EXISTS idx_profiles_id_active
 CREATE INDEX IF NOT EXISTS idx_profiles_tenant_active 
   ON public.profiles(tenant_id, is_active);
 
+-- 1b. Ensure status column exists on employees table
+ALTER TABLE public.employees 
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ACTIVE';
+
 -- 2. Anti-Tampering Trigger: Prevent users from self-updating is_active or privileged columns
 CREATE OR REPLACE FUNCTION public.guard_profile_privileged_columns()
 RETURNS TRIGGER AS $$

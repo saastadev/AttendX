@@ -29,6 +29,10 @@ yarn-error.log*
 # agent & local documentation artifacts
 .agents/
 docs/
+*.pdf
+*.zip
+
+
 
 # extracted temp files & artifacts
 extracted_db_design_*.txt
