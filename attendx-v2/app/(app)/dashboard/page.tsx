@@ -116,6 +116,15 @@ export default function DashboardPage() {
     queryKey: ['today-attendance', user?.id],
     queryFn: async () => {
       if (!user) return null
+      try {
+        const res = await fetch('/api/attendance/checkin')
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.today !== undefined) return json.today
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Attendance API fetch failed, falling back to client query:', err)
+      }
       const todayStr = format(new Date(), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('attendance_records')
@@ -334,11 +343,9 @@ export default function DashboardPage() {
               <button
                 id={clockedIn ? 'clock-out-btn' : 'clock-in-btn'}
                 className={`neu-clock-btn ${clockedIn ? 'neu-clock-btn--out' : 'neu-clock-btn--in'}`}
-                disabled={clockedOut}
-                style={clockedOut ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
                 <Clock size={20} />
-                <span>{clockedIn ? 'Clock Out' : clockedOut ? 'Completed' : 'Clock In'}</span>
+                <span>{clockedIn ? 'Clock Out' : clockedOut ? 'Shift Done (View)' : 'Clock In'}</span>
               </button>
             </Link>
           </div>

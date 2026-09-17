@@ -4,18 +4,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Star, Award, Heart, Zap, Users, Crown, Trophy, Plus, Search } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
-import { resolveTenantId } from '@/lib/tenant'
 
 const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
-  users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown,
+  users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown, star: Star, award: Award, trophy: Trophy,
 }
 
 export default function RecognitionPage() {
-  const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
   const { success, error } = useToast()
   const qc = useQueryClient()
@@ -26,70 +23,34 @@ export default function RecognitionPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [message, setMessage] = useState('')
 
-  const effectiveTenantId = resolveTenantId(user)
-
-  // Leaderboard
-  const { data: leaderboard, isLoading: lbLoading } = useQuery({
-    queryKey: ['recognition-leaderboard', effectiveTenantId],
+  // Fetch authoritative recognition dataset (categories, colleagues, feed, leaderboard)
+  const { data: recData, isLoading, refetch } = useQuery({
+    queryKey: ['recognition-data', user?.tenant?.id || (user as any)?.tenant_id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('recognition_leaderboard')
-        .select('*')
-        .eq('tenant_id', effectiveTenantId)
-        .order('total_points', { ascending: false })
-        .limit(10)
-      return data ?? []
+      const res = await fetch('/api/recognition')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load recognition data')
+      }
+      return res.json()
     },
-    enabled: !!effectiveTenantId,
+    enabled: !!user,
   })
 
-  // Recent recognition feed
-  const { data: feed, isLoading: feedLoading } = useQuery({
-    queryKey: ['recognition-feed', effectiveTenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('recognition_events')
-        .select('*, giver:profiles!giver_id(full_name), receiver:profiles!receiver_id(full_name), category:recognition_categories(*)')
-        .eq('tenant_id', effectiveTenantId)
-        .order('created_at', { ascending: false })
-        .limit(20)
-      return data ?? []
-    },
-    enabled: !!effectiveTenantId,
-  })
-
-  // Categories
-  const { data: categories } = useQuery({
-    queryKey: ['recognition-categories', effectiveTenantId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('recognition_categories')
-        .select('*')
-        .eq('tenant_id', effectiveTenantId)
-      return data ?? []
-    },
-    enabled: !!effectiveTenantId,
-  })
-
-  // All team colleagues in current tenant
-  const { data: allColleagues } = useQuery({
-    queryKey: ['colleagues-list', effectiveTenantId, user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('tenant_id', effectiveTenantId)
-        .neq('id', user?.id || '')
-      return data ?? []
-    },
-    enabled: !!effectiveTenantId,
-  })
+  const feedLoading = isLoading
+  const lbLoading = isLoading
+  const leaderboard = recData?.leaderboard || []
+  const feed = recData?.feed || []
+  const categories = recData?.categories || []
+  const allColleagues = recData?.colleagues || []
 
   // Filtered colleague search results
   const searchResults = (allColleagues || []).filter((p: any) =>
     !recipientSearch.trim() ||
     p.full_name?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-    p.email?.toLowerCase().includes(recipientSearch.toLowerCase())
+    p.email?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+    p.department_name?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
+    p.employee_code?.toLowerCase().includes(recipientSearch.toLowerCase())
   )
 
   const giveMutation = useMutation({
@@ -97,26 +58,36 @@ export default function RecognitionPage() {
       if (!user || !selectedRecipient || !selectedCategory || !message.trim()) {
         throw new Error('Please fill all fields')
       }
-      const cat = (categories as any[])?.find(c => c.id === selectedCategory)
-      const { error: err } = await supabase.from('recognition_events').insert({
-        tenant_id: effectiveTenantId,
-        giver_id: user.id,
-        receiver_id: selectedRecipient.id,
-        category_id: selectedCategory,
-        note: message,
-        points: cat?.points ?? 10,
+
+      const res = await fetch('/api/recognition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiver_id: selectedRecipient.id,
+          category_id: selectedCategory,
+          note: message.trim(),
+        }),
       })
-      if (err) throw err
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}))
+        throw new Error(errJson.error || 'Failed to send recognition')
+      }
+
+      return res.json()
     },
-    onSuccess: () => {
-      success('Recognition sent! 🎉')
+    onSuccess: (resData: any) => {
+      success(resData?.message || 'Recognition sent! 🎉')
       setShowGiveModal(false)
       setSelectedRecipient(null)
       setSelectedCategory('')
       setMessage('')
       setRecipientSearch('')
-      qc.invalidateQueries({ queryKey: ['recognition-feed'] })
-      qc.invalidateQueries({ queryKey: ['recognition-leaderboard'] })
+      qc.invalidateQueries({ queryKey: ['recognition-data'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notifications-panel'] })
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+      refetch()
     },
     onError: (err: any) => error('Failed to send recognition', err.message),
   })
@@ -287,8 +258,10 @@ export default function RecognitionPage() {
                       {selectedRecipient.full_name.charAt(0)}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{selectedRecipient.full_name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{selectedRecipient.email}</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedRecipient.full_name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                        {selectedRecipient.employee_code} · {selectedRecipient.department_name} · {selectedRecipient.email}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -305,7 +278,7 @@ export default function RecognitionPage() {
                       <input
                         type="text"
                         className="input has-icon-left"
-                        placeholder="Search colleague by name…"
+                        placeholder="Search colleague by name, email, or department…"
                         value={recipientSearch}
                         onChange={e => setRecipientSearch(e.target.value)}
                         style={{ width: '100%', paddingLeft: 38 }}
@@ -314,14 +287,14 @@ export default function RecognitionPage() {
 
                     {/* Quick-pick colleague list */}
                     <div style={{
-                      maxHeight: 160,
+                      maxHeight: 200,
                       overflowY: 'auto',
                       background: 'var(--neu-bg-deep, #141724)',
                       borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--neu-border, rgba(255,255,255,0.1))',
                     }}>
                       {searchResults.length === 0 ? (
-                        <div style={{ padding: 12, fontSize: '0.8125rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                        <div style={{ padding: 14, fontSize: '0.8125rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
                           No colleagues found
                         </div>
                       ) : (
@@ -330,7 +303,7 @@ export default function RecognitionPage() {
                             key={`colleague-pick-${p.id || idx}-${idx}`}
                             onClick={() => { setSelectedRecipient(p); setRecipientSearch('') }}
                             style={{
-                              padding: '8px 12px',
+                              padding: '10px 12px',
                               cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 10,
                               borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -340,17 +313,22 @@ export default function RecognitionPage() {
                             onMouseLeave={e => (e.currentTarget.style.background = '')}
                           >
                             <div style={{
-                              width: 28, height: 28, borderRadius: '50%',
-                              background: '#6366f1', color: '#fff',
+                              width: 32, height: 32, borderRadius: '50%',
+                              background: 'var(--accent)', color: '#fff',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '0.75rem', fontWeight: 700,
+                              fontSize: '0.8rem', fontWeight: 700, flexShrink: 0
                             }}>
                               {p.full_name.charAt(0)}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.full_name}</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{p.full_name}</span>
+                                <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}>
+                                  {p.department_name}
+                                </span>
+                              </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {p.email}
+                                {p.employee_code} · {p.email}
                               </div>
                             </div>
                           </div>
