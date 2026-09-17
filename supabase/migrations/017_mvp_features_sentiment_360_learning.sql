@@ -137,12 +137,12 @@ ALTER TABLE copilot_conversations FORCE ROW LEVEL SECURITY;
 -- employee_feedback:
 CREATE POLICY "feedback_tenant_insert" ON employee_feedback
   FOR INSERT WITH CHECK (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid
+    tenant_id = get_my_tenant_id()
   );
 
 CREATE POLICY "feedback_hr_read" ON employee_feedback
   FOR SELECT USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND
+    tenant_id = get_my_tenant_id() AND
     EXISTS (
       SELECT 1 FROM user_roles ur
       WHERE ur.user_id = auth.uid()
@@ -154,7 +154,7 @@ CREATE POLICY "feedback_hr_read" ON employee_feedback
 -- sentiment_analytics_snapshots:
 CREATE POLICY "sentiment_snapshots_read" ON sentiment_analytics_snapshots
   FOR SELECT USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND (
+    tenant_id = get_my_tenant_id() AND (
       EXISTS (
         SELECT 1 FROM user_roles ur
         WHERE ur.user_id = auth.uid()
@@ -176,7 +176,7 @@ CREATE POLICY "sentiment_snapshots_read" ON sentiment_analytics_snapshots
 -- productivity_logs:
 CREATE POLICY "productivity_read" ON productivity_logs
   FOR SELECT USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND (
+    tenant_id = get_my_tenant_id() AND (
       employee_id = auth.uid() OR
       EXISTS (
         SELECT 1 FROM employees emp
@@ -195,13 +195,13 @@ CREATE POLICY "productivity_read" ON productivity_logs
 -- learning_courses:
 CREATE POLICY "learning_courses_read" ON learning_courses
   FOR SELECT USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND is_active = true
+    tenant_id = get_my_tenant_id() AND is_active = true
   );
 
 -- learning_enrollments:
 CREATE POLICY "learning_enrollments_read" ON learning_enrollments
   FOR SELECT USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND (
+    tenant_id = get_my_tenant_id() AND (
       employee_id = auth.uid() OR
       EXISTS (
         SELECT 1 FROM employees emp
@@ -220,10 +220,10 @@ CREATE POLICY "learning_enrollments_read" ON learning_enrollments
 -- copilot_conversations:
 CREATE POLICY "copilot_conversations_self" ON copilot_conversations
   FOR ALL USING (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND
+    tenant_id = get_my_tenant_id() AND
     user_id = auth.uid()
   ) WITH CHECK (
-    tenant_id = (SELECT auth.jwt()->>'tenant_id')::uuid AND
+    tenant_id = get_my_tenant_id() AND
     user_id = auth.uid()
   );
 
