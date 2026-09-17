@@ -328,7 +328,9 @@ export async function POST(req: NextRequest) {
         let monthName = 'this month'
         try {
           monthName = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: tz }).format(new Date())
-        } catch {}
+        } catch (dateErr) {
+          console.warn('[Copilot] Failed formatting month name:', dateErr)
+        }
 
         if (textLower.includes('rate') || textLower.includes('month')) {
           reply = `Here is your attendance summary for **${monthName}**:\n\n` +
@@ -543,7 +545,9 @@ export async function POST(req: NextRequest) {
           table_name: 'copilot_conversations',
           new_data: { message, toolInvoked, toolResult },
         })
-      } catch {}
+      } catch (auditErr) {
+        console.warn('[Copilot] Audit log insertion failed:', auditErr)
+      }
     }
 
     return NextResponse.json({

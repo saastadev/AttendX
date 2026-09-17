@@ -75,7 +75,9 @@ export default function NotificationsPage() {
           body: JSON.stringify({ markAllRead: true }),
         })
         if (res.ok) return
-      } catch {}
+      } catch (err) {
+        console.warn('[Notifications] API mark all read fallback:', err)
+      }
 
       const { error: err } = await supabase
         .from('notifications')
@@ -102,7 +104,9 @@ export default function NotificationsPage() {
           body: JSON.stringify({ id: notifId }),
         })
         if (res.ok) return
-      } catch {}
+      } catch (err) {
+        console.warn('[Notifications] API mark read fallback:', err)
+      }
 
       const { error: err } = await supabase
         .from('notifications')

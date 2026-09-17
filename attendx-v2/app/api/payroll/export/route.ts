@@ -92,7 +92,9 @@ export async function GET(req: NextRequest) {
         table_name: 'attendance_records',
         new_data: { startDate, endDate, format: requestedFormat, recordCount: records?.length || 0 },
       })
-    } catch {}
+    } catch (auditErr) {
+      console.warn('[PayrollExport] Audit log error:', auditErr)
+    }
 
     if (requestedFormat === 'pdf') {
       const pdf = generatePdfReport('Payroll & Attendance Export', result.records, result.summary)

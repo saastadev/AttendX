@@ -133,7 +133,9 @@ export async function GET(req: NextRequest) {
         table_name: 'attendance_records',
         new_data: { filters, summary: result.summary },
       })
-    } catch {}
+    } catch (auditErr) {
+      console.warn('[WorkforceReport] Audit log error:', auditErr)
+    }
 
     const fileNameBase = `workforce_report_${filters.startDate || 'all'}_to_${filters.endDate || 'all'}`
 

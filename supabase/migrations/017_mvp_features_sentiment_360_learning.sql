@@ -110,7 +110,10 @@ FROM (VALUES
   ('DevSecOps & Secure Coding', 'Security', 'Intermediate', 6.0, ARRAY['security', 'devops', 'owasp']),
   ('Engineering Leadership & Mentoring', 'Leadership', 'Beginner', 10.0, ARRAY['leadership', 'management'])
 ) AS c(title, category, level, duration, tags)
-WHERE NOT EXISTS (
+WHERE EXISTS (
+  SELECT 1 FROM tenants WHERE id = '10000000-0000-0000-0000-000000000001'::uuid
+)
+AND NOT EXISTS (
   SELECT 1 FROM learning_courses lc 
   WHERE lc.tenant_id = '10000000-0000-0000-0000-000000000001'::uuid AND lc.title = c.title
 );
@@ -123,6 +126,13 @@ ALTER TABLE productivity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE learning_enrollments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE copilot_conversations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE employee_feedback FORCE ROW LEVEL SECURITY;
+ALTER TABLE sentiment_analytics_snapshots FORCE ROW LEVEL SECURITY;
+ALTER TABLE productivity_logs FORCE ROW LEVEL SECURITY;
+ALTER TABLE learning_courses FORCE ROW LEVEL SECURITY;
+ALTER TABLE learning_enrollments FORCE ROW LEVEL SECURITY;
+ALTER TABLE copilot_conversations FORCE ROW LEVEL SECURITY;
 
 -- employee_feedback:
 CREATE POLICY "feedback_tenant_insert" ON employee_feedback
