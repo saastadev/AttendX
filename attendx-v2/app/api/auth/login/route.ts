@@ -197,6 +197,21 @@ export async function POST(request: NextRequest) {
     )
     const primaryRole = sortedRoles[0] || 'EMPLOYEE'
 
+    // Synchronize app_metadata tenant_id and role with authoritative server profile if mismatched
+    if ((user.app_metadata as any)?.tenant_id !== profile.tenant_id || (user.app_metadata as any)?.role !== primaryRole) {
+      try {
+        await admin.auth.admin.updateUserById(user.id, {
+          app_metadata: {
+            ...user.app_metadata,
+            tenant_id: profile.tenant_id,
+            role: primaryRole,
+          },
+        })
+      } catch (syncErr) {
+        console.warn('[Login API] Non-blocking app_metadata sync warning:', syncErr)
+      }
+    }
+
     // 6. Safe destination calculation
     const destination = resolveSafeDestination(primaryRole, requestedNext)
 

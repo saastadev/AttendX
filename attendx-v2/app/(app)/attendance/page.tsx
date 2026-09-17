@@ -34,7 +34,8 @@ export default function AttendanceHistoryPage() {
   const { data: workforceData, isLoading: workforceLoading, refetch: refetchWorkforce, isFetching } = useQuery({
     queryKey: ['admin-live-attendance', user?.tenant?.id],
     queryFn: async () => {
-      const res = await fetch('/api/admin/attendance')
+      const url = user?.tenant?.id ? `/api/admin/attendance?tenant_id=${user.tenant.id}` : '/api/admin/attendance'
+      const res = await fetch(url)
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     },
@@ -47,6 +48,15 @@ export default function AttendanceHistoryPage() {
     queryKey: ['attendance-records', user?.id],
     queryFn: async () => {
       if (!user) return []
+      try {
+        const res = await fetch('/api/attendance/checkin')
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.records) return json.records
+        }
+      } catch (err) {
+        console.warn('[Attendance] API fetch failed, falling back to client query:', err)
+      }
       const { data } = await supabase
         .from('attendance_records')
         .select('*')
@@ -78,6 +88,7 @@ export default function AttendanceHistoryPage() {
       setSelectedSelfie(null)
       refetchWorkforce()
       queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
     },
     onError: (err: Error) => {
       toastError(err.message || 'Failed to delete selfie')

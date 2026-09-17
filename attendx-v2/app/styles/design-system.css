@@ -69,6 +69,14 @@
   --shadow-accent-glow:   var(--elev-accent);
   --shadow-float:         0 24px 64px rgba(0,0,0,0.14);
 
+  /* Surface and Background aliases (backward compatibility) */
+  --surface:              var(--neu-bg);
+  --border:               rgba(128, 128, 180, 0.18);
+  --bg-primary:           var(--neu-bg-deep);
+  --bg-secondary:         var(--neu-bg-raised);
+  --bg-tertiary:          var(--neu-bg-deep);
+  --primary:              var(--accent);
+
   /* ---- Glass Layer ---- */
   --glass-bg:       rgba(242, 244, 249, 0.72);
   --glass-bg-dark:  rgba(30, 34, 50, 0.80);
@@ -178,6 +186,12 @@
 
   --neu-base: var(--neu-bg);
   --neu-base-dark: var(--neu-bg-deep);
+  --surface:        var(--neu-bg);
+  --border:         rgba(255, 255, 255, 0.08);
+  --bg-primary:     var(--neu-bg-deep);
+  --bg-secondary:   var(--neu-bg-raised);
+  --bg-tertiary:    var(--neu-bg-deep);
+  --primary:        var(--accent);
 }
 
 /* ============================================================
@@ -2615,5 +2629,31 @@ p { color: var(--text-secondary); }
   0%, 100% { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px) translateY(0); }
   50%       { transform: perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px) translateY(-6px); }
 }
+/* ---- Notification Flyout Panel ---- */
+.neu-notif-flyout {
+  position: fixed;
+  top: 16px;
+  left: 270px;
+  width: 380px;
+  max-height: calc(100vh - 32px);
+  background: var(--neu-bg-raised, #1b2034);
+  border-radius: var(--radius-xl, 20px);
+  box-shadow: var(--elev-4, 0 20px 40px rgba(0,0,0,0.5));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+  overflow: hidden;
+}
 
-
+@media (max-width: 768px) {
+  .neu-notif-flyout {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    top: 12px;
+    bottom: 84px;
+    max-height: calc(100vh - 96px);
+  }
+}

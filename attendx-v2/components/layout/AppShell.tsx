@@ -8,12 +8,14 @@ import {
   LayoutDashboard, Clock, CalendarDays, MessageSquareMore,
   User, Bell, Trophy, FileText, BarChart3, Shield,
   Users, Settings, ChevronRight, WifiOff, RefreshCcw,
-  Search, Camera, Sun, Moon,
+  Search, Camera, Sun, Moon, Sparkles, Heart,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useTheme } from '@/hooks/useTheme'
 import { TenantSwitcher } from '@/components/navigation/tenant-switcher'
+import { useQuery } from '@tanstack/react-query'
+import { NotificationFlyoutPanel } from '@/components/notifications/NotificationFlyoutPanel'
 import type { UserRole } from '@/types/database'
 
 /* Alias must be defined before SIDEBAR_NAV uses it */
@@ -26,11 +28,12 @@ export const SPRING_STIFF:  any = { type: 'spring', stiffness: 600, damping: 35 
 
 /* ---- Nav items ---- */
 const MOBILE_NAV = [
-  { href: '/dashboard',  icon: LayoutDashboard,   label: 'Home',       id: 'mnav-home' },
-  { href: '/attendance', icon: Clock,              label: 'Attendance', id: 'mnav-attendance' },
-  { href: '/leave',      icon: CalendarDays,       label: 'Leave',      id: 'mnav-leave' },
-  { href: '/copilot',    icon: MessageSquareMore,  label: 'Copilot',    id: 'mnav-copilot' },
-  { href: '/profile',    icon: User,               label: 'Profile',    id: 'mnav-profile' },
+  { href: '/dashboard',     icon: LayoutDashboard,   label: 'Home',       id: 'mnav-home' },
+  { href: '/attendance',    icon: Clock,              label: 'Attendance', id: 'mnav-attendance' },
+  { href: '/leave',         icon: CalendarDays,       label: 'Leave',      id: 'mnav-leave' },
+  { href: '/notifications', icon: Bell,              label: 'Alerts',     id: 'mnav-alerts' },
+  { href: '/copilot',       icon: MessageSquareMore,  label: 'Copilot',    id: 'mnav-copilot' },
+  { href: '/profile',       icon: User,               label: 'Profile',    id: 'mnav-profile' },
 ]
 
 type NavItem = { href: string; icon: React.ElementType; label: string; id: string; minRole?: UserRole }
@@ -43,6 +46,7 @@ const SIDEBAR_NAV: NavGroup[] = [
       { href: '/attendance',  icon: Clock,            label: 'Attendance',   id: 'snav-attendance' },
       { href: '/leave',       icon: CalendarDays,     label: 'Leave',        id: 'snav-leave' },
       { href: '/performance', icon: BarChart3,        label: 'Performance',  id: 'snav-performance' },
+      { href: '/employee-360',icon: Sparkles,         label: 'Employee 360°',id: 'snav-employee-360' },
       { href: '/recognition', icon: Trophy,           label: 'Recognition',  id: 'snav-recognition' },
       { href: '/cases',       icon: FileText,         label: 'Cases',        id: 'snav-cases' },
       { href: '/notifications',icon: Bell,            label: 'Notifications',id: 'snav-notifications' },
@@ -61,6 +65,7 @@ const SIDEBAR_NAV: NavGroup[] = [
     items: [
       { href: '/hr/directory', icon: Users,    label: 'Directory', id: 'snav-directory', minRole: 'HR' },
       { href: '/hr/insights',  icon: BarChart2, label: 'Insights',  id: 'snav-insights',  minRole: 'HR' },
+      { href: '/hr/sentiment', icon: Heart,     label: 'Sentiment', id: 'snav-sentiment', minRole: 'HR' },
       { href: '/admin/users',  icon: Shield,   label: 'Users',     id: 'snav-users',     minRole: 'ADMIN' },
       { href: '/admin/attendance', icon: Camera, label: 'Selfies', id: 'snav-admin-attendance', minRole: 'ADMIN' },
       { href: '/admin/settings',icon: Settings, label: 'Settings',  id: 'snav-settings',  minRole: 'ADMIN' },
@@ -204,7 +209,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 }
 
 /* ---- Sidebar Nav Item ---- */
-function SidebarItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
+function SidebarItem({ item, isActive, badgeCount }: { item: NavItem; isActive: boolean; badgeCount?: number }) {
   const Icon = item.icon
   return (
     <Link
@@ -215,6 +220,23 @@ function SidebarItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
     >
       <Icon size={18} className="neu-sidebar-item-icon" aria-hidden="true" />
       <span style={{ flex: 1, fontSize: '0.875rem' }}>{item.label}</span>
+      {Boolean(badgeCount && badgeCount > 0) && (
+        <span
+          style={{
+            background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+            color: 'white',
+            fontSize: '0.6875rem',
+            fontWeight: 800,
+            padding: '1px 7px',
+            borderRadius: 10,
+            boxShadow: '0 2px 8px rgba(236, 72, 153, 0.4)',
+            lineHeight: 1.2,
+            marginRight: isActive ? 4 : 0,
+          }}
+        >
+          {badgeCount}
+        </span>
+      )}
       {isActive && (
         <motion.div layoutId="sidebar-active-pip" transition={SPRING_GENTLE}
           style={{
@@ -238,6 +260,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { isOnline, pendingCount } = useOfflineSync()
   const { theme, toggleTheme } = useTheme()
   const [cmdOpen, setCmdOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+
+  // Live unread notification count
+  const { data: unreadNotifCount = 0 } = useQuery<number>({
+    queryKey: ['notifications-unread-count', user?.id],
+    queryFn: async () => {
+      if (!user) return 0
+      try {
+        const res = await fetch('/api/notifications?filter=unread', { credentials: 'same-origin' })
+        if (res.ok) {
+          const json = await res.json()
+          if (Array.isArray(json.notifications)) return json.notifications.length
+        }
+      } catch (err) {
+        console.warn('[AppShell] notif count check error:', err)
+      }
+      return 0
+    },
+    enabled: !!user,
+    refetchInterval: 8000,
+  })
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -327,6 +370,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Command Palette */}
         <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
 
+        {/* Flyout Notification Panel */}
+        <NotificationFlyoutPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+
         {/* ---- Desktop Sidebar ---- */}
         <motion.nav
           className="neu-sidebar desktop-only"
@@ -356,18 +402,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <TenantSwitcher />
           </div>
 
-          {/* Search pill / cmd trigger */}
-          <div style={{ padding: '0 var(--space-3)', marginBottom: 'var(--space-2)' }}>
+          {/* Search pill / cmd trigger + Notification Flyout trigger */}
+          <div style={{ padding: '0 var(--space-3)', marginBottom: 'var(--space-2)', display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               onClick={() => setCmdOpen(true)}
               aria-label="Open command palette (⌘K)"
               style={{
-                width: '100%', height: 36,
+                flex: 1, height: 36,
                 background: 'var(--neu-bg-deep)',
                 border: '1px solid rgba(128,128,180,0.10)',
                 borderRadius: 'var(--radius-md)',
                 display: 'flex', alignItems: 'center', gap: 8,
-                padding: '0 12px', cursor: 'pointer',
+                padding: '0 10px', cursor: 'pointer',
                 color: 'var(--text-tertiary)', fontSize: '0.8125rem',
                 boxShadow: 'var(--elev-0)',
                 transition: 'border-color var(--dur-fast)',
@@ -381,6 +427,50 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 borderRadius: 4, boxShadow: 'var(--elev-0)',
               }}>⌘K</kbd>
             </button>
+
+            <button
+              onClick={() => setNotifOpen(prev => !prev)}
+              aria-label={`Notifications (${unreadNotifCount} unread)`}
+              id="btn-sidebar-notif-flyout"
+              title="Open notifications panel"
+              style={{
+                width: 36, height: 36, flexShrink: 0,
+                background: notifOpen ? 'rgba(var(--accent-rgb), 0.15)' : 'var(--neu-bg-deep)',
+                border: notifOpen ? '1px solid var(--accent)' : '1px solid rgba(128,128,180,0.10)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                position: 'relative',
+                color: notifOpen ? 'var(--accent)' : 'var(--text-secondary)',
+                boxShadow: 'var(--elev-0)',
+                transition: 'all var(--dur-fast)',
+              }}
+            >
+              <Bell size={16} />
+              {unreadNotifCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -3,
+                    right: -3,
+                    background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+                    color: 'white',
+                    fontSize: '0.625rem',
+                    fontWeight: 800,
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                    boxShadow: '0 2px 6px rgba(236, 72, 153, 0.5)',
+                  }}
+                >
+                  {unreadNotifCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Nav sections */}
@@ -393,7 +483,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 .filter(item => canSee(userRole, item.minRole))
                 .map(item => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-                  return <SidebarItem key={item.href} item={item} isActive={isActive} />
+                  return (
+                    <SidebarItem
+                      key={item.href}
+                      item={item}
+                      isActive={isActive}
+                      badgeCount={item.href === '/notifications' ? unreadNotifCount : undefined}
+                    />
+                  )
                 })}
             </div>
           ))}
@@ -501,6 +598,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     size={22}
                     strokeWidth={isActive ? 2.5 : 1.8}
                   />
+                  {item.href === '/notifications' && unreadNotifCount > 0 && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: -4,
+                        right: -6,
+                        background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+                        color: 'white',
+                        fontSize: '0.5625rem',
+                        fontWeight: 800,
+                        minWidth: 14,
+                        height: 14,
+                        borderRadius: 7,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0 3px',
+                      }}
+                    >
+                      {unreadNotifCount}
+                    </span>
+                  )}
                   {isActive && (
                     <motion.div
                       layoutId="mobile-nav-dot"

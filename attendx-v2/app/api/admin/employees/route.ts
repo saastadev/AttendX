@@ -167,10 +167,23 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    let { data: { user }, error: authErr } = await supabase.auth.getUser()
+    const serviceClient = getSupabaseServiceClient()
+
+    if (!user || authErr) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const { data: userData } = await serviceClient.auth.getUser(token)
+        if (userData?.user) {
+          user = userData.user
+          authErr = null
+        }
+      }
+    }
+
     if (!user || authErr) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const serviceClient = getSupabaseServiceClient()
     const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
     const { data: roleRows } = await serviceClient
       .from('user_roles')
@@ -188,8 +201,8 @@ export async function GET(req: NextRequest) {
     const pageSize = Math.min(100, parseInt(searchParams.get('pageSize') ?? '50', 10))
     const search   = searchParams.get('search') ?? ''
 
-    // Fetch profiles, roles, and employees in parallel for maximum reliability
-    const [profilesRes, rolesRes, employeesRes] = await Promise.all([
+    // Fetch profiles, roles, employees, departments, designations, and attrition scores in parallel
+    const [profilesRes, rolesRes, employeesRes, deptsRes, desigsRes, attrRes] = await Promise.all([
       serviceClient
         .from('profiles')
         .select('*', { count: 'exact' })
@@ -203,6 +216,18 @@ export async function GET(req: NextRequest) {
         .from('employees')
         .select('*')
         .eq('tenant_id', roleRow.tenant_id),
+      serviceClient
+        .from('departments')
+        .select('id, name')
+        .eq('tenant_id', roleRow.tenant_id),
+      serviceClient
+        .from('designations')
+        .select('id, name')
+        .eq('tenant_id', roleRow.tenant_id),
+      serviceClient
+        .from('attrition_risk_scores')
+        .select('*')
+        .eq('tenant_id', roleRow.tenant_id),
     ])
 
     if (profilesRes.error) throw profilesRes.error
@@ -210,14 +235,31 @@ export async function GET(req: NextRequest) {
     const rolesMap = new Map<string, string>()
     ;(rolesRes.data ?? []).forEach((r: any) => rolesMap.set(r.user_id, r.role))
 
+    const deptsMap = new Map<string, string>()
+    ;(deptsRes.data ?? []).forEach((d: any) => deptsMap.set(d.id, d.name))
+
+    const desigsMap = new Map<string, string>()
+    ;(desigsRes.data ?? []).forEach((d: any) => desigsMap.set(d.id, d.name))
+
+    const attrMap = new Map<string, any>()
+    ;(attrRes.data ?? []).forEach((a: any) => attrMap.set(a.employee_id, a))
+
     const employeesMap = new Map<string, any>()
     ;(employeesRes.data ?? []).forEach((e: any) => employeesMap.set(e.id, e))
 
-    let merged = (profilesRes.data ?? []).map((p: any) => ({
-      ...p,
-      role: rolesMap.get(p.id) ?? 'EMPLOYEE',
-      employee: employeesMap.get(p.id) ?? null,
-    }))
+    let merged = (profilesRes.data ?? []).map((p: any) => {
+      const emp = employeesMap.get(p.id) ?? null
+      return {
+        ...p,
+        role: rolesMap.get(p.id) ?? 'EMPLOYEE',
+        employee: emp ? {
+          ...emp,
+          department_name: emp.department_id ? deptsMap.get(emp.department_id) || 'General' : 'General',
+          designation_name: emp.designation_id ? desigsMap.get(emp.designation_id) || 'Specialist' : 'Specialist',
+        } : null,
+        attrition: attrMap.get(p.id) ?? null,
+      }
+    })
 
     if (search) {
       const q = search.toLowerCase()
