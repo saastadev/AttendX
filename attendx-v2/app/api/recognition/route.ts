@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
         .select('*')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false })
-        .limit(25),
+        .limit(100),
       serviceClient
         .from('recognition_leaderboard')
         .select('*')
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
     }))
 
     // Authoritative personal stats for the authenticated employee/user
-    const myLb = normalizedLeaderboard.find((row: any) => row.user_id === user.id)
+    const myLb = normalizedLeaderboard.find((row: any) => row.user_id === user.id || row.employee_id === user.id)
     const myReceived = (feedRes.data || []).filter((ev: any) => ev.receiver_id === user.id)
     const myGiven = (feedRes.data || []).filter((ev: any) => ev.giver_id === user.id)
     const myPoints = myLb ? myLb.total_points : myReceived.reduce((sum: number, ev: any) => sum + (ev.points || 0), 0)
@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Dispatch notification to the recipient (User requirement: sent to the person)
     try {
-      await serviceClient.from('notifications').insert({
+      const { error: notifErr } = await serviceClient.from('notifications').insert({
         tenant_id: tenantId,
         user_id: receiver_id,
         type: 'RECOGNITION_RECEIVED',
@@ -302,6 +302,9 @@ export async function POST(req: NextRequest) {
         },
         is_read: false,
       })
+      if (notifErr) {
+        console.error('[Recognition POST] Notification dispatch DB error:', notifErr)
+      }
     } catch (notifErr) {
       console.warn('[Recognition POST] Notification dispatch non-blocking error:', notifErr)
     }

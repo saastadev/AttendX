@@ -41,6 +41,72 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const filter = searchParams.get('filter') // 'all' | 'unread'
 
+    // Self-healing: Check if user has received recognition_events without a notification
+    try {
+      const { data: recEvents } = await admin
+        .from('recognition_events')
+        .select('id, tenant_id, giver_id, points, note, category_id, created_at')
+        .eq('receiver_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (recEvents && recEvents.length > 0) {
+        const { data: existingNotifs } = await admin
+          .from('notifications')
+          .select('data')
+          .eq('user_id', user.id)
+          .eq('type', 'RECOGNITION_RECEIVED')
+
+        const existingEventIds = new Set(
+          (existingNotifs || [])
+            .map((n: any) => n.data?.event_id)
+            .filter(Boolean)
+        )
+
+        const missingEvents = recEvents.filter((ev: any) => !existingEventIds.has(ev.id))
+
+        if (missingEvents.length > 0) {
+          const giverIds = Array.from(new Set(missingEvents.map((e: any) => e.giver_id)))
+          const catIds = Array.from(new Set(missingEvents.map((e: any) => e.category_id)))
+
+          const [gRes, cRes] = await Promise.all([
+            admin.from('profiles').select('id, full_name').in('id', giverIds),
+            admin.from('recognition_categories').select('id, name').in('id', catIds),
+          ])
+
+          const gMap = new Map((gRes.data || []).map((g: any) => [g.id, g.full_name]))
+          const cMap = new Map((cRes.data || []).map((c: any) => [c.id, c.name]))
+
+          const notifsToInsert = missingEvents.map((ev: any) => {
+            const gName = gMap.get(ev.giver_id) || 'A teammate'
+            const cName = cMap.get(ev.category_id) || 'Recognition'
+            return {
+              tenant_id: ev.tenant_id,
+              user_id: user.id,
+              type: 'RECOGNITION_RECEIVED',
+              title: `Kudos from ${gName}! 🎉`,
+              body: `"${(ev.note || '').trim()}" (+${ev.points} pts for ${cName})`,
+              deep_link: '/recognition',
+              data: {
+                event_id: ev.id,
+                giver_id: ev.giver_id,
+                giver_name: gName,
+                category_id: ev.category_id,
+                category_name: cName,
+                points: ev.points,
+              },
+              is_read: false,
+              created_at: ev.created_at,
+            }
+          })
+
+          await admin.from('notifications').insert(notifsToInsert)
+        }
+      }
+    } catch (backfillErr) {
+      console.warn('[Notifications GET] Self-healing sync notice:', backfillErr)
+    }
+
     let query = admin
       .from('notifications')
       .select('*')

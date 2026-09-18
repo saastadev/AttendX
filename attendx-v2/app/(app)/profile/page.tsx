@@ -29,16 +29,30 @@ export default function ProfilePage() {
   const { data: recognitionMetrics } = useQuery({
     queryKey: ['profile-recognition-metrics', user?.id],
     queryFn: async () => {
-      if (!user?.id) return { points: 0, count: 0 }
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return { points: 0, count: 0 }
       const { data, error } = await supabase
         .from('recognition_events')
         .select('points')
-        .eq('receiver_id', user.id)
+        .eq('receiver_id', targetUserId)
 
-      if (error || !data) return { points: 0, count: 0 }
+      if (!error && data && data.length > 0) {
+        return {
+          points: data.reduce((sum, r) => sum + (r.points || 0), 0),
+          count: data.length,
+        }
+      }
+
+      // Fallback to recognition_leaderboard
+      const { data: lbData } = await supabase
+        .from('recognition_leaderboard')
+        .select('total_points, recognitions_received')
+        .eq('employee_id', targetUserId)
+        .maybeSingle()
+
       return {
-        points: data.reduce((sum, r) => sum + (r.points || 0), 0),
-        count: data.length,
+        points: lbData?.total_points ?? 0,
+        count: lbData?.recognitions_received ?? 0,
       }
     },
     enabled: !!user?.id,

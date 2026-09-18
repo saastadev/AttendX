@@ -7,6 +7,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
   users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown, star: Star, award: Award, trophy: Trophy,
@@ -14,6 +15,7 @@ const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
 
 export default function RecognitionPage() {
   const user = useAuthStore(s => s.user)
+  const supabase = getSupabaseBrowserClient()
   const { success, error } = useToast()
   const qc = useQueryClient()
 
@@ -24,11 +26,18 @@ export default function RecognitionPage() {
   const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'received' | 'given'>('all')
 
+  const myUserId = user?.id || (user as any)?.profile?.id
+
   // Fetch authoritative recognition dataset (categories, colleagues, feed, leaderboard, myStats)
   const { data: recData, isLoading, refetch } = useQuery({
-    queryKey: ['recognition-data', user?.tenant?.id || (user as any)?.tenant_id],
+    queryKey: ['recognition-data', myUserId, user?.tenant?.id || (user as any)?.tenant_id],
     queryFn: async () => {
-      const res = await fetch('/api/recognition')
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      const res = await fetch('/api/recognition', { headers, credentials: 'include' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error || 'Failed to load recognition data')
@@ -44,7 +53,7 @@ export default function RecognitionPage() {
   const feed = recData?.feed || []
   const categories = recData?.categories || []
   const allColleagues = recData?.colleagues || []
-  const myStats = recData?.myStats || {
+  const rawStats = recData?.myStats || {
     total_points: 0,
     recognitions_received: 0,
     recognitions_given: 0,
@@ -60,14 +69,34 @@ export default function RecognitionPage() {
     p.employee_code?.toLowerCase().includes(recipientSearch.toLowerCase())
   )
 
-  const receivedCount = (feed || []).filter((r: any) => r.receiver_id === user?.id || r.is_received).length
-  const givenCount = (feed || []).filter((r: any) => r.giver_id === user?.id || r.is_given).length
+  const isReceivedItem = (r: any) =>
+    Boolean(myUserId && r.receiver_id === myUserId) ||
+    Boolean(user?.profile?.id && r.receiver_id === user.profile.id) ||
+    r.is_received === true
+
+  const isGivenItem = (r: any) =>
+    Boolean(myUserId && r.giver_id === myUserId) ||
+    Boolean(user?.profile?.id && r.giver_id === user.profile.id) ||
+    r.is_given === true
+
+  const receivedCount = (feed || []).filter(isReceivedItem).length
+  const givenCount = (feed || []).filter(isGivenItem).length
 
   const displayedFeed = (feed || []).filter((r: any) => {
-    if (activeTab === 'received') return r.receiver_id === user?.id || r.is_received
-    if (activeTab === 'given') return r.giver_id === user?.id || r.is_given
+    if (activeTab === 'received') return isReceivedItem(r)
+    if (activeTab === 'given') return isGivenItem(r)
     return true
   })
+
+  const myLbEntry = (leaderboard || []).find((row: any) =>
+    (myUserId && (row.user_id === myUserId || row.employee_id === myUserId)) ||
+    (user?.profile?.id && (row.user_id === user.profile.id || row.employee_id === user.profile.id))
+  )
+
+  const displayPoints = rawStats.total_points || myLbEntry?.total_points || (feed || []).filter(isReceivedItem).reduce((s: number, r: any) => s + (r.points || 0), 0)
+  const displayRank = rawStats.rank || myLbEntry?.rank || '-'
+  const displayReceived = rawStats.recognitions_received || myLbEntry?.recognitions_received || receivedCount
+  const displayGiven = rawStats.recognitions_given ?? givenCount
 
   const giveMutation = useMutation({
     mutationFn: async () => {
@@ -75,9 +104,16 @@ export default function RecognitionPage() {
         throw new Error('Please fill all fields')
       }
 
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       const res = await fetch('/api/recognition', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
+        credentials: 'include',
         body: JSON.stringify({
           receiver_id: selectedRecipient.id,
           category_id: selectedCategory,
@@ -187,7 +223,7 @@ export default function RecognitionPage() {
             minWidth: 96,
           }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#F59E0B', fontFamily: 'var(--font-display)' }}>
-              {myStats.total_points ?? 0}
+              {displayPoints}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Points Earned</div>
           </div>
@@ -201,7 +237,7 @@ export default function RecognitionPage() {
             minWidth: 96,
           }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>
-              #{myStats.rank ?? '-'}
+              #{displayRank}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Leaderboard Rank</div>
           </div>
@@ -215,7 +251,7 @@ export default function RecognitionPage() {
             minWidth: 96,
           }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#10B981', fontFamily: 'var(--font-display)' }}>
-              {myStats.recognitions_received ?? 0}
+              {displayReceived}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Kudos Received</div>
           </div>
@@ -229,7 +265,7 @@ export default function RecognitionPage() {
             minWidth: 96,
           }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#0EA5E9', fontFamily: 'var(--font-display)' }}>
-              {myStats.recognitions_given ?? 0}
+              {displayGiven}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Kudos Given</div>
           </div>

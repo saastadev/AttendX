@@ -35,7 +35,15 @@ export default function NotificationsPage() {
     queryFn: async () => {
       if (!user) return []
       try {
-        const res = await fetch(`/api/notifications?filter=${filter}`, { credentials: 'same-origin' })
+        const { data: { session } } = await supabase.auth.getSession()
+        const headers: Record<string, string> = {}
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+        const res = await fetch(`/api/notifications?filter=${filter}`, {
+          headers,
+          credentials: 'include',
+        })
         if (res.ok) {
           const json = await res.json()
           if (Array.isArray(json.notifications)) return json.notifications

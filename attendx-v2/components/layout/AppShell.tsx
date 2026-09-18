@@ -16,6 +16,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { TenantSwitcher } from '@/components/navigation/tenant-switcher'
 import { useQuery } from '@tanstack/react-query'
 import { NotificationFlyoutPanel } from '@/components/notifications/NotificationFlyoutPanel'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import type { UserRole } from '@/types/database'
 
 /* Alias must be defined before SIDEBAR_NAV uses it */
@@ -267,8 +268,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     queryKey: ['notifications-unread-count', user?.id],
     queryFn: async () => {
       if (!user) return 0
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       try {
-        const res = await fetch('/api/notifications?filter=unread', { credentials: 'same-origin' })
+        const res = await fetch('/api/notifications?filter=unread', {
+          headers,
+          credentials: 'include',
+        })
         if (res.ok) {
           const json = await res.json()
           if (Array.isArray(json.notifications)) return json.notifications.length
@@ -276,10 +287,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.warn('[AppShell] notif count check error:', err)
       }
+
+      // Direct fallback to Supabase client
+      try {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false)
+        if (!error && count !== null) return count
+      } catch (fallbackErr) {
+        console.warn('[AppShell] notif fallback error:', fallbackErr)
+      }
+
       return 0
     },
     enabled: !!user,
-    refetchInterval: 8000,
+    refetchInterval: 6000,
   })
 
   // Redirect if unauthenticated

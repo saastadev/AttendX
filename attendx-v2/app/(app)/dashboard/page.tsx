@@ -162,11 +162,12 @@ export default function DashboardPage() {
   const { data: recognitionPoints = 0 } = useQuery<number>({
     queryKey: ['recognition-points', user?.id],
     queryFn: async () => {
-      if (!user?.id) return 0
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return 0
       const { data, error } = await supabase
         .from('recognition_events')
         .select('points')
-        .eq('receiver_id', user.id)
+        .eq('receiver_id', targetUserId)
       
       if (!error && data && data.length > 0) {
         return data.reduce((sum, r) => sum + (r.points || 0), 0)
@@ -175,7 +176,7 @@ export default function DashboardPage() {
       const { data: lbData } = await supabase
         .from('recognition_leaderboard')
         .select('total_points')
-        .eq('employee_id', user.id)
+        .eq('employee_id', targetUserId)
         .maybeSingle()
       
       return lbData?.total_points ?? 0
@@ -187,11 +188,12 @@ export default function DashboardPage() {
   const { data: latestRecognition } = useQuery({
     queryKey: ['latest-recognition-received', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return null
       const { data, error } = await supabase
         .from('recognition_events')
         .select('id, points, note, created_at, category_id, giver_id')
-        .eq('receiver_id', user.id)
+        .eq('receiver_id', targetUserId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
