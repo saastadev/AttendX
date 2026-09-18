@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { format, differenceInMinutes, parseISO } from 'date-fns'
 import {
   Clock, CalendarDays, Trophy, Bell, ChevronRight,
-  TrendingUp, CheckCircle, Timer, AlertCircle, ArrowUpRight, ShieldCheck, Sparkles
+  TrendingUp, CheckCircle, Timer, AlertCircle, ArrowUpRight, ShieldCheck, Sparkles, Award
 } from 'lucide-react'
 import Link from 'next/link'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -158,18 +158,60 @@ export default function DashboardPage() {
     enabled: !!user,
   })
 
-  // Fetch recognition points
+  // Fetch recognition points (query recognition_events with fallback to recognition_leaderboard)
   const { data: recognitionPoints = 0 } = useQuery<number>({
     queryKey: ['recognition-points', user?.id],
     queryFn: async () => {
-      if (!user) return 0
-      const { data } = await supabase
-        .from('recognitions')
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return 0
+      const { data, error } = await supabase
+        .from('recognition_events')
         .select('points')
-        .eq('recipient_id', user.id)
-      return (data ?? []).reduce((sum, r) => sum + (r.points || 0), 0)
+        .eq('receiver_id', targetUserId)
+      
+      if (!error && data && data.length > 0) {
+        return data.reduce((sum, r) => sum + (r.points || 0), 0)
+      }
+
+      const { data: lbData } = await supabase
+        .from('recognition_leaderboard')
+        .select('total_points')
+        .eq('employee_id', targetUserId)
+        .maybeSingle()
+      
+      return lbData?.total_points ?? 0
     },
-    enabled: !!user,
+    enabled: !!user?.id,
+  })
+
+  // Fetch latest recognition received by the employee
+  const { data: latestRecognition } = useQuery({
+    queryKey: ['latest-recognition-received', user?.id],
+    queryFn: async () => {
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return null
+      const { data, error } = await supabase
+        .from('recognition_events')
+        .select('id, points, note, created_at, category_id, giver_id')
+        .eq('receiver_id', targetUserId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error || !data) return null
+
+      const [catRes, giverRes] = await Promise.all([
+        supabase.from('recognition_categories').select('name, icon, color').eq('id', data.category_id).maybeSingle(),
+        supabase.from('profiles').select('full_name').eq('id', data.giver_id).maybeSingle(),
+      ])
+
+      return {
+        ...data,
+        category: catRes.data,
+        giver: giverRes.data,
+      }
+    },
+    enabled: !!user?.id,
   })
 
   // Fetch active goals count
@@ -462,6 +504,63 @@ export default function DashboardPage() {
           </div>
         </Link>
       </div>
+
+      {/* Latest Recognition Spotlight */}
+      {latestRecognition && (
+        <div style={{ marginTop: 'var(--space-6)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+            <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Trophy size={18} color="#F59E0B" /> Latest Recognition Received
+            </h2>
+            <Link href="/recognition" style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+              View Kudos Board <ArrowUpRight size={14} />
+            </Link>
+          </div>
+          <div
+            className="neu-card"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--space-4)',
+              padding: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(99, 102, 241, 0.08))',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              borderRadius: 'var(--radius-lg)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: 240 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%',
+                background: 'rgba(245, 158, 11, 0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Award size={22} color="#F59E0B" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
+                  {latestRecognition.giver?.full_name || 'A teammate'} recognized you!
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: '2px 0 6px' }}>
+                  "{latestRecognition.note}"
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span className="badge badge-accent" style={{ fontSize: '0.7rem' }}>
+                    {latestRecognition.category?.name || 'Peer Recognition'}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F59E0B' }}>
+                    +{latestRecognition.points} pts
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Link href="/recognition" className="btn btn-secondary btn-sm" style={{ alignSelf: 'center', textDecoration: 'none' }}>
+              View All Recognitions
+            </Link>
+          </div>
+        </div>
+      )}
 
 
     </div>

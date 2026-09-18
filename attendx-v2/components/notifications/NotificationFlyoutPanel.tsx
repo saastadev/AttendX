@@ -12,6 +12,7 @@ import {
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import type { Notification } from '@/types/database'
 
 const SPRING_GENTLE = { type: 'spring' as const, stiffness: 350, damping: 30 }
@@ -23,7 +24,7 @@ const NOTIF_ICONS: Record<string, { icon: any; color: string; bg: string }> = {
   LEAVE_REJECTED:       { icon: Info,   color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
   ANNOUNCEMENT:         { icon: Star,   color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
   REVIEW_REMINDER:      { icon: Calendar, color: '#6366F1', bg: 'rgba(99, 102, 241, 0.15)' },
-  SYSTEM:               { icon: Info,   color: '#6B7280', bg: 'rgba(107, 114, 128, 0.15)' },
+  SYSTEM:               { icon: Info,   color: 'var(--text-tertiary)', bg: 'rgba(128, 128, 180, 0.15)' },
 }
 
 interface NotificationFlyoutPanelProps {
@@ -44,8 +45,18 @@ export function NotificationFlyoutPanel({ open, onClose }: NotificationFlyoutPan
     queryKey: ['notifications-panel', user?.id, filter],
     queryFn: async () => {
       if (!user) return []
+      const supabase = getSupabaseBrowserClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
       try {
-        const res = await fetch(`/api/notifications?filter=${filter}`, { credentials: 'same-origin' })
+        const res = await fetch(`/api/notifications?filter=${filter}`, {
+          headers,
+          credentials: 'include',
+        })
         if (res.ok) {
           const json = await res.json()
           if (Array.isArray(json.notifications)) return json.notifications
@@ -53,10 +64,26 @@ export function NotificationFlyoutPanel({ open, onClose }: NotificationFlyoutPan
       } catch (e) {
         console.warn('[NotificationPanel] fetch error:', e)
       }
+
+      // Fallback directly to Supabase client
+      try {
+        let q = supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (filter === 'unread') q = q.eq('is_read', false)
+        const { data, error } = await q
+        if (!error && data) return data as Notification[]
+      } catch (fallbackErr) {
+        console.warn('[NotificationPanel] fallback query error:', fallbackErr)
+      }
+
       return []
     },
     enabled: open && !!user,
-    refetchInterval: open ? 6000 : false,
+    refetchInterval: open ? 5000 : false,
   })
 
   // Close on Escape or click outside

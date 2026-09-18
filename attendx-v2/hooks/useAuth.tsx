@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, createContext, useContext, useState, useCallback, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import type { AuthUser, UserRole } from '@/types/database'
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = getSupabaseBrowserClient()
+  const qc = useQueryClient()
   const { setUser, clearUser, setLoading, setInitialized } = useAuthStore()
 
   const loadUserProfile = useCallback(async (userId: string): Promise<AuthUser | null> => {
@@ -148,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          qc.clear()
           const authUser = await loadUserProfile(session.user.id)
           if (authUser) {
             setUser(authUser)
@@ -158,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (event === 'SIGNED_OUT') {
           clearUser()
           applyTenantBranding(null)
+          qc.clear()
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Silently refresh without disrupting UX
           const authUser = await loadUserProfile(session.user.id)
@@ -167,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase, loadUserProfile, setUser, clearUser, setLoading, setInitialized, applyTenantBranding])
+  }, [supabase, loadUserProfile, setUser, clearUser, setLoading, setInitialized, applyTenantBranding, qc])
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
@@ -187,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data.success) {
         return { error: data.error || 'Invalid email or password.' }
       }
+      qc.clear()
       return { error: null, destination: data.destination }
     } catch (err) {
       console.error('[Auth] signIn transport failure:', err)
@@ -194,12 +199,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: 'Unable to reach the authentication service. Check your connection and try again.',
       }
     }
-  }, [supabase])
+  }, [supabase, qc])
 
   const signOut = useCallback(async () => {
     if (!supabase) return
+    qc.clear()
     await supabase.auth.signOut()
-  }, [supabase])
+  }, [supabase, qc])
 
   const acceptInvite = useCallback(async (
     token: string,
