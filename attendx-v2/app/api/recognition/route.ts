@@ -111,6 +111,8 @@ export async function GET(req: NextRequest) {
       giver: profileMap.get(ev.giver_id) || { full_name: 'Colleague' },
       receiver: profileMap.get(ev.receiver_id) || { full_name: 'Team Member' },
       category: catMap.get(ev.category_id) || { name: 'Recognition', points: ev.points, icon: 'heart', color: '#EC4899' },
+      is_received: ev.receiver_id === user.id,
+      is_given: ev.giver_id === user.id,
     }))
 
     // Leaderboard: use materialized view rows if available; if empty or missing, aggregate live from events
@@ -150,12 +152,27 @@ export async function GET(req: NextRequest) {
       total_points: Number(row.total_points ?? 0),
     }))
 
+    // Authoritative personal stats for the authenticated employee/user
+    const myLb = normalizedLeaderboard.find((row: any) => row.user_id === user.id)
+    const myReceived = (feedRes.data || []).filter((ev: any) => ev.receiver_id === user.id)
+    const myGiven = (feedRes.data || []).filter((ev: any) => ev.giver_id === user.id)
+    const myPoints = myLb ? myLb.total_points : myReceived.reduce((sum: number, ev: any) => sum + (ev.points || 0), 0)
+
+    const myStats = {
+      user_id: user.id,
+      total_points: myPoints,
+      recognitions_received: myLb ? myLb.recognitions_received : myReceived.length,
+      recognitions_given: myGiven.length,
+      rank: myLb ? myLb.rank : (normalizedLeaderboard.length + 1),
+    }
+
     return NextResponse.json({
       success: true,
       categories: catsRes.data || [],
       colleagues,
       feed,
       leaderboard: normalizedLeaderboard,
+      myStats,
     })
   } catch (err: any) {
     console.error('[Recognition GET] error:', err)
