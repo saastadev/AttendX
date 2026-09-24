@@ -16,6 +16,7 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon;
 -- Remove ONLY this suite's own rows. Never TRUNCATE: these tables are shared
 -- with the seeded demo tenants that tests/rls.test.js asserts positive controls
 -- against, and wiping them makes that suite fail for an unrelated reason.
+DELETE FROM gps_tracking         WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b2');
 DELETE FROM audit_log            WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b2');
 DELETE FROM attrition_risk_scores WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b2');
 DELETE FROM attendance_records   WHERE tenant_id IN ('aa000000-0000-0000-0000-0000000000a1','bb000000-0000-0000-0000-0000000000b2');
@@ -78,3 +79,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO audit_log (tenant_id, actor_id, action, table_name) VALUES
  ('aa000000-0000-0000-0000-0000000000a1','a0000003-0000-0000-0000-000000000003','SALARY_VIEW','employees'),
  ('bb000000-0000-0000-0000-0000000000b2','b0000003-0000-0000-0000-000000000003','SALARY_VIEW','employees');
+
+INSERT INTO gps_tracking (tenant_id, employee_id, latitude, longitude, speed, timestamp) VALUES
+ ('aa000000-0000-0000-0000-0000000000a1','a0000001-0000-0000-0000-000000000001',12.9716,77.5946,0.0,NOW()),
+ ('bb000000-0000-0000-0000-0000000000b2','b0000001-0000-0000-0000-000000000001',40.7128,-74.0060,0.0,NOW());

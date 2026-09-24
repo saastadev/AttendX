@@ -12,10 +12,12 @@ import {
   UserX,
   Search,
   Building2,
+  Navigation,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { useAuthStore } from '@/store/auth.store'
 import { PageWrapper } from '@/components/ui/PageWrapper'
+import { ManagerRouteMapModal } from '@/components/location/ManagerRouteMapModal'
 
 export default function ManagerTeamPage() {
   const user = useAuthStore(s => s.user)
@@ -23,6 +25,7 @@ export default function ManagerTeamPage() {
   const isPrivilegedRole = ['ADMIN', 'SUPERADMIN', 'HR'].includes(role)
 
   const [scopeFilter, setScopeFilter] = useState<'all' | 'direct'>(isPrivilegedRole ? 'all' : 'direct')
+  const [selectedEmployeeForRoute, setSelectedEmployeeForRoute] = useState<{ id: string; name: string } | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PRESENT' | 'NOT_CLOCKED_IN'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -382,6 +385,15 @@ export default function ManagerTeamPage() {
                           </div>
                         </>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEmployeeForRoute({ id: m.id, name: m.profile?.full_name || 'Employee' })}
+                        className="btn btn-ghost btn-xs"
+                        style={{ fontSize: '0.75rem', marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        title="View GPS Route Telemetry"
+                      >
+                        <Navigation size={12} /> View Route
+                      </button>
                     </div>
                   </div>
                 )
@@ -419,6 +431,13 @@ export default function ManagerTeamPage() {
           </div>
         </div>
       </div>
+
+      <ManagerRouteMapModal
+        employeeId={selectedEmployeeForRoute?.id || null}
+        employeeName={selectedEmployeeForRoute?.name || ''}
+        isOpen={!!selectedEmployeeForRoute}
+        onClose={() => setSelectedEmployeeForRoute(null)}
+      />
     </PageWrapper>
   )
 }
