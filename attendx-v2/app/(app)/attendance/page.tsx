@@ -15,6 +15,20 @@ import { PageWrapper } from '@/components/ui/PageWrapper'
 import { AnimatedValue } from '@/components/ui/AnimatedValue'
 import type { AttendanceRecord } from '@/types/database'
 
+function isMissingOutRecord(r: AttendanceRecord | any): boolean {
+  if (!r) return false
+  if (r.missing_out === true) return true
+  if (r.notes) {
+    try {
+      const p = typeof r.notes === 'string' ? JSON.parse(r.notes) : r.notes
+      return Boolean(p.missing_out === true || p.note === 'Missing Out')
+    } catch {
+      return typeof r.notes === 'string' && r.notes.includes('Missing Out')
+    }
+  }
+  return false
+}
+
 export default function AttendanceHistoryPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
@@ -357,7 +371,19 @@ export default function AttendanceHistoryPage() {
 
                           {/* Status */}
                           <td>
-                            {isWorkingNow ? (
+                            {emp.liveStatus === 'MISSING_OUT' || isMissingOutRecord(emp.attendance) ? (
+                              <span
+                                className="badge badge-warning"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  color: '#DC2626',
+                                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Missing Out
+                              </span>
+                            ) : isWorkingNow ? (
                               <span className="badge badge-present" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
                                 Working Now
@@ -556,24 +582,42 @@ export default function AttendanceHistoryPage() {
                       </td>
                     </tr>
                   ) : (
-                    records!.map(r => (
-                      <tr key={r.id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
-                        <td style={{ padding: '14px 20px', fontWeight: 600 }}>{r.date}</td>
-                        <td>
-                          <span className={`badge ${
-                            r.status === 'PRESENT' ? 'badge-present' :
-                            r.status === 'LATE' ? 'badge-warning' :
-                            'badge-absent'
-                          }`}>
-                            {r.status}
-                          </span>
-                        </td>
+                    records!.map(r => {
+                      const isMissingOut = isMissingOutRecord(r)
+                      return (
+                        <tr key={r.id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
+                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{r.date}</td>
+                          <td>
+                            {isMissingOut ? (
+                              <span
+                                className="badge badge-warning"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  color: '#DC2626',
+                                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                                  fontWeight: 600,
+                                }}
+                                data-testid="badge-missing-out"
+                              >
+                                Missing Out
+                              </span>
+                            ) : (
+                              <span className={`badge ${
+                                r.status === 'PRESENT' ? 'badge-present' :
+                                r.status === 'LATE' ? 'badge-warning' :
+                                r.status === 'HALF_DAY' ? 'badge-warning' :
+                                'badge-absent'
+                              }`}>
+                                {r.status}
+                              </span>
+                            )}
+                          </td>
                         <td>{r.clock_in_at ? format(parseISO(r.clock_in_at), 'h:mm a') : '—'}</td>
                         <td>{r.clock_out_at ? format(parseISO(r.clock_out_at), 'h:mm a') : '—'}</td>
                         <td>{r.work_minutes ? `${Math.floor(r.work_minutes / 60)}h ${r.work_minutes % 60}m` : '—'}</td>
                         <td>{r.clock_in_selfie_url ? '📷 Verified' : 'Manual'}</td>
                       </tr>
-                    ))
+                    )})
                   )}
                 </tbody>
               </table>

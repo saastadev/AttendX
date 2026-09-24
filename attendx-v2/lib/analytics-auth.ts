@@ -1,0 +1,54 @@
+import { type NextRequest } from 'next/server'
+import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+
+export async function resolveAnalyticsAuth(req: NextRequest) {
+  const supabase = await getSupabaseServerClient()
+  let { data: { user }, error: authErr } = await supabase.auth.getUser()
+
+  const serviceClient = getSupabaseServiceClient()
+
+  if (!user || authErr) {
+    const authHeader = req.headers.get('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const { data: userData } = await serviceClient.auth.getUser(token)
+      if (userData?.user) {
+        user = userData.user
+        authErr = null
+      }
+    }
+  }
+
+  if (!user || authErr) {
+    return { error: 'Unauthorized session', status: 401 }
+  }
+
+  const { data: emp } = await serviceClient
+    .from('employees')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  let tenantId = emp?.tenant_id ?? null
+
+  if (!tenantId) {
+    const { data: prof } = await serviceClient
+      .from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+    tenantId = prof?.tenant_id ?? null
+  }
+  if (!tenantId) {
+    const { data: roles } = await serviceClient
+      .from('user_roles').select('tenant_id').eq('user_id', user.id)
+    if (roles?.length === 1) tenantId = roles[0].tenant_id
+  }
+
+  if (!tenantId) {
+    return { error: 'No tenant membership found for this user.', status: 403 }
+  }
+
+  let tz = 'UTC'
+  const { data: t } = await serviceClient.from('tenants').select('timezone').eq('id', tenantId).maybeSingle()
+  if (t?.timezone) tz = t.timezone
+
+  return { user, tenantId, tz, serviceClient }
+}
