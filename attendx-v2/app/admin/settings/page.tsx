@@ -8,6 +8,15 @@ import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 
+const DEFAULT_FEATURES: Record<string, boolean> = {
+  copilot: true,
+  face_checkin: true,
+  skill_gap: true,
+  attrition_scoring: true,
+  recognition: true,
+  cases: true,
+}
+
 export default function AdminSettingsPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
@@ -18,13 +27,9 @@ export default function AdminSettingsPage() {
   const [accentColor, setAccentColor] = useState(user?.tenant?.accent_color ?? '#4F46E5')
   const [logoUrl, setLogoUrl] = useState(user?.tenant?.logo_url ?? '/logo.jpg')
 
-  const [features, setFeatures] = useState({
-    copilot: user?.tenant?.features?.copilot ?? true,
-    face_checkin: user?.tenant?.features?.face_checkin ?? true,
-    skill_gap: user?.tenant?.features?.skill_gap ?? true,
-    attrition_scoring: user?.tenant?.features?.attrition_scoring ?? true,
-    recognition: user?.tenant?.features?.recognition ?? true,
-    cases: user?.tenant?.features?.cases ?? true,
+  const [features, setFeatures] = useState<Record<string, boolean>>({
+    ...DEFAULT_FEATURES,
+    ...(user?.tenant?.features || {}),
   })
 
   useEffect(() => {
@@ -32,9 +37,11 @@ export default function AdminSettingsPage() {
       setAppName(user.tenant.app_name ?? 'AttendX')
       setAccentColor(user.tenant.accent_color ?? '#4F46E5')
       setLogoUrl(user.tenant.logo_url ?? '/logo.jpg')
-      if (user.tenant.features) {
-        setFeatures(user.tenant.features)
-      }
+      setFeatures(prev => ({
+        ...DEFAULT_FEATURES,
+        ...prev,
+        ...(user.tenant.features || {}),
+      }))
     }
   }, [user])
 
@@ -95,7 +102,7 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 className="input"
-                value={appName}
+                value={appName ?? ''}
                 onChange={e => setAppName(e.target.value)}
                 placeholder="AttendX Tech"
               />
@@ -106,7 +113,7 @@ export default function AdminSettingsPage() {
               <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
                 <input
                   type="color"
-                  value={accentColor}
+                  value={accentColor ?? '#4F46E5'}
                   onChange={e => setAccentColor(e.target.value)}
                   style={{
                     width: 48, height: 48, borderRadius: 'var(--radius-md)',
@@ -116,7 +123,7 @@ export default function AdminSettingsPage() {
                 <input
                   type="text"
                   className="input"
-                  value={accentColor}
+                  value={accentColor ?? '#4F46E5'}
                   onChange={e => setAccentColor(e.target.value)}
                   style={{ flex: 1 }}
                 />
@@ -128,7 +135,7 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 className="input"
-                value={logoUrl}
+                value={logoUrl ?? ''}
                 onChange={e => setLogoUrl(e.target.value)}
                 placeholder="/logo.jpg"
               />
@@ -163,8 +170,9 @@ export default function AdminSettingsPage() {
                 <label className="toggle">
                   <input
                     type="checkbox"
-                    checked={(features as any)[item.key]}
-                    onChange={e => setFeatures({ ...features, [item.key]: e.target.checked })}
+                    id={`toggle-${item.key}`}
+                    checked={Boolean(features[item.key] ?? DEFAULT_FEATURES[item.key] ?? false)}
+                    onChange={e => setFeatures(prev => ({ ...prev, [item.key]: e.target.checked }))}
                   />
                   <div className="toggle-track">
                     <div className="toggle-thumb" />

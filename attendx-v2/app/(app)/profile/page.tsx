@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth.store'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
@@ -8,7 +10,8 @@ import { useToast } from '@/components/ui/Toast'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import {
   User, Mail, Phone, Building, Shield, Calendar,
-  Sun, Moon, Eye, LogOut, CheckCircle, Save
+  Sun, Moon, Eye, LogOut, CheckCircle, Save,
+  Trophy, Award, ArrowUpRight
 } from 'lucide-react'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 
@@ -21,6 +24,39 @@ export default function ProfilePage() {
 
   const [phone, setPhone] = useState(user?.profile?.phone ?? '')
   const [isSaving, setIsSaving] = useState(false)
+
+  // Fetch personal recognition metrics for this employee
+  const { data: recognitionMetrics } = useQuery({
+    queryKey: ['profile-recognition-metrics', user?.id],
+    queryFn: async () => {
+      const targetUserId = user?.id || (user as any)?.profile?.id
+      if (!targetUserId) return { points: 0, count: 0 }
+      const { data, error } = await supabase
+        .from('recognition_events')
+        .select('points')
+        .eq('receiver_id', targetUserId)
+
+      if (!error && data && data.length > 0) {
+        return {
+          points: data.reduce((sum, r) => sum + (r.points || 0), 0),
+          count: data.length,
+        }
+      }
+
+      // Fallback to recognition_leaderboard
+      const { data: lbData } = await supabase
+        .from('recognition_leaderboard')
+        .select('total_points, recognitions_received')
+        .eq('employee_id', targetUserId)
+        .maybeSingle()
+
+      return {
+        points: lbData?.total_points ?? 0,
+        count: lbData?.recognitions_received ?? 0,
+      }
+    },
+    enabled: !!user?.id,
+  })
 
   const handleSavePhone = async () => {
     if (!user) return
@@ -71,6 +107,56 @@ export default function ProfilePage() {
               <span className="badge badge-approved">
                 {user.tenant?.name ?? 'Organization'}
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Recognition & Achievements Card */}
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 8 }}>
+            <h2 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+              <Trophy size={20} color="#F59E0B" /> Recognition & Achievements
+            </h2>
+            <Link href="/recognition" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+              View Recognition Board <ArrowUpRight size={14} />
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+            <div style={{
+              padding: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), var(--neu-bg-deep))',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Total Points Earned</span>
+                <Trophy size={16} color="#F59E0B" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#F59E0B', fontFamily: 'var(--font-display)' }}>
+                {recognitionMetrics?.points ?? 0}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                Awarded by managers and peers
+              </div>
+            </div>
+
+            <div style={{
+              padding: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.08), var(--neu-bg-deep))',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid rgba(236, 72, 153, 0.2)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Kudos Received</span>
+                <Award size={16} color="#EC4899" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#EC4899', fontFamily: 'var(--font-display)' }}>
+                {recognitionMetrics?.count ?? 0}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                Peer recognition honors on record
+              </div>
             </div>
           </div>
         </div>

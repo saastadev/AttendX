@@ -130,6 +130,7 @@ function ChatMessage({ msg }: { msg: Message }) {
         fontSize: 'var(--text-sm)',
         lineHeight: 1.65,
         border: isUser ? 'none' : '1px solid rgba(128,128,180,0.08)',
+        whiteSpace: 'pre-wrap',
       }}>
         {msg.content}
         {msg.status === 'error' && (
@@ -260,7 +261,7 @@ export default function CopilotPage() {
           >
             <Sparkles size={40} style={{ margin: '0 auto var(--space-4)', opacity: 0.5 }} />
             <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
-              Hey {user?.profile.full_name.split(' ')[0]}, how can I help?
+              Hey {user?.profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'}, how can I help?
             </p>
             <p style={{ fontSize: 'var(--text-sm)' }}>Ask me anything about your workspace</p>
           </motion.div>

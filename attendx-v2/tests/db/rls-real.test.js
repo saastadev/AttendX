@@ -236,6 +236,44 @@ test('RLS — real cross-tenant isolation with positive controls', async (t) => 
         'SELECT count(*) FROM profiles WHERE tenant_id=$1', [T_GLOBEX], T_GLOBEX)
       assert.equal(count(rows), 0, 'LEAK: forged claim exposed another tenant')
     })
+
+    // ----------------------------------------------------------------
+    // gps_tracking telemetry isolation & role hierarchy
+    // ----------------------------------------------------------------
+    await t.test('gps_tracking: employee reads own waypoint (>0 positive control) and cross-tenant sees zero', async () => {
+      // Alice can read her own waypoint
+      const aliceOwn = await asUser(client, U.aliceEmp,
+        'SELECT count(*) FROM gps_tracking WHERE tenant_id=$1', [T_ACME], T_ACME)
+      assert.equal(count(aliceOwn), 1, 'POSITIVE CONTROL: employee could not read own waypoint in gps_tracking')
+
+      // Bob in Globex cannot read Alice's waypoint
+      const bobCross = await asUser(client, U.bobEmp,
+        'SELECT count(*) FROM gps_tracking WHERE tenant_id=$1', [T_ACME], T_GLOBEX)
+      assert.equal(count(bobCross), 0, 'LEAK: cross-tenant employee read another tenant gps_tracking waypoint')
+    })
+
+    await t.test('gps_tracking: manager sees direct report waypoint in own tenant, but zero cross-tenant', async () => {
+      // Aaron is manager of Alice in Acme
+      const mgrOwn = await asUser(client, U.aaronMgr,
+        'SELECT count(*) FROM gps_tracking WHERE tenant_id=$1 AND employee_id=$2', [T_ACME, U.aliceEmp], T_ACME)
+      assert.equal(count(mgrOwn), 1, 'POSITIVE CONTROL: manager could not see direct report waypoint')
+
+      // Aaron cannot see Bob's telemetry
+      const mgrCross = await asUser(client, U.aaronMgr,
+        'SELECT count(*) FROM gps_tracking WHERE employee_id=$1', [U.bobEmp], T_ACME)
+      assert.equal(count(mgrCross), 0, 'LEAK: manager accessed cross-tenant telemetry')
+    })
+
+    await t.test('gps_tracking: employee cannot spoof telemetry for another employee', async () => {
+      await assert.rejects(
+        () => asUser(client, U.aliceEmp, `
+          INSERT INTO gps_tracking (tenant_id, employee_id, latitude, longitude, speed, timestamp)
+          VALUES ($1, $2, 12.9716, 77.5946, 0.0, NOW())
+        `, [T_ACME, U.aaronMgr], T_ACME),
+        /row-level security/i,
+        'SPOOFING: employee inserted telemetry for another employee'
+      )
+    })
   } finally {
     await client.end()
   }

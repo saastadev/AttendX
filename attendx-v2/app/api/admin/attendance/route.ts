@@ -7,30 +7,78 @@ const PRIVILEGED_ROLES = ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'] as const
 export async function GET(req: NextRequest) {
   try {
     const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    let { data: { user }, error: authErr } = await supabase.auth.getUser()
+    const serviceClient = getSupabaseServiceClient()
+
+    if (!user || authErr) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const { data: userData } = await serviceClient.auth.getUser(token)
+        if (userData?.user) {
+          user = userData.user
+          authErr = null
+        }
+      }
+    }
+
     if (!user || authErr) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const serviceClient = getSupabaseServiceClient()
-
-    // Resolve caller's role and tenant
-    const { data: roleRow, error: roleErr } = await serviceClient
+    // Resolve caller's roles and tenant
+    const { data: roleRows, error: roleErr } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', user.id)
-      .maybeSingle()
 
-    if (roleErr || !roleRow) {
+    if (roleErr || !roleRows || roleRows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (!PRIVILEGED_ROLES.includes(roleRow.role as any)) {
+    const privilegedRoles = roleRows.filter(r => PRIVILEGED_ROLES.includes(r.role as any))
+    if (privilegedRoles.length === 0) {
       return NextResponse.json({ error: 'Forbidden — insufficient role' }, { status: 403 })
     }
 
-    const tenantId = roleRow.tenant_id
     const { searchParams } = new URL(req.url)
+    const requestedTenant = searchParams.get('tenant_id')
+
+    let tenantId: string | null = null
+    const isSuperAdmin = roleRows.some(r => r.role === 'SUPERADMIN')
+
+    if (requestedTenant) {
+      if (isSuperAdmin || privilegedRoles.some(r => r.tenant_id === requestedTenant)) {
+        tenantId = requestedTenant
+      }
+    }
+
+    if (!tenantId) {
+      const { data: prof } = await serviceClient
+        .from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
+      if (prof?.tenant_id && (isSuperAdmin || privilegedRoles.some(r => r.tenant_id === prof.tenant_id))) {
+        tenantId = prof.tenant_id
+      }
+    }
+
+    if (!tenantId) {
+      const claimTenant = (user.app_metadata as any)?.tenant_id
+      if (claimTenant && (isSuperAdmin || privilegedRoles.some(r => r.tenant_id === claimTenant))) {
+        tenantId = claimTenant
+      }
+    }
+
+    if (!tenantId) {
+      const { data: emp } = await serviceClient
+        .from('employees').select('tenant_id').eq('id', user.id).maybeSingle()
+      if (emp?.tenant_id && (isSuperAdmin || privilegedRoles.some(r => r.tenant_id === emp.tenant_id))) {
+        tenantId = emp.tenant_id
+      }
+    }
+
+    if (!tenantId) {
+      tenantId = privilegedRoles[0].tenant_id
+    }
 
     // "Today" must be the tenant's calendar day, not the server's. Using UTC
     // here showed an Asia/Kolkata org the previous day's board every morning.
@@ -173,21 +221,37 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    let { data: { user }, error: authErr } = await supabase.auth.getUser()
+    const serviceClient = getSupabaseServiceClient()
+
+    if (!user || authErr) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const { data: userData } = await serviceClient.auth.getUser(token)
+        if (userData?.user) {
+          user = userData.user
+          authErr = null
+        }
+      }
+    }
+
     if (!user || authErr) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const serviceClient = getSupabaseServiceClient()
-
-    // Resolve caller's role
-    const { data: roleRow, error: roleErr } = await serviceClient
+    // Resolve caller's roles
+    const { data: roleRows, error: roleErr } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', user.id)
-      .maybeSingle()
 
-    if (roleErr || !roleRow || !['SUPERADMIN', 'ADMIN', 'HR'].includes(roleRow.role)) {
+    if (roleErr || !roleRows || roleRows.length === 0) {
+      return NextResponse.json({ error: 'Forbidden — requires Admin or HR role' }, { status: 403 })
+    }
+
+    const privilegedRoles = roleRows.filter(r => ['SUPERADMIN', 'ADMIN', 'HR'].includes(r.role))
+    if (privilegedRoles.length === 0) {
       return NextResponse.json({ error: 'Forbidden — requires Admin or HR role' }, { status: 403 })
     }
 
@@ -203,35 +267,41 @@ export async function DELETE(req: NextRequest) {
       .from('attendance_records')
       .select('*')
       .eq('id', record_id)
-      .eq('tenant_id', roleRow.tenant_id)
       .maybeSingle()
 
     if (fetchErr || !attRecord) {
       return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 })
     }
 
+    // Verify caller has SUPERADMIN or ADMIN/HR role in the record's tenant
+    const hasAdminInTenant = roleRows.some(
+      r => (r.tenant_id === attRecord.tenant_id || r.role === 'SUPERADMIN') && ['SUPERADMIN', 'ADMIN', 'HR'].includes(r.role)
+    )
+    if (!hasAdminInTenant) {
+      return NextResponse.json({ error: 'Forbidden — insufficient privileges for this tenant' }, { status: 403 })
+    }
+
+    const deleteSelfieFromStorage = async (url: string | null) => {
+      if (!url) return
+      // Match both public and signed URLs: /storage/v1/object/(public|sign)/<bucket>/<path>
+      const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?#]+)\/([^?#]+)/)
+      if (match) {
+        const bucket = match[1]
+        const path = decodeURIComponent(match[2])
+        await serviceClient.storage.from(bucket).remove([path])
+      }
+    }
+
     const updateFields: Record<string, any> = {}
 
     if (selfieTarget === 'clock_in' || selfieTarget === 'both') {
       updateFields.clock_in_selfie_url = null
-      if (attRecord.clock_in_selfie_url) {
-        const storagePath = attRecord.clock_in_selfie_url.split('/storage/v1/object/public/')[1]
-        if (storagePath) {
-          const [bucket, ...pathParts] = storagePath.split('/')
-          await serviceClient.storage.from(bucket).remove([pathParts.join('/')])
-        }
-      }
+      await deleteSelfieFromStorage(attRecord.clock_in_selfie_url)
     }
 
     if (selfieTarget === 'clock_out' || selfieTarget === 'both') {
       updateFields.clock_out_selfie_url = null
-      if (attRecord.clock_out_selfie_url) {
-        const storagePath = attRecord.clock_out_selfie_url.split('/storage/v1/object/public/')[1]
-        if (storagePath) {
-          const [bucket, ...pathParts] = storagePath.split('/')
-          await serviceClient.storage.from(bucket).remove([pathParts.join('/')])
-        }
-      }
+      await deleteSelfieFromStorage(attRecord.clock_out_selfie_url)
     }
 
     const { error: updateErr } = await serviceClient

@@ -289,6 +289,17 @@ export default function HRInsightsPage() {
   const { data: attendanceTrend, isLoading: trendLoading } = useQuery({
     queryKey: ['hr-attendance-trend', effectiveTenantId],
     queryFn: async () => {
+      try {
+        const url = `/api/attrition/score${effectiveTenantId ? `?tenant_id=${effectiveTenantId}` : ''}`
+        const res = await fetch(url)
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.attendanceTrend) return json.attendanceTrend
+        }
+      } catch (e) {
+        console.warn('[Insights] Trend API failed, falling back to direct query:', e)
+      }
+
       const start = format(subDays(new Date(), 29), 'yyyy-MM-dd')
       const { data } = await supabase
         .from('attendance_records')
@@ -326,6 +337,26 @@ export default function HRInsightsPage() {
   const { data: attritionData, isLoading: attrLoading } = useQuery({
     queryKey: ['hr-attrition-scores', effectiveTenantId],
     queryFn: async () => {
+      try {
+        const url = `/api/attrition/score${effectiveTenantId ? `?tenant_id=${effectiveTenantId}` : ''}`
+        const res = await fetch(url)
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.scores) {
+            return {
+              scores: json.scores,
+              distribution: json.distribution,
+              total: json.total,
+              highRiskCount: json.highRiskCount,
+              medRiskCount: json.medRiskCount,
+              lowRiskCount: json.lowRiskCount,
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Insights] Attrition API failed, falling back to direct query:', e)
+      }
+
       const { data: scores } = await supabase
         .from('attrition_risk_scores')
         .select('id, employee_id, score, risk_level, factors, computed_at')
@@ -380,6 +411,7 @@ export default function HRInsightsPage() {
         method: 'POST',
         headers,
         credentials: 'include',
+        body: JSON.stringify({ tenant_id: effectiveTenantId }),
       })
 
       if (!res.ok) {
@@ -390,6 +422,8 @@ export default function HRInsightsPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['hr-attrition-scores'] })
+      queryClient.invalidateQueries({ queryKey: ['hr-attendance-trend'] })
+      queryClient.invalidateQueries({ queryKey: ['hr-directory'] })
       success(`AI Attrition Model Processed ${data.processed || 0} employees!`)
     },
     onError: (err: any) => {

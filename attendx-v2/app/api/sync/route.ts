@@ -63,12 +63,12 @@ export async function POST(req: NextRequest) {
               tenant_id: tenantId,
               employee_id: user.id,
               date: payload.date || new Date().toISOString().split('T')[0],
-              check_in: payload.checkIn || new Date().toISOString(),
-              check_out: payload.checkOut || null,
+              clock_in_at: payload.clock_in_at || payload.check_in || payload.checkIn || new Date().toISOString(),
+              clock_out_at: payload.clock_out_at || payload.check_out || payload.checkOut || null,
               status: payload.status || 'PRESENT',
               method: 'SELFIE_GPS',
-              latitude: payload.latitude || null,
-              longitude: payload.longitude || null,
+              clock_in_lat: payload.clock_in_lat || payload.latitude || null,
+              clock_in_lng: payload.clock_in_lng || payload.longitude || null,
               notes: payload.notes || 'Offline synced punch',
             })
             .select('id')

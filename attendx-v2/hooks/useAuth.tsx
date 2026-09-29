@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, createContext, useContext, useState, useCallback, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import type { AuthUser, UserRole } from '@/types/database'
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = getSupabaseBrowserClient()
+  const qc = useQueryClient()
   const { setUser, clearUser, setLoading, setInitialized } = useAuthStore()
 
   const loadUserProfile = useCallback(async (userId: string): Promise<AuthUser | null> => {
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3500)
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
       const res = await fetch('/api/auth/profile', { headers, credentials: 'include', signal: controller.signal })
       clearTimeout(timeoutId)
       if (res.ok) {
@@ -111,11 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Initial session check with 3.5s fail-fast timeout
+    // Initial session check with 10s resilient timeout
     const initAuth = async () => {
       try {
         const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-          setTimeout(() => resolve({ data: { session: null } }), 3500)
+          setTimeout(() => resolve({ data: { session: null } }), 10000)
         )
         const { data: { session } } = await Promise.race([
           supabase.auth.getSession(),
@@ -128,8 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(authUser)
             applyTenantBranding(authUser)
           } else {
-            await supabase.auth.signOut().catch(() => {})
-            clearUser()
+            console.warn('[Auth] Profile could not be loaded on init; keeping session')
           }
         } else {
           clearUser()
@@ -149,17 +150,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          qc.clear()
           const authUser = await loadUserProfile(session.user.id)
           if (authUser) {
             setUser(authUser)
             applyTenantBranding(authUser)
           } else {
-            await supabase.auth.signOut()
-            clearUser()
+            console.warn('[Auth] Profile could not be loaded on SIGNED_IN; retaining session')
           }
         } else if (event === 'SIGNED_OUT') {
           clearUser()
           applyTenantBranding(null)
+          qc.clear()
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Silently refresh without disrupting UX
           const authUser = await loadUserProfile(session.user.id)
@@ -169,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase, loadUserProfile, setUser, clearUser, setLoading, setInitialized, applyTenantBranding])
+  }, [supabase, loadUserProfile, setUser, clearUser, setLoading, setInitialized, applyTenantBranding, qc])
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
@@ -189,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data.success) {
         return { error: data.error || 'Invalid email or password.' }
       }
+      qc.clear()
       return { error: null, destination: data.destination }
     } catch (err) {
       console.error('[Auth] signIn transport failure:', err)
@@ -196,12 +199,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: 'Unable to reach the authentication service. Check your connection and try again.',
       }
     }
-  }, [supabase])
+  }, [supabase, qc])
 
   const signOut = useCallback(async () => {
     if (!supabase) return
+    qc.clear()
     await supabase.auth.signOut()
-  }, [supabase])
+  }, [supabase, qc])
 
   const acceptInvite = useCallback(async (
     token: string,

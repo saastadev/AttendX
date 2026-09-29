@@ -17,6 +17,7 @@ export function resolveTenantId(user: unknown): string | null {
   const u = user as Record<string, any>
   return (
     u.tenant?.id ??
+    u.tenant_id ??
     u.app_metadata?.tenant_id ??
     u.profile?.tenant_id ??
     null

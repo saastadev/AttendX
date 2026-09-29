@@ -53,7 +53,10 @@ export default function AdminAttendancePage() {
   }>({
     queryKey: ['admin-attendance-records', user?.tenant?.id, selectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/attendance?date=${selectedDate}`)
+      const url = user?.tenant?.id
+        ? `/api/admin/attendance?date=${selectedDate}&tenant_id=${user.tenant.id}`
+        : `/api/admin/attendance?date=${selectedDate}`
+      const res = await fetch(url)
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     },
@@ -78,6 +81,8 @@ export default function AdminAttendancePage() {
       success(data.message || 'Selfie deleted successfully')
       setDeletingRecord(null)
       queryClient.invalidateQueries({ queryKey: ['admin-attendance-records'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
     },
     onError: (err: Error) => {
       error(err.message || 'Failed to delete selfie image')
@@ -129,22 +134,27 @@ export default function AdminAttendancePage() {
         <div className="neu-card" style={{ padding: 'var(--space-4)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>TOTAL EMPLOYEES</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>{stats.total}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>{stats.present + stats.completed} attended today</div>
         </div>
         <div className="neu-card" style={{ padding: 'var(--space-4)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>PRESENT NOW</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: 4 }}>{stats.present}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Active on shift</div>
         </div>
         <div className="neu-card" style={{ padding: 'var(--space-4)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>COMPLETED</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent)', marginTop: 4 }}>{stats.completed}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Clocked out today</div>
         </div>
         <div className="neu-card" style={{ padding: 'var(--space-4)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>LATE</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)', marginTop: 4 }}>{stats.late}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Arrivals</div>
         </div>
         <div className="neu-card" style={{ padding: 'var(--space-4)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>ABSENT</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-tertiary)', marginTop: 4 }}>{stats.absent}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Not reported</div>
         </div>
       </div>
 
@@ -233,11 +243,14 @@ export default function AdminAttendancePage() {
                         </div>
                         {hasClockInSelfie ? (
                           <div>
-                            <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 6 }}>
+                            <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 6, background: 'var(--neu-bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <img
                                 src={att.clock_in_selfie_url!}
                                 alt="Clock In Selfie"
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
                                 onClick={() => setPreviewImage({ url: att.clock_in_selfie_url!, title: `${item.full_name} - Clock In Selfie` })}
                               />
                             </div>
@@ -271,11 +284,14 @@ export default function AdminAttendancePage() {
                         </div>
                         {hasClockOutSelfie ? (
                           <div>
-                            <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 6 }}>
+                            <div style={{ position: 'relative', width: '100%', height: 100, borderRadius: 6, overflow: 'hidden', marginBottom: 6, background: 'var(--neu-bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <img
                                 src={att.clock_out_selfie_url!}
                                 alt="Clock Out Selfie"
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = 'none';
+                                }}
                                 onClick={() => setPreviewImage({ url: att.clock_out_selfie_url!, title: `${item.full_name} - Clock Out Selfie` })}
                               />
                             </div>

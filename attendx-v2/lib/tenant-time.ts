@@ -32,3 +32,20 @@ export function todayInTimezone(timeZone: string, now: Date = new Date()): strin
 export function isValidDateParam(value: string | null): value is string {
   return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
 }
+
+/** Current time in an IANA timezone, as HH:mm:ss. */
+export function timeInTimezone(timeZone: string, now: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(now)
+  } catch {
+    console.warn(`[tenant-time] Unknown timezone "${timeZone}", falling back to UTC`)
+    return now.toISOString().slice(11, 19)
+  }
+}
+

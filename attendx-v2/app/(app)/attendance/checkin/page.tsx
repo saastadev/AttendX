@@ -40,6 +40,7 @@ export default function CheckInPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState<Step>('intro')
   const [checkinType, setCheckinType] = useState<CheckinType>('in')
+  const [completedAction, setCompletedAction] = useState<CheckinType | null>(null)
   const [selfieDataUrl, setSelfieDataUrl] = useState<string | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [cameraReady, setCameraReady] = useState(false)
@@ -52,18 +53,29 @@ export default function CheckInPage() {
     distance: number | null
   } | null>(null)
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const [allowRecheckin, setAllowRecheckin] = useState(false)
+  const [effectiveDate, setEffectiveDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   // Today's attendance record
   const { data: todayAttendance } = useQuery<AttendanceRecord | null>({
-    queryKey: ['attendance-today', user?.id, today],
+    queryKey: ['attendance-today', user?.id, effectiveDate],
     queryFn: async () => {
       if (!user) return null
+      try {
+        const res = await fetch('/api/attendance/checkin')
+        if (res.ok) {
+          const json = await res.json()
+          if (json?.todayDate) setEffectiveDate(json.todayDate)
+          if (json?.today !== undefined) return json.today
+        }
+      } catch (err) {
+        console.warn('[Checkin] API today fetch failed, falling back to client query:', err)
+      }
       const { data } = await supabase
         .from('attendance_records')
         .select('*')
         .eq('employee_id', user.id)
-        .eq('date', today)
+        .eq('date', effectiveDate)
         .maybeSingle()
       return data
     },
@@ -85,14 +97,19 @@ export default function CheckInPage() {
     enabled: !!user,
   })
 
-  // Set check-in type based on current state
+  // Set check-in type based on current state (preserve during active success step)
   useEffect(() => {
+    if (step === 'success') return
+    if (allowRecheckin) {
+      setCheckinType('in')
+      return
+    }
     if (todayAttendance?.clock_in_at && !todayAttendance?.clock_out_at) {
       setCheckinType('out')
     } else {
       setCheckinType('in')
     }
-  }, [todayAttendance])
+  }, [todayAttendance, step, allowRecheckin])
 
   // Get GPS and validate against geofences
   const getGPS = useCallback(() => {
@@ -285,12 +302,14 @@ export default function CheckInPage() {
         }
       }
 
-      if (checkinType === 'in') {
+      const actionType = checkinType
+
+      if (actionType === 'in') {
         // Clock IN
         const payload = {
           tenant_id: user.tenant.id,
           employee_id: user.id,
-          date: today,
+          date: effectiveDate,
           clock_in_at: now,
           status: 'PRESENT' as const,
           method: 'SELFIE_GPS' as const,
@@ -309,7 +328,7 @@ export default function CheckInPage() {
             action: 'create',
             payload: { ...payload, clock_in_selfie_url: null },
           })
-          return { offline: true }
+          return { offline: true, actionType }
         }
 
         const checkinRes = await fetch('/api/attendance/checkin', {
@@ -348,7 +367,7 @@ export default function CheckInPage() {
             action: 'update',
             payload: { ...payload, id: todayAttendance.id, clock_out_selfie_url: null },
           })
-          return { offline: true }
+          return { offline: true, actionType }
         }
 
         const checkinRes = await fetch('/api/attendance/checkin', {
@@ -363,21 +382,28 @@ export default function CheckInPage() {
         }
       }
 
-      return { offline: false }
+      return { offline: false, actionType }
     },
 
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
+      setAllowRecheckin(false)
+      setCompletedAction(result.actionType)
       setStep('success')
+      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
+      queryClient.invalidateQueries({ queryKey: ['today-attendance'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-attendance-records'] })
+      queryClient.invalidateQueries({ queryKey: ['manager-team'] })
       if (result.offline) {
         toastSuccess(
-          checkinType === 'in' ? 'Clock-in queued offline' : 'Clock-out queued offline',
+          result.actionType === 'in' ? 'Clock-in queued offline' : 'Clock-out queued offline',
           'Will sync automatically when you\'re back online'
         )
       } else {
         toastSuccess(
-          checkinType === 'in' ? '✅ Clocked in!' : '✅ Clocked out!',
-          checkinType === 'in'
+          result.actionType === 'in' ? '✅ Clocked in!' : '✅ Clocked out!',
+          result.actionType === 'in'
             ? 'Have a great day!'
             : `You worked today — great job!`
         )
@@ -391,7 +417,7 @@ export default function CheckInPage() {
   })
 
   // ---- Render: Already done today ----
-  if (todayAttendance?.clock_out_at) {
+  if (step !== 'success' && todayAttendance?.clock_out_at && !allowRecheckin) {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center', padding: 'var(--space-10) var(--space-4)' }}>
         <div className="neu-empty-state">
@@ -400,19 +426,31 @@ export default function CheckInPage() {
           </div>
           <h1 className="neu-empty-state-title">All done for today!</h1>
           <p className="neu-empty-state-body">
-            You clocked in at {format(new Date(todayAttendance.clock_in_at!), 'h:mm a')} and
+            You clocked in at {todayAttendance.clock_in_at ? format(new Date(todayAttendance.clock_in_at), 'h:mm a') : '—'} and
             clocked out at {format(new Date(todayAttendance.clock_out_at), 'h:mm a')}.
             <br />
-            {todayAttendance.work_minutes && (
+            {todayAttendance.work_minutes != null && (
               <strong> Total: {Math.floor(todayAttendance.work_minutes / 60)}h {todayAttendance.work_minutes % 60}m worked.</strong>
             )}
           </p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="neu-btn neu-btn--primary"
-          >
-            Back to Dashboard
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="neu-btn neu-btn--primary"
+            >
+              Back to Dashboard
+            </button>
+            <button
+              onClick={() => {
+                setAllowRecheckin(true)
+                setCheckinType('in')
+                setStep('intro')
+              }}
+              className="neu-btn neu-btn--secondary"
+            >
+              <RefreshCw size={16} /> Clock In Again / Resume Shift
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -766,10 +804,10 @@ export default function CheckInPage() {
             <CheckCircle size={52} color="var(--success)" />
           </div>
           <h2 className="neu-empty-state-title" style={{ color: 'var(--success)' }}>
-            {checkinType === 'in' ? '🎉 Clocked In!' : '👋 Clocked Out!'}
+            {(completedAction ?? checkinType) === 'in' ? '🎉 Clocked In!' : '👋 Clocked Out!'}
           </h2>
           <p className="neu-empty-state-body">
-            {checkinType === 'in'
+            {(completedAction ?? checkinType) === 'in'
               ? 'Your attendance has been recorded. Have a productive day!'
               : 'Great work today! See you tomorrow.'
             }
