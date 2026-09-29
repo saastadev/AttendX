@@ -276,7 +276,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.sourced_candidates (
   organization_id, search_id, requisition_id, platform, full_name, email,
-  current_role, current_company, experience_years, skills, match_score,
+  "current_role", current_company, experience_years, skills, match_score,
   skill_score, experience_score, role_score, ai_reasoning, is_shortlisted
 ) VALUES
   (

@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS public.sourced_candidates (
   email TEXT,
   phone TEXT,
   profile_url TEXT,
-  current_role TEXT,
+  "current_role" TEXT,
   current_company TEXT,
   experience_years NUMERIC(4,1) DEFAULT 0,
   skills JSONB NOT NULL DEFAULT '[]'::jsonb,
