@@ -249,8 +249,9 @@ export async function POST(request: NextRequest) {
     const primaryRole = sortedRoles[0] || 'EMPLOYEE'
 
     // Synchronize app_metadata tenant_id and role with authoritative server profile if mismatched
-    if ((user.app_metadata as any)?.tenant_id !== profile.tenant_id || (user.app_metadata as any)?.role !== primaryRole) {
+    if (!isDemoUser && ((user.app_metadata as any)?.tenant_id !== profile.tenant_id || (user.app_metadata as any)?.role !== primaryRole)) {
       try {
+        const admin = getSupabaseServiceClient()
         await admin.auth.admin.updateUserById(user.id, {
           app_metadata: {
             ...user.app_metadata,
