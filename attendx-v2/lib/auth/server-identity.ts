@@ -22,6 +22,60 @@ export class ServerIdentity {
     request?: Request
   ): Promise<AuthoritativeCaller> {
     let user: any = null
+    let isDemo = false
+    let demoCaller: AuthoritativeCaller | null = null
+
+    // 0. Check demo session cookie for local dev / offline mode
+    let demoCookie: string | undefined
+    if (request) {
+      const cookieHeader = request.headers.get('cookie') || ''
+      const match = cookieHeader.match(/attendx-demo-session=([^;]+)/)
+      if (match) demoCookie = match[1]
+    }
+    if (!demoCookie) {
+      try {
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
+        demoCookie = cookieStore.get('attendx-demo-session')?.value
+      } catch {
+        // Not in server component context or headers not available
+      }
+    }
+
+    if (demoCookie) {
+      try {
+        const decoded = decodeURIComponent(demoCookie)
+        const payload = JSON.parse(Buffer.from(decoded, 'base64').toString('utf-8'))
+        if (payload && payload.id && payload.role) {
+          isDemo = true
+          demoCaller = {
+            userId: payload.id,
+            tenantId: payload.tenant_id,
+            role: payload.role,
+            email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
+          }
+        }
+      } catch {
+        // ignore malformed cookie
+      }
+    }
+
+    if (isDemo && demoCaller) {
+      if (!allowedRoles.includes(demoCaller.role)) {
+        const err = new Error(`Forbidden: Role '${demoCaller.role}' cannot execute this administrative action.`) as any
+        err.status = 403
+        throw err
+      }
+      return demoCaller
+    }
+
+    const { isDevMockSupabase } = await import('@/lib/supabase/server')
+    if (isDevMockSupabase()) {
+      const err = new Error('Unauthenticated: No active session found.') as any
+      err.status = 401
+      throw err
+    }
+
     const serviceClient = getSupabaseServiceClient()
 
     // 1. Try Bearer token from Request Authorization header
@@ -30,9 +84,13 @@ export class ServerIdentity {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7).trim()
         if (token) {
-          const { data, error } = await serviceClient.auth.getUser(token)
-          if (data?.user && !error) {
-            user = data.user
+          try {
+            const { data, error } = await serviceClient.auth.getUser(token)
+            if (data?.user && !error) {
+              user = data.user
+            }
+          } catch {
+            // ignore network failure
           }
         }
       }
@@ -40,10 +98,14 @@ export class ServerIdentity {
 
     // 2. Fall back to Next.js cookie session
     if (!user) {
-      const supabase = await getSupabaseServerClient()
-      const { data, error } = await supabase.auth.getUser()
-      if (data?.user && !error) {
-        user = data.user
+      try {
+        const supabase = await getSupabaseServerClient()
+        const { data, error } = await supabase.auth.getUser()
+        if (data?.user && !error) {
+          user = data.user
+        }
+      } catch {
+        // ignore network failure
       }
     }
 

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Clock, CalendarDays, MessageSquareMore,
   User, Bell, Trophy, FileText, BarChart3, Shield,
   Users, Settings, ChevronRight, WifiOff, RefreshCcw,
-  Search, Camera, Sun, Moon, Sparkles, Heart,
+  Search, Camera, Sun, Moon, Sparkles, Heart, Briefcase, UserPlus, LogOut,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
@@ -70,6 +70,18 @@ const SIDEBAR_NAV: NavGroup[] = [
       { href: '/admin/users',  icon: Shield,   label: 'Users',     id: 'snav-users',     minRole: 'ADMIN' },
       { href: '/admin/attendance', icon: Camera, label: 'Selfies', id: 'snav-admin-attendance', minRole: 'ADMIN' },
       { href: '/admin/settings',icon: Settings, label: 'Settings',  id: 'snav-settings',  minRole: 'ADMIN' },
+    ],
+  },
+  {
+    section: 'Hiring',
+    items: [
+      { href: '/hiring',              icon: UserPlus,  label: 'Overview',     id: 'snav-hiring-hub',  minRole: 'MANAGER' },
+      { href: '/hiring/applications', icon: Briefcase, label: 'Applications', id: 'snav-hiring-apps', minRole: 'MANAGER' },
+      { href: '/hiring/sourcing',     icon: Search,    label: 'AI Sourcing',  id: 'snav-hiring-src',  minRole: 'HR' },
+      { href: '/hiring/outreach',     icon: MessageSquareMore, label: 'Outreach', id: 'snav-hiring-reach', minRole: 'HR' },
+      { href: '/hiring/interview-status', icon: Clock, label: 'Interviews',   id: 'snav-hiring-int',  minRole: 'MANAGER' },
+      { href: '/hiring/onboard',      icon: Shield,    label: 'Onboarding',   id: 'snav-hiring-onb',  minRole: 'HR' },
+      { href: '/hiring/analytics',    icon: BarChart2, label: 'Analytics',    id: 'snav-hiring-stat', minRole: 'HR' },
     ],
   },
   {
@@ -306,10 +318,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     refetchInterval: 6000,
   })
 
-  // Redirect if unauthenticated
+  // Session hydration and auth verification
   useEffect(() => {
-    if (!isLoading && !user) router.replace('/auth/login')
-  }, [user, isLoading, router])
+    let active = true
+    if (!user) {
+      fetch('/api/auth/me')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (!active) return
+          if (data?.user) {
+            useAuthStore.getState().setUser(data.user)
+          } else {
+            router.replace('/auth/login')
+          }
+        })
+        .catch(() => {
+          if (!active) return
+          router.replace('/auth/login')
+        })
+    }
+    return () => { active = false }
+  }, [user, router])
 
   // Global ⌘K / Ctrl+K shortcut
   useEffect(() => {
@@ -339,16 +368,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.28)`)
     }
   }, [user?.tenant?.accent_color])
-
-  // Emergency timeout fallback for unauthenticated navigation
-  useEffect(() => {
-    if (!user) {
-      const timer = setTimeout(() => {
-        window.location.href = '/auth/login'
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [user])
 
   if (isLoading || !user) {
     return (
@@ -552,11 +571,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
                 aria-hidden="true"
               >
-                {user.profile.full_name.charAt(0)}
+                {(user.profile?.full_name || user.email || 'U').charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.profile.full_name.split(' ')[0]}
+                  {user.profile?.full_name || user.email?.split('@')[0] || 'User'}
                 </div>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user.email}
@@ -575,6 +594,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST' })
+                  } catch {
+                    // Ignore network failure on sign out
+                  }
+                  useAuthStore.getState().clearUser()
+                  window.location.href = '/auth/login?switch=true'
+                }}
+                title="Sign out / Switch user"
+                aria-label="Sign out / Switch user"
+                style={{
+                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                  border: 'none', background: 'var(--neu-bg)',
+                  boxShadow: 'var(--elev-1)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-secondary)', transition: 'all var(--dur-fast)'
+                }}
+              >
+                <LogOut size={16} />
               </button>
             </div>
           </div>
