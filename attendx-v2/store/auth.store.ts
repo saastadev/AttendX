@@ -39,13 +39,13 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      isLoading: true,
+      isLoading: false,
       isInitialized: false,
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => set({ user, isLoading: false, isInitialized: true }),
       setLoading: (isLoading) => set({ isLoading }),
       setInitialized: (isInitialized) => set({ isInitialized }),
-      clearUser: () => set({ user: null }),
+      clearUser: () => set({ user: null, isLoading: false }),
 
       isAuthenticated: () => get().user !== null,
 
@@ -65,6 +65,10 @@ export const useAuthStore = create<AuthState>()(
       name: 'attendx-auth',
       storage: createJSONStorage(() => sessionStorage), // Cleared on tab close
       partialize: (state) => ({ user: state.user }),    // Only persist user object
+      onRehydrateStorage: () => (state) => {
+        state?.setLoading(false)
+        state?.setInitialized(true)
+      },
     }
   )
 )

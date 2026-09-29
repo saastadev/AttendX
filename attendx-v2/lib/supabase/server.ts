@@ -36,6 +36,9 @@ export async function getSupabaseServerClient() {
 // Service role client for Edge Function-equivalent server actions
 // Only used in Server Actions / Route Handlers, never exposed to client
 export function getSupabaseServiceClient(): SupabaseClient {
+  if (isDevMockSupabase()) {
+    throw new Error('DEV_MOCK_SUPABASE_OFFLINE: Local development mode with mock store')
+  }
   const { url } = requireSupabaseConfig()
   const serviceKey = requireServiceRoleKey()
   return createClient(
@@ -48,4 +51,9 @@ export function getSupabaseServiceClient(): SupabaseClient {
       },
     }
   )
+}
+
+export function isDevMockSupabase(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  return url.includes('attendx-dev.supabase.co') || url.includes('dummy') || process.env.ATTENDX_OFFLINE_MODE === 'true'
 }

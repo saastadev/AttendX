@@ -111,11 +111,40 @@ export default function DashboardPage() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
 
+  // Detect offline/mock mode (same URL pattern as server-side isDevMockSupabase)
+  const isOfflineMode = typeof window !== 'undefined'
+    ? (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes('attendx-dev.supabase.co')
+    : false
+
+  // Mock data for offline/local dev mode
+  const MOCK_ATTENDANCE: AttendanceRecord = {
+    id: 'att-mock-today',
+    employee_id: user?.id || '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    clock_in_at: new Date(new Date().setHours(9, 15, 0, 0)).toISOString(),
+    clock_out_at: null,
+    status: 'PRESENT',
+    work_minutes: null,
+    notes: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as any
+
+  const MOCK_LEAVE_BALANCES: LeaveBalance[] = [
+    { id: 'lb-1', employee_id: user?.id || '', leave_type_id: 'lt-1', year: new Date().getFullYear(), total_days: 18, used_days: 3, pending_days: 1, remaining_days: 14, leave_type: { id: 'lt-1', name: 'Annual Leave', code: 'AL', color: '#4F46E5' } } as any,
+    { id: 'lb-2', employee_id: user?.id || '', leave_type_id: 'lt-2', year: new Date().getFullYear(), total_days: 10, used_days: 1, pending_days: 0, remaining_days: 9, leave_type: { id: 'lt-2', name: 'Sick Leave', code: 'SL', color: '#EF4444' } } as any,
+  ]
+
+  const MOCK_ANNOUNCEMENTS: Announcement[] = [
+    { id: 'ann-1', title: '🎉 Q4 2026 All-Hands Meeting', body: 'Join us on Oct 15 for the company-wide all-hands meeting. Agenda and invite will follow by email.', cta_label: 'Add to Calendar', cta_url: '#', is_active: true, created_at: new Date().toISOString() } as any,
+  ]
+
   // Fetch today's attendance record
   const { data: todayAttendance, isLoading: attendanceLoading } = useQuery<AttendanceRecord | null>({
     queryKey: ['today-attendance', user?.id],
     queryFn: async () => {
       if (!user) return null
+      if (isOfflineMode) return MOCK_ATTENDANCE
       const todayStr = format(new Date(), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('attendance_records')
@@ -125,7 +154,8 @@ export default function DashboardPage() {
         .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Attendance fetch error:', error.message)
+        // Silently return null for network errors in offline mode
+        return null
       }
       return data
     },
@@ -138,6 +168,7 @@ export default function DashboardPage() {
     queryKey: ['my-leave-balances', user?.id],
     queryFn: async () => {
       if (!user) return []
+      if (isOfflineMode) return MOCK_LEAVE_BALANCES
       const { data } = await supabase
         .from('leave_balances')
         .select('*, leave_type:leave_types(*)')
@@ -154,6 +185,7 @@ export default function DashboardPage() {
     queryKey: ['recognition-points', user?.id],
     queryFn: async () => {
       if (!user) return 0
+      if (isOfflineMode) return 1240
       const { data } = await supabase
         .from('recognitions')
         .select('points')
@@ -168,6 +200,7 @@ export default function DashboardPage() {
     queryKey: ['active-goals-count', user?.id],
     queryFn: async () => {
       if (!user) return 0
+      if (isOfflineMode) return 3
       const { count } = await supabase
         .from('performance_goals')
         .select('*', { count: 'exact', head: true })
@@ -183,6 +216,7 @@ export default function DashboardPage() {
     queryKey: ['announcements', user?.tenant?.id],
     queryFn: async () => {
       if (!user) return []
+      if (isOfflineMode) return MOCK_ANNOUNCEMENTS
       const { data } = await supabase
         .from('announcements')
         .select('*')
@@ -199,6 +233,7 @@ export default function DashboardPage() {
     queryKey: ['notifications-unread-count', user?.id],
     queryFn: async () => {
       if (!user) return 0
+      if (isOfflineMode) return 2
       const { count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
