@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { requireSupabaseConfig } from '@/lib/env'
 
 async function resolveUser(request: NextRequest) {
@@ -32,6 +32,9 @@ async function resolveUser(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (isDevMockSupabase()) {
+    return NextResponse.json({ notifications: [] })
+  }
   try {
     const { user, admin } = await resolveUser(request)
     if (!user) {
@@ -133,6 +136,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (isDevMockSupabase()) {
+    return NextResponse.json({ success: true })
+  }
   try {
     const { user, admin } = await resolveUser(request)
     if (!user) {
