@@ -599,7 +599,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={async () => {
                   try {
                     await fetch('/api/auth/logout', { method: 'POST' })
-                  } catch {}
+                  } catch {
+                    // Ignore network failure on sign out
+                  }
                   useAuthStore.getState().clearUser()
                   window.location.href = '/auth/login?switch=true'
                 }}
