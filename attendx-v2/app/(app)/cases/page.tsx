@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Plus, Search, AlertCircle, Clock, CheckCircle, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
@@ -18,17 +18,24 @@ const STATUS_BADGE: Record<string, string> = {
   OPEN: 'badge-accent', IN_PROGRESS: 'badge-pending', RESOLVED: 'badge-approved', CLOSED: 'badge-neutral',
 }
 
-export default function CasesPage() {
+function CasesContent() {
   const supabase = getSupabaseBrowserClient()
   const user = useAuthStore(s => s.user)
   const { success, error } = useToast()
   const qc = useQueryClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [showCreate, setShowCreate] = useState(false)
   const [newSubject, setNewSubject] = useState('')
   const [newBody, setNewBody] = useState('')
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('MEDIUM')
+
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setShowCreate(true)
+    }
+  }, [searchParams])
 
   const { data: cases, isLoading } = useQuery({
     queryKey: ['my-cases', user?.id],
@@ -210,5 +217,17 @@ export default function CasesPage() {
         </div>
       )}
     </PageWrapper>
+  )
+}
+
+export default function CasesPage() {
+  return (
+    <Suspense fallback={
+      <PageWrapper style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center', padding: 48 }}>
+        <p style={{ color: 'var(--text-tertiary)' }}>Loading support cases…</p>
+      </PageWrapper>
+    }>
+      <CasesContent />
+    </Suspense>
   )
 }

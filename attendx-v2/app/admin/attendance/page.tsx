@@ -254,21 +254,21 @@ export default function AdminAttendancePage() {
                                 onClick={() => setPreviewImage({ url: att.clock_in_selfie_url!, title: `${item.full_name} - Clock In Selfie` })}
                               />
                             </div>
-                            <div style={{ display: 'flex', gap: 4 }}>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                               <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ flex: 1, height: 28, fontSize: '0.75rem', padding: '0 6px' }}
+                                className="btn btn-secondary neu-touch-btn"
+                                style={{ flex: 1, minHeight: 44, fontSize: '0.8125rem', padding: '0 8px', fontWeight: 600 }}
                                 onClick={() => setPreviewImage({ url: att.clock_in_selfie_url!, title: `${item.full_name} - Clock In Selfie` })}
                               >
-                                <Eye size={12} /> View
+                                <Eye size={14} /> View
                               </button>
                               <button
-                                className="btn btn-sm"
-                                style={{ background: 'var(--danger-light)', color: 'var(--danger)', height: 28, padding: '0 8px' }}
+                                className="btn neu-touch-btn"
+                                style={{ background: 'var(--danger-light)', color: 'var(--danger)', minHeight: 44, minWidth: 44, padding: 0 }}
                                 onClick={() => setDeletingRecord({ recordId: att.id, target: 'clock_in', name: `${item.full_name} Clock In` })}
                                 title="Delete Clock In Selfie"
                               >
-                                <Trash2 size={12} />
+                                <Trash2 size={15} />
                               </button>
                             </div>
                           </div>
@@ -295,21 +295,21 @@ export default function AdminAttendancePage() {
                                 onClick={() => setPreviewImage({ url: att.clock_out_selfie_url!, title: `${item.full_name} - Clock Out Selfie` })}
                               />
                             </div>
-                            <div style={{ display: 'flex', gap: 4 }}>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                               <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ flex: 1, height: 28, fontSize: '0.75rem', padding: '0 6px' }}
+                                className="btn btn-secondary neu-touch-btn"
+                                style={{ flex: 1, minHeight: 44, fontSize: '0.8125rem', padding: '0 8px', fontWeight: 600 }}
                                 onClick={() => setPreviewImage({ url: att.clock_out_selfie_url!, title: `${item.full_name} - Clock Out Selfie` })}
                               >
-                                <Eye size={12} /> View
+                                <Eye size={14} /> View
                               </button>
                               <button
-                                className="btn btn-sm"
-                                style={{ background: 'var(--danger-light)', color: 'var(--danger)', height: 28, padding: '0 8px' }}
+                                className="btn neu-touch-btn"
+                                style={{ background: 'var(--danger-light)', color: 'var(--danger)', minHeight: 44, minWidth: 44, padding: 0 }}
                                 onClick={() => setDeletingRecord({ recordId: att.id, target: 'clock_out', name: `${item.full_name} Clock Out` })}
                                 title="Delete Clock Out Selfie"
                               >
-                                <Trash2 size={12} />
+                                <Trash2 size={15} />
                               </button>
                             </div>
                           </div>
@@ -335,7 +335,14 @@ export default function AdminAttendancePage() {
           <div style={{ background: 'var(--neu-bg)', borderRadius: 16, padding: 20, maxWidth: 500, width: '100%' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{previewImage.title}</h3>
-              <button onClick={() => setPreviewImage(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="neu-touch-btn"
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                aria-label="Close image preview"
+              >
+                ✕
+              </button>
             </div>
             <img src={previewImage.url} alt={previewImage.title} style={{ width: '100%', maxHeight: 400, objectFit: 'contain', borderRadius: 12 }} />
           </div>
@@ -358,15 +365,16 @@ export default function AdminAttendancePage() {
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
-                className="btn btn-secondary"
+                className="btn btn-secondary neu-touch-btn"
+                style={{ minHeight: 48, padding: '0 20px' }}
                 onClick={() => setDeletingRecord(null)}
                 disabled={deleteSelfieMutation.isPending}
               >
                 Cancel
               </button>
               <button
-                className="btn"
-                style={{ background: 'var(--danger)', color: 'white' }}
+                className="btn neu-touch-btn"
+                style={{ background: 'var(--danger)', color: 'white', minHeight: 48, padding: '0 20px', fontWeight: 600 }}
                 onClick={() => deleteSelfieMutation.mutate({ recordId: deletingRecord.recordId, target: deletingRecord.target })}
                 disabled={deleteSelfieMutation.isPending}
               >

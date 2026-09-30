@@ -291,7 +291,7 @@ export default function OnboardPage() {
       )}
 
       {/* Main Grid: Onboarding List & Detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24 }}>
+      <div className="neu-onboard-grid">
         {/* Onboarding Processes Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>

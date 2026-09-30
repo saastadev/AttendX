@@ -215,6 +215,7 @@ export default function ProfilePage() {
                 onClick={handleSavePhone}
                 disabled={isSaving}
                 className={`btn btn-primary ${isSaving ? 'btn-loading' : ''}`}
+                style={{ minHeight: 48, padding: '0 24px', fontSize: '0.9375rem' }}
               >
                 <Save size={18} /> {isSaving ? 'Saving…' : 'Save Changes'}
               </button>
@@ -240,7 +241,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <button onClick={toggleTheme} className="btn btn-secondary btn-icon">
+              <button onClick={toggleTheme} className="btn btn-secondary btn-icon" style={{ minWidth: 48, minHeight: 48, borderRadius: 'var(--radius-md)' }}>
                 {theme === 'dark' ? <Sun size={20} color="var(--warning)" /> : <Moon size={20} color="var(--accent)" />}
               </button>
             </div>
@@ -256,10 +257,34 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <button onClick={toggleContrast} className="btn btn-secondary btn-sm">
+              <button onClick={toggleContrast} className="btn btn-secondary" style={{ minHeight: 48, minWidth: 80, padding: '0 16px' }}>
                 {contrast === 'high' ? 'High' : 'Normal'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Active Devices & Sessions Link */}
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+            <div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Shield size={20} color="var(--accent)" /> Active Devices & Sessions
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                Monitor active sign-in sessions across mobile and desktop and revoke access
+              </div>
+            </div>
+
+            <Link
+              href="/profile/sessions"
+              className="btn btn-secondary"
+              style={{ minHeight: 48, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+              id="btn-manage-sessions"
+            >
+              <span>Manage Sessions</span>
+              <ArrowUpRight size={16} />
+            </Link>
           </div>
         </div>
 
@@ -271,7 +296,7 @@ export default function ProfilePage() {
               <div style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>Sign out of your active session on this device</div>
             </div>
 
-            <button onClick={signOut} className="btn btn-danger">
+            <button onClick={signOut} className="btn btn-danger" style={{ minHeight: 48, padding: '0 20px', fontSize: '0.9375rem' }}>
               <LogOut size={18} /> Sign Out
             </button>
           </div>

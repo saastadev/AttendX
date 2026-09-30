@@ -248,7 +248,7 @@ function Employee360Content() {
           </div>
 
           {/* Grid Layout: Radar Chart + 5 Dimension Cards (Fully responsive on 390px) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 18 }}>
             {/* Radar Card */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", alignItems: "center" }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 12px", color: "var(--text-primary)", width: "100%" }}>

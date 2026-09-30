@@ -272,25 +272,27 @@ export default function RecognitionPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+      <div className="neu-recognition-grid">
         {/* Feed */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 8 }}>
             <h2 style={{ fontSize: '1.125rem', margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>Recognition Wall</h2>
-            <div style={{ display: 'flex', gap: 4, background: 'var(--neu-bg-deep)', padding: 3, borderRadius: 'var(--radius-pill)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', gap: 6, background: 'var(--neu-bg-deep)', padding: 4, borderRadius: 'var(--radius-pill)', border: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setActiveTab('all')}
                 style={{
-                  padding: '4px 10px',
+                  minHeight: 44,
+                  padding: '8px 14px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
                   background: activeTab === 'all' ? 'var(--accent)' : 'transparent',
                   color: activeTab === 'all' ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 All Activity ({feed?.length || 0})
@@ -299,15 +301,17 @@ export default function RecognitionPage() {
                 type="button"
                 onClick={() => setActiveTab('received')}
                 style={{
-                  padding: '4px 10px',
+                  minHeight: 44,
+                  padding: '8px 14px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
                   background: activeTab === 'received' ? 'var(--accent)' : 'transparent',
                   color: activeTab === 'received' ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 Received by Me ({receivedCount})
@@ -316,15 +320,17 @@ export default function RecognitionPage() {
                 type="button"
                 onClick={() => setActiveTab('given')}
                 style={{
-                  padding: '4px 10px',
+                  minHeight: 44,
+                  padding: '8px 14px',
                   borderRadius: 'var(--radius-pill)',
                   border: 'none',
                   background: activeTab === 'given' ? 'var(--accent)' : 'transparent',
                   color: activeTab === 'given' ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 Given by Me ({givenCount})

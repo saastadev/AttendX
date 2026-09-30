@@ -256,7 +256,7 @@ export default function OutreachPage() {
 
       {/* Tab 2: Templates */}
       {activeTab === 'TEMPLATES' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="neu-responsive-split">
           {/* Templates List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {templates.map((tpl: any) => (
@@ -341,57 +341,96 @@ export default function OutreachPage() {
 
       {/* Tab 3: Delivery & Responses */}
       {activeTab === 'MESSAGES' && (
-        <div className="card" style={{
-          borderRadius: 16,
-          background: 'var(--neu-base)',
-          boxShadow: 'var(--elev-1)',
-          overflow: 'hidden',
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ background: 'var(--neu-bg-deep)', borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '12px 16px', fontWeight: 700 }}>Candidate</th>
-                <th style={{ padding: '12px 16px', fontWeight: 700 }}>Recipient / Channel</th>
-                <th style={{ padding: '12px 16px', fontWeight: 700 }}>Subject</th>
-                <th style={{ padding: '12px 16px', fontWeight: 700 }}>Status</th>
-                <th style={{ padding: '12px 16px', fontWeight: 700 }}>Sent At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sampleMessages.map((msg) => {
-                const badge = getStatusBadge(msg.status)
-                return (
-                  <tr key={msg.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {msg.candidate_name}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-                      {msg.recipient} ({msg.channel})
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
-                      {msg.subject || 'Direct SMS Notification'}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{
-                        padding: '3px 8px',
-                        borderRadius: 10,
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        background: badge.bg,
-                        color: badge.text,
-                      }}>
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                      {msg.sent_at}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="card neu-table-desktop" style={{
+            borderRadius: 16,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-1)',
+            overflow: 'hidden',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ background: 'var(--neu-bg-deep)', borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Candidate</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Recipient / Channel</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Subject</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Status</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Sent At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleMessages.map((msg) => {
+                  const badge = getStatusBadge(msg.status)
+                  return (
+                    <tr key={msg.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {msg.candidate_name}
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                        {msg.recipient} ({msg.channel})
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
+                        {msg.subject || 'Direct SMS Notification'}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          padding: '3px 8px',
+                          borderRadius: 10,
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          background: badge.bg,
+                          color: badge.text,
+                        }}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                        {msg.sent_at}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="neu-cards-mobile">
+            {sampleMessages.map((msg) => {
+              const badge = getStatusBadge(msg.status)
+              return (
+                <div key={msg.id} className="neu-mobile-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                        {msg.candidate_name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {msg.recipient} • {msg.channel}
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 10,
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: badge.bg,
+                      color: badge.text,
+                    }}>
+                      {badge.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', borderTop: '1px solid rgba(128,128,180,0.08)', paddingTop: 8 }}>
+                    {msg.subject || 'Direct SMS Notification'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                    Sent: {msg.sent_at}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </PageWrapper>
   )

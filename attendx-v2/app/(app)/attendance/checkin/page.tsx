@@ -457,7 +457,7 @@ export default function CheckInPage() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--space-4)' }}>
+    <div className="neu-mobile-safe-bottom" style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--space-4)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
         <button
           onClick={() => step === 'camera' || step === 'confirming' ? setStep('intro') : router.back()}

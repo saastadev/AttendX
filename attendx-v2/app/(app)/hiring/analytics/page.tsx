@@ -298,14 +298,7 @@ export default function HiringAnalyticsPage() {
       </div>
 
       {/* Master-Detail Candidate Grid — Equal Height & Perfectly Aligned Bottom */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(330px, 400px) 1fr',
-          gap: 22,
-          alignItems: 'stretch',
-        }}
-      >
+      <div className="neu-analytics-grid">
         {/* Left Column: Candidate Profiles Card */}
         <div
           className="card"

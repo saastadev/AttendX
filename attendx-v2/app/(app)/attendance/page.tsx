@@ -285,8 +285,8 @@ export default function AttendanceHistoryPage() {
             </div>
           </div>
 
-          {/* Live Workforce Attendance Table */}
-          <div className="card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Live Workforce Attendance: Desktop Table */}
+          <div className="neu-table-desktop card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -310,7 +310,7 @@ export default function AttendanceHistoryPage() {
 
                 <tbody>
                   {workforceLoading ? (
-                    <tr>
+                    <tr key="workforce-loading">
                       <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                         <div style={{ color: 'var(--text-tertiary)', fontSize: '0.9375rem' }}>
                           Loading live workforce stream...
@@ -318,7 +318,7 @@ export default function AttendanceHistoryPage() {
                       </td>
                     </tr>
                   ) : workforceItems.length === 0 ? (
-                    <tr>
+                    <tr key="workforce-empty">
                       <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                         <div style={{ color: 'var(--text-tertiary)', fontSize: '0.9375rem' }}>
                           No employee records match the current filter.
@@ -326,14 +326,14 @@ export default function AttendanceHistoryPage() {
                       </td>
                     </tr>
                   ) : (
-                    workforceItems.map((emp: any) => {
+                    workforceItems.map((emp: any, idx: number) => {
                       const isWorkingNow = emp.liveStatus === 'PRESENT' || emp.liveStatus === 'LATE'
                       const isComplete = emp.liveStatus === 'COMPLETED'
                       const isOnLeave = emp.liveStatus === 'ON_LEAVE'
                       const selfieUrl = emp.attendance?.clock_in_selfie_url || emp.attendance?.clock_out_selfie_url
 
                       return (
-                        <tr key={emp.user_id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
+                        <tr key={emp.employee_id || emp.user_id || emp.id || `emp-${idx}`} style={{ borderBottom: '1px solid var(--neu-border)' }}>
                           {/* Employee Name & Avatar */}
                           <td style={{ padding: '14px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -446,14 +446,15 @@ export default function AttendanceHistoryPage() {
                                     target: emp.attendance.clock_in_selfie_url ? 'clock_in' : 'clock_out',
                                   })}
                                   title="Click to view full selfie"
+                                  className="neu-touch-btn"
                                   style={{
                                     border: '2px solid var(--accent)',
                                     padding: 0,
                                     borderRadius: 8,
                                     overflow: 'hidden',
                                     cursor: 'pointer',
-                                    width: 40,
-                                    height: 40,
+                                    width: 48,
+                                    height: 48,
                                     flexShrink: 0
                                   }}
                                 >
@@ -485,12 +486,13 @@ export default function AttendanceHistoryPage() {
                                       target: 'both',
                                     })}
                                     title="Delete recorded selfie image"
+                                    className="neu-touch-btn"
                                     style={{
                                       background: 'var(--danger-light)',
                                       color: 'var(--danger)',
                                       border: 'none',
                                       borderRadius: 8,
-                                      padding: '6px 10px',
+                                      padding: '8px 12px',
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
@@ -499,7 +501,7 @@ export default function AttendanceHistoryPage() {
                                       fontWeight: 600,
                                     }}
                                   >
-                                    <Trash2 size={13} /> Delete
+                                    <Trash2 size={14} /> Delete
                                   </button>
                                 )}
                               </div>
@@ -518,6 +520,168 @@ export default function AttendanceHistoryPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Live Workforce Attendance: Mobile Cards (<768px) */}
+          <div className="neu-cards-mobile">
+            {workforceLoading ? (
+              <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+                Loading live workforce stream...
+              </div>
+            ) : workforceItems.length === 0 ? (
+              <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+                No employee records match the current filter.
+              </div>
+            ) : (
+              workforceItems.map((emp: any, idx: number) => {
+                const isWorkingNow = emp.liveStatus === 'PRESENT' || emp.liveStatus === 'LATE'
+                const isComplete = emp.liveStatus === 'COMPLETED'
+                const isOnLeave = emp.liveStatus === 'ON_LEAVE'
+                const selfieUrl = emp.attendance?.clock_in_selfie_url || emp.attendance?.clock_out_selfie_url
+
+                return (
+                  <div key={emp.employee_id || emp.user_id || emp.id || `card-${idx}`} className="neu-mobile-card">
+                    {/* Header Row: Employee & Status */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: '50%', background: 'var(--accent-light)',
+                          color: 'var(--accent)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.9375rem', overflow: 'hidden', flexShrink: 0
+                        }}>
+                          {emp.avatar_url ? (
+                            <img src={emp.avatar_url} alt={emp.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            emp.full_name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {emp.full_name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                            {emp.employee_code} • {emp.department_name}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        {emp.liveStatus === 'MISSING_OUT' || isMissingOutRecord(emp.attendance) ? (
+                          <span className="badge badge-warning" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#DC2626' }}>Missing Out</span>
+                        ) : isWorkingNow ? (
+                          <span className="badge badge-present">🟢 Working</span>
+                        ) : isComplete ? (
+                          <span className="badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>✓ Done</span>
+                        ) : isOnLeave ? (
+                          <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: '#D97706' }}>🏖️ Leave</span>
+                        ) : (
+                          <span className="badge badge-absent">⚪ Absent</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Clock In / Out Times */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 8,
+                      background: 'var(--neu-bg-deep)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '8px 12px',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>CLOCK IN</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: emp.attendance?.clock_in_at ? 'var(--success)' : 'var(--text-primary)', marginTop: 2 }}>
+                          {emp.attendance?.clock_in_at ? format(parseISO(emp.attendance.clock_in_at), 'h:mm:ss a') : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>CLOCK OUT</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                          {emp.attendance?.clock_out_at ? (
+                            format(parseISO(emp.attendance.clock_out_at), 'h:mm:ss a')
+                          ) : isWorkingNow ? (
+                            <span style={{ color: 'var(--success)', fontStyle: 'italic' }}>In Progress…</span>
+                          ) : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Verifications & Delete Button */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                      {selfieUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSelfie({
+                              recordId: emp.attendance.id,
+                              url: selfieUrl,
+                              name: emp.full_name,
+                              time: emp.attendance.clock_in_at ? format(parseISO(emp.attendance.clock_in_at), 'h:mm a') : 'Today',
+                              target: emp.attendance.clock_in_selfie_url ? 'clock_in' : 'clock_out',
+                            })}
+                            className="neu-touch-btn"
+                            style={{
+                              border: '2px solid var(--accent)',
+                              padding: 0,
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              width: 48,
+                              height: 48,
+                              flexShrink: 0
+                            }}
+                          >
+                            <img src={selfieUrl} alt="Selfie" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </button>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Camera size={13} /> Selfie Verified
+                            </div>
+                            {emp.attendance.clock_in_lat && (
+                              <div style={{ color: 'var(--success)', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                <MapPin size={11} /> GPS Validated
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={14} /> Manual / Auto Check-in
+                        </div>
+                      )}
+
+                      {isPrivileged && selfieUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setDeletingRecord({
+                            recordId: emp.attendance.id,
+                            name: emp.full_name,
+                            target: 'both',
+                          })}
+                          className="neu-touch-btn"
+                          style={{
+                            background: 'var(--danger-light)',
+                            color: 'var(--danger)',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '8px 14px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
       ) : (
@@ -549,7 +713,8 @@ export default function AttendanceHistoryPage() {
             </div>
           </div>
 
-          <div className="card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Personal Log: Desktop Table */}
+          <div className="neu-table-desktop card neu-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -570,22 +735,22 @@ export default function AttendanceHistoryPage() {
                 </thead>
                 <tbody>
                   {personalLoading ? (
-                    <tr>
+                    <tr key="personal-loading">
                       <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
                         Loading your log...
                       </td>
                     </tr>
                   ) : (records?.length ?? 0) === 0 ? (
-                    <tr>
+                    <tr key="personal-empty">
                       <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-tertiary)' }}>
                         No personal attendance records found.
                       </td>
                     </tr>
                   ) : (
-                    records!.map(r => {
+                    records!.map((r, idx) => {
                       const isMissingOut = isMissingOutRecord(r)
                       return (
-                        <tr key={r.id} style={{ borderBottom: '1px solid var(--neu-border)' }}>
+                        <tr key={r.id || r.date || `rec-${idx}`} style={{ borderBottom: '1px solid var(--neu-border)' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{r.date}</td>
                           <td>
                             {isMissingOut ? (
@@ -623,6 +788,90 @@ export default function AttendanceHistoryPage() {
               </table>
             </div>
           </div>
+
+          {/* Personal Log: Mobile Cards (<768px) */}
+          <div className="neu-cards-mobile">
+            {personalLoading ? (
+              <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+                Loading your log...
+              </div>
+            ) : (records?.length ?? 0) === 0 ? (
+              <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+                No personal attendance records found.
+              </div>
+            ) : (
+              records!.map((r, idx) => {
+                const isMissingOut = isMissingOutRecord(r)
+                return (
+                  <div key={r.id || r.date || `prec-${idx}`} className="neu-mobile-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                        {r.date}
+                      </div>
+                      <div>
+                        {isMissingOut ? (
+                          <span
+                            className="badge badge-warning"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              color: '#DC2626',
+                              borderColor: 'rgba(239, 68, 68, 0.25)',
+                              fontWeight: 600,
+                            }}
+                            data-testid="badge-missing-out"
+                          >
+                            Missing Out
+                          </span>
+                        ) : (
+                          <span className={`badge ${
+                            r.status === 'PRESENT' ? 'badge-present' :
+                            r.status === 'LATE' ? 'badge-warning' :
+                            r.status === 'HALF_DAY' ? 'badge-warning' :
+                            'badge-absent'
+                          }`}>
+                            {r.status}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 8,
+                      background: 'var(--neu-bg-deep)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '8px 12px',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>IN</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                          {r.clock_in_at ? format(parseISO(r.clock_in_at), 'h:mm a') : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>OUT</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                          {r.clock_out_at ? format(parseISO(r.clock_out_at), 'h:mm a') : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>HOURS</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: 2 }}>
+                          {r.work_minutes ? `${Math.floor(r.work_minutes / 60)}h ${r.work_minutes % 60}m` : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{r.clock_in_selfie_url ? '📷 Verified by Selfie' : 'Manual / Auto Record'}</span>
+                      {r.clock_in_lat && <span style={{ color: 'var(--success)' }}>• GPS Validated</span>}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
         </div>
       )}
 
@@ -638,15 +887,22 @@ export default function AttendanceHistoryPage() {
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedSelfie.name}</h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Clocked in at {selectedSelfie.time}</p>
               </div>
-              <button onClick={() => setSelectedSelfie(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>✕</button>
+              <button
+                onClick={() => setSelectedSelfie(null)}
+                className="neu-touch-btn"
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                aria-label="Close selfie modal"
+              >
+                ✕
+              </button>
             </div>
             <img src={selectedSelfie.url} alt="Selfie Verification" style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 12, marginBottom: 16 }} />
 
             {isPrivileged && (
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button
-                  className="btn"
-                  style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}
+                  className="btn neu-touch-btn"
+                  style={{ background: 'var(--danger-light)', color: 'var(--danger)', minHeight: 48, padding: '0 20px', fontWeight: 600 }}
                   onClick={() => {
                     setDeletingRecord({ recordId: selectedSelfie.recordId, name: selectedSelfie.name, target: selectedSelfie.target })
                   }}
@@ -675,15 +931,16 @@ export default function AttendanceHistoryPage() {
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
-                className="btn btn-secondary"
+                className="btn btn-secondary neu-touch-btn"
+                style={{ minHeight: 48, padding: '0 20px' }}
                 onClick={() => setDeletingRecord(null)}
                 disabled={deleteSelfieMutation.isPending}
               >
                 Cancel
               </button>
               <button
-                className="btn"
-                style={{ background: 'var(--danger)', color: 'white' }}
+                className="btn neu-touch-btn"
+                style={{ background: 'var(--danger)', color: 'white', minHeight: 48, padding: '0 20px', fontWeight: 600 }}
                 onClick={() => deleteSelfieMutation.mutate({ recordId: deletingRecord.recordId, target: deletingRecord.target })}
                 disabled={deleteSelfieMutation.isPending}
               >
