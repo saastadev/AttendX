@@ -341,9 +341,9 @@ export default function DashboardPage() {
             id="notifications-bell"
             className="neu-btn neu-btn--secondary neu-btn--icon"
             aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
-            style={{ width: 42, height: 42, borderRadius: 12 }}
+            style={{ width: 48, height: 48, borderRadius: 12 }}
           >
-            <Bell size={18} aria-hidden="true" />
+            <Bell size={20} aria-hidden="true" />
           </button>
           {(unreadCount ?? 0) > 0 && (
             <span
@@ -375,7 +375,7 @@ export default function DashboardPage() {
           {[
             { href: '/attendance/checkin', icon: Clock, label: 'Check In/Out', color: '#10B981', id: 'quick-checkin' },
             { href: '/leave/apply', icon: CalendarDays, label: 'Apply Leave', color: '#6C63FF', id: 'quick-leave' },
-            { href: '/cases/new', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
+            { href: '/cases?new=true', icon: AlertCircle, label: 'Raise Case', color: '#F59E0B', id: 'quick-case' },
             { href: '/recognition', icon: Trophy, label: 'Recognize', color: '#0EA5E9', id: 'quick-recognize' },
           ].map(action => {
             const Icon = action.icon

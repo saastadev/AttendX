@@ -112,6 +112,7 @@ export function ManagerRouteMapModal({
 
   return (
     <div
+      className="modal-backdrop neu-route-map-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
@@ -121,18 +122,19 @@ export function ManagerRouteMapModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 'var(--space-4)',
+        padding: 'calc(env(safe-area-inset-top, 16px) + 8px) 16px calc(env(safe-area-inset-bottom, 16px) + 8px)',
       }}
       onClick={onClose}
     >
       <div
-        className="card"
+        className="card neu-route-map-dialog"
         style={{
           width: '100%',
           maxWidth: 680,
-          maxHeight: '90vh',
+          maxHeight: 'calc(100dvh - 32px)',
           overflowY: 'auto',
-          padding: 'var(--space-6)',
+          WebkitOverflowScrolling: 'touch',
+          padding: 'var(--space-5)',
           backgroundColor: 'var(--bg-card, #121827)',
           border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
           borderRadius: 'var(--radius-lg, 12px)',
@@ -152,14 +154,15 @@ export function ManagerRouteMapModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 borderRadius: '50%',
                 backgroundColor: 'rgba(99, 102, 241, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent, #6366f1)',
+                flexShrink: 0,
               }}
             >
               <Navigation size={18} />
@@ -182,11 +185,11 @@ export function ManagerRouteMapModal({
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-ghost btn-sm"
-            style={{ padding: 6, borderRadius: '50%' }}
+            className="btn btn-ghost neu-touch-btn"
+            style={{ minWidth: 44, minHeight: 44, padding: 0, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             aria-label="Close modal"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
@@ -239,7 +242,7 @@ export function ManagerRouteMapModal({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 gap: 12,
                 marginBottom: 16,
               }}
@@ -435,7 +438,12 @@ export function ManagerRouteMapModal({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
             <ShieldCheck size={14} color="var(--success, #10b981)" /> Authoritative Store: <code>public.gps_tracking</code>
           </div>
-          <button type="button" onClick={onClose} className="btn btn-secondary btn-sm">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-secondary neu-touch-btn"
+            style={{ minHeight: 44, padding: '0 20px', fontWeight: 600 }}
+          >
             Close
           </button>
         </div>

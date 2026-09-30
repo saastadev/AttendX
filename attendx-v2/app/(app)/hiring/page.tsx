@@ -208,8 +208,8 @@ export default function HiringHubPage() {
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: 20,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 16,
         }}>
           {submodules.map((m) => {
             const Icon = m.icon
@@ -298,41 +298,73 @@ export default function HiringHubPage() {
             No requisitions found. Create your first job requisition to start sourcing candidates.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)' }}>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Role</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Department</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Location</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Positions</th>
-                  <th style={{ padding: '10px 12px', fontWeight: 600 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requisitions.slice(0, 5).map((r: any) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
-                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{r.title}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{typeof r.department === 'object' ? r.department?.name : r.department}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{r.location} ({r.work_mode})</td>
-                    <td style={{ padding: '12px', color: 'var(--text-primary)' }}>{r.open_positions}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{
-                        padding: '3px 8px',
-                        borderRadius: 12,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        background: r.status === 'OPEN' ? 'rgba(16, 185, 129, 0.15)' : 'var(--neu-bg-deep)',
-                        color: r.status === 'OPEN' ? '#059669' : 'var(--text-tertiary)',
-                      }}>
-                        {r.status}
-                      </span>
-                    </td>
+          <>
+            <div className="neu-table-desktop" style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)' }}>
+                    <th style={{ padding: '10px 12px', fontWeight: 600 }}>Role</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600 }}>Department</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600 }}>Location</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600 }}>Positions</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 600 }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {requisitions.slice(0, 5).map((r: any) => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
+                      <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{r.title}</td>
+                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{typeof r.department === 'object' ? r.department?.name : r.department}</td>
+                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{r.location} ({r.work_mode})</td>
+                      <td style={{ padding: '12px', color: 'var(--text-primary)' }}>{r.open_positions}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          padding: '3px 8px',
+                          borderRadius: 12,
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: r.status === 'OPEN' ? 'rgba(16, 185, 129, 0.15)' : 'var(--neu-bg-deep)',
+                          color: r.status === 'OPEN' ? '#059669' : 'var(--text-tertiary)',
+                        }}>
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="neu-cards-mobile">
+              {requisitions.slice(0, 5).map((r: any) => (
+                <div key={r.id} className="neu-mobile-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{r.title}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {typeof r.department === 'object' ? r.department?.name : r.department}
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: '3px 8px',
+                      borderRadius: 12,
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: r.status === 'OPEN' ? 'rgba(16, 185, 129, 0.15)' : 'var(--neu-bg-deep)',
+                      color: r.status === 'OPEN' ? '#059669' : 'var(--text-tertiary)',
+                    }}>
+                      {r.status}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(128,128,180,0.08)', paddingTop: 8 }}>
+                    <span>{r.location} ({r.work_mode})</span>
+                    <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{r.open_positions} open</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </PageWrapper>

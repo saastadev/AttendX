@@ -216,8 +216,8 @@ export default function HRLeavesPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="neu-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Desktop Table (>= 769px) */}
+      <div className="neu-table-desktop neu-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="table" style={{ width: '100%', fontSize: '0.875rem' }}>
             <thead>
@@ -311,6 +311,93 @@ export default function HRLeavesPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile Card List (< 769px) */}
+      <div className="neu-cards-mobile">
+        {isLoading ? (
+          <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+            Loading leave requests…
+          </div>
+        ) : filtered?.length === 0 ? (
+          <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+            No leave requests found
+          </div>
+        ) : (
+          filtered?.map((l: any) => (
+            <div key={l.id} className="neu-mobile-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="avatar avatar-sm">{l.employee?.full_name?.charAt(0) ?? '?'}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                      {l.employee?.full_name || 'Employee'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                      {l.employee?.email}
+                    </div>
+                  </div>
+                </div>
+                <span className={`badge ${
+                  l.status === 'APPROVED' ? 'badge-approved' :
+                  l.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending'
+                }`}>
+                  {l.status}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8125rem', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                <span className="badge" style={{
+                  background: l.leave_type?.color ? `${l.leave_type.color}22` : undefined,
+                  color: l.leave_type?.color ?? 'var(--text-primary)',
+                  borderColor: l.leave_type?.color ?? 'var(--neu-border)',
+                }}>
+                  {l.leave_type?.name ?? 'Leave'}
+                </span>
+                <span style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                  {l.total_days} day(s)
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                {l.start_date} → {l.end_date}
+              </div>
+
+              {l.reason && (
+                <div style={{
+                  fontSize: '0.8125rem',
+                  color: 'var(--text-secondary)',
+                  background: 'var(--neu-bg-deep)',
+                  padding: '6px 10px',
+                  borderRadius: 'var(--radius-sm)',
+                }}>
+                  {l.reason}
+                </div>
+              )}
+
+              {l.status === 'PENDING' && (
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button
+                    onClick={() => approveMutation.mutate({ id: l.id, action: 'APPROVED' })}
+                    disabled={approveMutation.isPending}
+                    className="btn btn-success btn-sm"
+                    style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}
+                  >
+                    <CheckCircle size={16} /> Approve
+                  </button>
+                  <button
+                    onClick={() => approveMutation.mutate({ id: l.id, action: 'REJECTED' })}
+                    disabled={approveMutation.isPending}
+                    className="btn btn-danger btn-sm"
+                    style={{ flex: 1, minHeight: 44, justifyContent: 'center' }}
+                  >
+                    <XCircle size={16} /> Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

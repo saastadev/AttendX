@@ -368,8 +368,10 @@ export default function ApplicationsPage() {
             <p style={{ fontSize: '0.875rem', marginTop: 4 }}>Adjust your search or filter parameters to view candidates.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+          <>
+            <div className="neu-table-desktop" style={{ width: '100%' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{
                   background: 'var(--neu-bg-deep)',
@@ -586,8 +588,74 @@ export default function ApplicationsPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+
+        {/* Mobile Candidate Cards (< 769px) */}
+        <div className="neu-cards-mobile" style={{ padding: 'var(--space-3)' }}>
+          {filteredApps.map((app) => {
+            const scoreColor = getScoreColor(app.match_score)
+            return (
+              <div key={app.id} className="neu-mobile-card">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                  <div onClick={() => setCandidateDrawer(app)} style={{ cursor: 'pointer', flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                      {app.candidate?.full_name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                      {app.candidate?.email}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '3px 8px', borderRadius: 8,
+                    background: scoreColor.bg, color: scoreColor.text,
+                    fontSize: '0.75rem', fontWeight: 800,
+                  }}>
+                    {app.match_score ? `${app.match_score}%` : 'N/A'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8125rem', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {app.requisition?.title || 'General Application'}
+                  </div>
+                  <span className="badge" style={{
+                    background: app.stage === 'REJECTED' ? 'rgba(239, 68, 68, 0.12)' : app.stage === 'ONBOARDED' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(79, 70, 229, 0.12)',
+                    color: app.stage === 'REJECTED' ? '#DC2626' : app.stage === 'ONBOARDED' ? '#10B981' : 'var(--accent)',
+                    fontSize: '0.6875rem', fontWeight: 700,
+                  }}>
+                    {app.stage.replace(/_/g, ' ')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={() => setCandidateDrawer(app)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ flex: 1, minHeight: 44, justifyContent: 'center', gap: 6 }}
+                  >
+                    <Eye size={16} /> Details
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSchedulingApp(app)
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        title: `Technical Round - ${app.candidate?.full_name}`,
+                      }))
+                    }}
+                    className="btn btn-primary btn-sm"
+                    style={{ flex: 1, minHeight: 44, justifyContent: 'center', gap: 6 }}
+                  >
+                    <Video size={16} /> Interview
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        </>
+      )}
+    </div>
 
       {/* Interview Scheduling Modal */}
       {schedulingApp && (

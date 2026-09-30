@@ -121,66 +121,122 @@ export default function LeavePage() {
           }
         />
       ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Dates</th>
-                  <th>Days</th>
-                  <th>Reason</th>
-                  <th>Status</th>
-                  <th>Applied On</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leavesLoading ? (
+        <>
+          {/* Desktop Table View (>= 769px) */}
+          <div className="neu-table-desktop card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                      <div className="skeleton skeleton-text" style={{ width: '40%', margin: '0 auto' }} />
-                    </td>
+                    <th>Type</th>
+                    <th>Dates</th>
+                    <th>Days</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Applied On</th>
                   </tr>
-                ) : (
-                  leaves?.map(l => {
-                    const lt = (l as any).leave_type as LeaveType
-                    const badgeClass =
-                      l.status === 'APPROVED' ? 'badge-approved' :
-                      l.status === 'REJECTED' ? 'badge-rejected' :
-                      l.status === 'PENDING'  ? 'badge-pending' : 'badge-neutral'
+                </thead>
+                <tbody>
+                  {leavesLoading ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                        <div className="skeleton skeleton-text" style={{ width: '40%', margin: '0 auto' }} />
+                      </td>
+                    </tr>
+                  ) : (
+                    leaves?.map(l => {
+                      const lt = (l as any).leave_type as LeaveType
+                      const badgeClass =
+                        l.status === 'APPROVED' ? 'badge-approved' :
+                        l.status === 'REJECTED' ? 'badge-rejected' :
+                        l.status === 'PENDING'  ? 'badge-pending' : 'badge-neutral'
 
-                    return (
-                      <tr key={l.id}>
-                        <td>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {lt?.name ?? 'Leave'}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                          {l.start_date} → {l.end_date}
-                        </td>
-                        <td style={{ fontWeight: 700 }}>
-                          {l.total_days} {l.total_days === 1 ? 'day' : 'days'}
-                        </td>
-                        <td style={{ maxWidth: 240 }} className="truncate" title={l.reason}>
-                          {l.reason}
-                        </td>
-                        <td>
-                          <span className={`badge ${badgeClass}`}>
-                            {l.status}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-                          {new Date(l.applied_at || l.created_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                      return (
+                        <tr key={l.id}>
+                          <td>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {lt?.name ?? 'Leave'}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                            {l.start_date} → {l.end_date}
+                          </td>
+                          <td style={{ fontWeight: 700 }}>
+                            {l.total_days} {l.total_days === 1 ? 'day' : 'days'}
+                          </td>
+                          <td style={{ maxWidth: 240 }} className="truncate" title={l.reason}>
+                            {l.reason}
+                          </td>
+                          <td>
+                            <span className={`badge ${badgeClass}`}>
+                              {l.status}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
+                            {new Date(l.applied_at || l.created_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Card View (< 769px) */}
+          <div className="neu-cards-mobile">
+            {leavesLoading ? (
+              <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+                Loading leave requests…
+              </div>
+            ) : (
+              leaves?.map(l => {
+                const lt = (l as any).leave_type as LeaveType
+                const badgeClass =
+                  l.status === 'APPROVED' ? 'badge-approved' :
+                  l.status === 'REJECTED' ? 'badge-rejected' :
+                  l.status === 'PENDING'  ? 'badge-pending' : 'badge-neutral'
+
+                return (
+                  <div key={l.id} className="neu-mobile-card">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                        {lt?.name ?? 'Leave Application'}
+                      </span>
+                      <span className={`badge ${badgeClass}`}>
+                        {l.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                      <span>{l.start_date} → {l.end_date}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {l.total_days} {l.total_days === 1 ? 'day' : 'days'}
+                      </span>
+                    </div>
+
+                    {l.reason && (
+                      <div style={{
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        background: 'var(--neu-bg-deep)',
+                        padding: '6px 10px',
+                        borderRadius: 'var(--radius-sm)',
+                      }}>
+                        {l.reason}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>
+                      Applied: {new Date(l.applied_at || l.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </>
       )}
     </PageWrapper>
   )

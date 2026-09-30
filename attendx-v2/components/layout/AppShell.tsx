@@ -9,10 +9,12 @@ import {
   User, Bell, Trophy, FileText, BarChart3, Shield,
   Users, Settings, ChevronRight, WifiOff, RefreshCcw,
   Search, Camera, Sun, Moon, Sparkles, Heart, Briefcase, UserPlus, LogOut,
+  Menu, X, MoreHorizontal,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useTheme } from '@/hooks/useTheme'
+import { useScrollHeader } from '@/hooks/useScrollHeader'
 import { TenantSwitcher } from '@/components/navigation/tenant-switcher'
 import { useQuery } from '@tanstack/react-query'
 import { NotificationFlyoutPanel } from '@/components/notifications/NotificationFlyoutPanel'
@@ -27,14 +29,12 @@ export const SPRING_GENTLE: any = { type: 'spring', stiffness: 280, damping: 28 
 export const SPRING_BOUNCY: any = { type: 'spring', stiffness: 400, damping: 22 }
 export const SPRING_STIFF:  any = { type: 'spring', stiffness: 600, damping: 35 }
 
-/* ---- Nav items ---- */
+/* ---- Nav items: 4 primary bottom tabs + 5th 'More' tab (parity with task requirements) ---- */
 const MOBILE_NAV = [
   { href: '/dashboard',     icon: LayoutDashboard,   label: 'Home',       id: 'mnav-home' },
   { href: '/attendance',    icon: Clock,              label: 'Attendance', id: 'mnav-attendance' },
   { href: '/leave',         icon: CalendarDays,       label: 'Leave',      id: 'mnav-leave' },
-  { href: '/notifications', icon: Bell,              label: 'Alerts',     id: 'mnav-alerts' },
-  { href: '/copilot',       icon: MessageSquareMore,  label: 'Copilot',    id: 'mnav-copilot' },
-  { href: '/profile',       icon: User,               label: 'Profile',    id: 'mnav-profile' },
+  { href: '/notifications', icon: Bell,               label: 'Alerts',     id: 'mnav-alerts' },
 ]
 
 type NavItem = { href: string; icon: React.ElementType; label: string; id: string; minRole?: UserRole }
@@ -88,6 +88,7 @@ const SIDEBAR_NAV: NavGroup[] = [
     section: 'Account',
     items: [
       { href: '/profile', icon: User, label: 'Profile', id: 'snav-profile' },
+      { href: '/profile/sessions', icon: Shield, label: 'Active Sessions', id: 'snav-sessions' },
     ],
   },
 ]
@@ -274,8 +275,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme()
   const [cmdOpen, setCmdOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [mobileAvatarMenuOpen, setMobileAvatarMenuOpen] = useState(false)
+  const { scrolled } = useScrollHeader(12)
 
-  // Live unread notification count
+  // Auto-close mobile navigation drawer and avatar menu on route change
+  useEffect(() => {
+    setMobileDrawerOpen(false)
+    setMobileAvatarMenuOpen(false)
+  }, [pathname])
+
+  // Live unread notification count (throttled to 20s on mobile to reduce polling battery/data cost)
   const { data: unreadNotifCount = 0 } = useQuery<number>({
     queryKey: ['notifications-unread-count', user?.id],
     queryFn: async () => {
@@ -315,7 +325,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return 0
     },
     enabled: !!user,
-    refetchInterval: 6000,
+    refetchInterval: (typeof window !== 'undefined' && window.innerWidth <= 768) ? 20000 : 6000,
   })
 
   // Session hydration and auth verification
@@ -621,6 +631,295 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </motion.nav>
 
+        {/* ---- Main Shell Container (stacks Top Bar + Content) ---- */}
+        <div className="neu-shell-main">
+          {/* ---- Mobile Top Bar ---- */}
+          <header className={`neu-mobile-topbar mobile-only ${scrolled ? 'neu-mobile-topbar--scrolled' : ''}`} aria-label="Mobile application bar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={() => setMobileDrawerOpen(true)}
+                className="neu-touch-btn"
+                aria-label="Open full menu"
+                id="btn-mobile-drawer-toggle"
+                style={{
+                  width: 44, height: 44,
+                  background: 'var(--neu-bg-deep)',
+                  border: '1px solid rgba(128,128,180,0.12)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                  boxShadow: 'var(--elev-0)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Menu size={22} aria-hidden="true" />
+              </button>
+              <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 'var(--radius-md)',
+                  background: 'var(--brand-gradient)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'white', fontWeight: 800, fontSize: '0.875rem',
+                  boxShadow: 'var(--elev-accent)',
+                }}>
+                  {(user.tenant?.app_name ?? 'A').charAt(0)}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{
+                    fontWeight: 800, fontSize: '0.9375rem',
+                    color: 'var(--text-primary)', fontFamily: 'var(--font-display)',
+                    lineHeight: 1.2
+                  }}>
+                    {user.tenant?.app_name ?? 'AttendX'}
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                    {user.role}
+                  </span>
+                </div>
+              </Link>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Command Palette Trigger */}
+              <button
+                onClick={() => setCmdOpen(true)}
+                className="neu-touch-btn"
+                aria-label="Search pages (⌘K)"
+                id="btn-mobile-cmd-search"
+                style={{
+                  width: 40, height: 40,
+                  background: 'var(--neu-bg-deep)',
+                  border: '1px solid rgba(128,128,180,0.12)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-secondary)',
+                  boxShadow: 'var(--elev-0)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Search size={18} aria-hidden="true" />
+              </button>
+
+              {/* Notification Bell with Flyout Trigger & Unread Count */}
+              <button
+                onClick={() => setNotifOpen(prev => !prev)}
+                className="neu-touch-btn"
+                aria-label={`Notifications (${unreadNotifCount} unread)`}
+                id="btn-mobile-notif-flyout"
+                style={{
+                  width: 40, height: 40,
+                  background: notifOpen ? 'rgba(var(--accent-rgb), 0.15)' : 'var(--neu-bg-deep)',
+                  border: notifOpen ? '1px solid var(--accent)' : '1px solid rgba(128,128,180,0.12)',
+                  borderRadius: 'var(--radius-md)',
+                  color: notifOpen ? 'var(--accent)' : 'var(--text-secondary)',
+                  boxShadow: 'var(--elev-0)',
+                  position: 'relative',
+                  cursor: 'pointer',
+                }}
+              >
+                <Bell size={18} aria-hidden="true" />
+                {unreadNotifCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -2, right: -2,
+                      background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+                      color: 'white',
+                      fontSize: '0.5625rem',
+                      fontWeight: 800,
+                      minWidth: 16, height: 16,
+                      borderRadius: 8,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 3px',
+                      boxShadow: '0 2px 6px rgba(236, 72, 153, 0.5)',
+                    }}
+                  >
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Profile Avatar Button (opens Avatar Menu) */}
+              <button
+                onClick={() => setMobileAvatarMenuOpen(prev => !prev)}
+                className="neu-touch-btn"
+                aria-label="User Account Menu"
+                id="btn-mobile-avatar-menu"
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
+                  border: mobileAvatarMenuOpen ? '2px solid var(--accent)' : '2px solid transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'white', fontWeight: 700, fontSize: '0.875rem',
+                  boxShadow: 'var(--elev-1)',
+                  cursor: 'pointer',
+                }}
+              >
+                {(user.profile?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+              </button>
+            </div>
+          </header>
+
+          {/* Mobile Offline / Sync Status Banner */}
+          {(!isOnline || pendingCount > 0) && (
+            <div
+              className="neu-mobile-sync-strip mobile-only"
+              style={{
+                padding: '6px var(--space-4)',
+                background: !isOnline ? 'var(--danger-light)' : 'var(--warning-light)',
+                borderBottom: '1px solid rgba(128,128,180,0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: !isOnline ? 'var(--danger)' : 'var(--warning-dark)',
+                width: '100%',
+              }}
+              role="status" aria-live="polite"
+            >
+              {!isOnline ? (
+                <>
+                  <WifiOff size={13} aria-hidden="true" />
+                  <span>Offline Mode — Changes saved locally</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCcw size={13} className="anim-spin" aria-hidden="true" />
+                  <span>Syncing {pendingCount} change{pendingCount > 1 ? 's' : ''} to server…</span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Mobile Avatar Menu Dropdown / Sheet */}
+          <AnimatePresence>
+            {mobileAvatarMenuOpen && (
+              <motion.div
+                className="neu-drawer-backdrop mobile-only"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setMobileAvatarMenuOpen(false)}
+                style={{ zIndex: 1000 }}
+              >
+                <motion.div
+                  className="neu-card"
+                  initial={{ y: -20, opacity: 0, scale: 0.95 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: -20, opacity: 0, scale: 0.95 }}
+                  transition={SPRING_GENTLE}
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'fixed',
+                    top: 'calc(58px + env(safe-area-inset-top, 0px))',
+                    right: 12,
+                    left: 12,
+                    maxWidth: 380,
+                    marginLeft: 'auto',
+                    background: 'var(--neu-bg-raised)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: 'var(--space-4)',
+                    boxShadow: 'var(--elev-4)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-3)',
+                  }}
+                >
+                  {/* User Card */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', fontWeight: 700, fontSize: '1.125rem',
+                      flexShrink: 0,
+                    }}>
+                      {(user.profile?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.profile?.full_name || user.email?.split('@')[0] || 'User'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.email}
+                      </div>
+                      <div style={{ marginTop: 2 }}>
+                        <span className="badge badge-neutral" style={{ fontSize: '0.625rem', padding: '1px 6px' }}>{user.role}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setMobileAvatarMenuOpen(false)}
+                      aria-label="Close user menu"
+                      className="neu-touch-btn"
+                      style={{ width: 36, height: 36, background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  {/* Organization Switcher inside Avatar Menu */}
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 6, letterSpacing: '0.04em' }}>
+                      Switch Organization
+                    </div>
+                    <TenantSwitcher />
+                  </div>
+
+                  {/* Theme Toggle Button */}
+                  <button
+                    onClick={toggleTheme}
+                    className="neu-touch-btn"
+                    style={{
+                      height: 44, borderRadius: 'var(--radius-md)',
+                      background: 'var(--neu-bg)', border: '1px solid var(--border)',
+                      boxShadow: 'var(--elev-0)', color: 'var(--text-primary)',
+                      fontSize: '0.8125rem', fontWeight: 600, gap: 10, cursor: 'pointer',
+                      justifyContent: 'flex-start', padding: '0 14px',
+                    }}
+                  >
+                    {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                    <span>{theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}</span>
+                  </button>
+
+                  {/* Profile Link */}
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileAvatarMenuOpen(false)}
+                    className="neu-drawer-item"
+                    style={{ padding: '10px 14px', minHeight: 44 }}
+                  >
+                    <User size={16} color="var(--accent)" />
+                    <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 600 }}>My Profile</span>
+                    <ChevronRight size={14} color="var(--text-muted)" />
+                  </Link>
+
+                  {/* Sign Out Button */}
+                  <button
+                    onClick={async () => {
+                      try { await fetch('/api/auth/logout', { method: 'POST' }) } catch (err) { console.warn('Logout error', err) }
+                      useAuthStore.getState().clearUser()
+                      window.location.href = '/auth/login?switch=true'
+                    }}
+                    className="neu-touch-btn"
+                    aria-label="Sign Out"
+                    style={{
+                      height: 44, borderRadius: 'var(--radius-md)',
+                      background: 'var(--danger-light)', border: 'none',
+                      color: 'var(--danger)', fontSize: '0.8125rem', fontWeight: 600,
+                      gap: 8, cursor: 'pointer', justifyContent: 'center',
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         {/* ---- Main Content ---- */}
         <main className="neu-content-area content-area">
           <AnimatePresence mode="wait">
@@ -635,18 +934,176 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </motion.div>
           </AnimatePresence>
         </main>
+      </div>
+
+      {/* ---- Mobile Navigation Drawer ---- */}
+      <AnimatePresence>
+          {mobileDrawerOpen && (
+            <motion.div
+              className="neu-drawer-backdrop mobile-only"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileDrawerOpen(false)}
+              aria-modal="true"
+              role="dialog"
+              aria-label="Navigation drawer"
+            >
+              <motion.div
+                className="neu-drawer-content"
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={SPRING_GENTLE}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Drawer Header */}
+                <div className="neu-drawer-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 10,
+                      background: 'linear-gradient(135deg, var(--accent), var(--brand-cyan))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', fontWeight: 800, fontSize: '1rem',
+                      fontFamily: 'var(--font-display)', flexShrink: 0,
+                    }}>
+                      {(user.profile?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.profile?.full_name || user.email?.split('@')[0] || 'User'}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)' }}>
+                        {user.role} · {user.tenant?.name || 'Workspace'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="neu-touch-btn"
+                    aria-label="Close navigation menu"
+                    style={{
+                      width: 44, height: 44, borderRadius: 'var(--radius-md)',
+                      background: 'none', border: 'none', color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Organization Switcher inside Drawer */}
+                <div style={{ padding: 'var(--space-3) var(--space-3) 0' }}>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 6, letterSpacing: '0.04em' }}>
+                    Organization Switcher
+                  </div>
+                  <TenantSwitcher />
+                </div>
+
+                {/* Drawer Navigation Sections (Full 24+ routes parity) */}
+                <div className="neu-drawer-scroll">
+                  {SIDEBAR_NAV.map((group, gi) => {
+                    const visibleItems = group.items.filter(item => canSee(userRole, item.minRole))
+                    if (visibleItems.length === 0) return null
+                    return (
+                      <div key={gi} role="group" aria-label={group.section ?? 'Navigation section'}>
+                        {group.section && (
+                          <div style={{
+                            fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
+                            letterSpacing: '0.06em', color: 'var(--text-tertiary)',
+                            padding: '6px 8px', marginBottom: 2,
+                          }}>
+                            {group.section}
+                          </div>
+                        )}
+                        {visibleItems.map(item => {
+                          const Icon = item.icon
+                          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setMobileDrawerOpen(false)}
+                              className={`neu-drawer-item ${isActive ? 'neu-drawer-item--active' : ''}`}
+                              aria-current={isActive ? 'page' : undefined}
+                            >
+                              <Icon size={19} color={isActive ? 'var(--accent)' : 'var(--text-secondary)'} aria-hidden="true" />
+                              <span style={{ flex: 1 }}>{item.label}</span>
+                              {item.href === '/notifications' && unreadNotifCount > 0 && (
+                                <span style={{
+                                  background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+                                  color: 'white', fontSize: '0.6875rem', fontWeight: 800,
+                                  padding: '1px 7px', borderRadius: 10,
+                                }}>
+                                  {unreadNotifCount}
+                                </span>
+                              )}
+                              <ChevronRight size={14} color="var(--text-muted)" aria-hidden="true" />
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Drawer Footer */}
+                <div style={{
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderTop: '1px solid var(--border)',
+                  background: 'var(--neu-bg-deep)',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <button
+                    onClick={toggleTheme}
+                    className="neu-touch-btn"
+                    style={{
+                      flex: 1, height: 46, borderRadius: 'var(--radius-md)',
+                      background: 'var(--neu-bg)', border: '1px solid var(--border)',
+                      boxShadow: 'var(--elev-0)', color: 'var(--text-primary)',
+                      fontSize: '0.8125rem', fontWeight: 600, gap: 8, cursor: 'pointer',
+                    }}
+                  >
+                    {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                    <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      try { await fetch('/api/auth/logout', { method: 'POST' }) } catch (err) { console.warn('Logout error', err) }
+                      useAuthStore.getState().clearUser()
+                      window.location.href = '/auth/login?switch=true'
+                    }}
+                    className="neu-touch-btn"
+                    aria-label="Sign Out"
+                    style={{
+                      height: 46, padding: '0 16px', borderRadius: 'var(--radius-md)',
+                      background: 'var(--danger-light)', border: 'none',
+                      color: 'var(--danger)', fontSize: '0.8125rem', fontWeight: 600,
+                      gap: 6, cursor: 'pointer',
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ---- Mobile Bottom Nav ---- */}
         <motion.nav
           className="neu-nav-bottom mobile-only"
-          aria-label="Main navigation"
+          aria-label="Main mobile navigation"
           initial={{ y: 80 }}
           animate={{ y: 0 }}
           transition={SPRING_GENTLE}
         >
           {MOBILE_NAV.map(item => {
             const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
             return (
               <Link
                 key={item.href}
@@ -667,19 +1124,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <span
                       style={{
                         position: 'absolute',
-                        top: -4,
-                        right: -6,
+                        top: -3, right: -6,
                         background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
                         color: 'white',
                         fontSize: '0.5625rem',
                         fontWeight: 800,
-                        minWidth: 14,
-                        height: 14,
-                        borderRadius: 7,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        minWidth: 16, height: 16,
+                        borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: '0 3px',
+                        boxShadow: '0 2px 6px rgba(236, 72, 153, 0.5)',
                       }}
                     >
                       {unreadNotifCount}
@@ -702,7 +1156,66 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
+
+          {/* 5th Action: More / All Modules Drawer Button */}
+          <button
+            onClick={() => setMobileDrawerOpen(true)}
+            id="mnav-more-trigger"
+            className={`neu-nav-item ${mobileDrawerOpen ? 'neu-nav-item--active' : ''}`}
+            aria-label="All Modules & Menu"
+            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            <div style={{ position: 'relative' }}>
+              <MoreHorizontal
+                className="neu-nav-item-icon"
+                aria-hidden="true"
+                size={22}
+                strokeWidth={mobileDrawerOpen ? 2.5 : 1.8}
+              />
+              {unreadNotifCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2, right: -4,
+                    width: 8, height: 8,
+                    borderRadius: '50%',
+                    background: '#EC4899',
+                    boxShadow: '0 0 6px rgba(236, 72, 153, 0.8)',
+                  }}
+                />
+              )}
+            </div>
+            <span className="neu-nav-item-label">More</span>
+          </button>
         </motion.nav>
+
+        {/* Mobile Floating Action Button (FAB) for HR Copilot — 1 tap away */}
+        {pathname !== '/copilot' && (
+          <Link
+            href="/copilot"
+            className="neu-fab mobile-only"
+            id="fab-mobile-copilot"
+            aria-label="Ask HR Copilot"
+            style={{
+              position: 'fixed',
+              bottom: 'calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + 16px)',
+              right: 16,
+              width: 50,
+              height: 50,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--accent), #8B5CF6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              boxShadow: '0 6px 20px rgba(var(--accent-rgb), 0.45)',
+              zIndex: 'var(--z-raised)',
+              textDecoration: 'none',
+            }}
+          >
+            <Sparkles size={22} />
+          </Link>
+        )}
       </div>
     </LayoutGroup>
   )

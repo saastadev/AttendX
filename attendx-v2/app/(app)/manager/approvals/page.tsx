@@ -167,7 +167,7 @@ export default function ManagerApprovalsPage() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
           <h1 className="page-title">Approvals</h1>
           <p className="page-subtitle">
@@ -177,14 +177,15 @@ export default function ManagerApprovalsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <button
             onClick={() => refetch()}
-            className={`btn btn-secondary btn-sm ${isFetching ? 'btn-loading' : ''}`}
+            className={`btn btn-secondary neu-touch-btn ${isFetching ? 'btn-loading' : ''}`}
+            style={{ minHeight: 44, padding: '0 16px' }}
             id="btn-refresh-approvals"
             title="Refresh queue"
           >
-            <RefreshCcw size={14} className={isFetching ? 'anim-spin' : ''} /> Refresh
+            <RefreshCcw size={15} className={isFetching ? 'anim-spin' : ''} /> Refresh
           </button>
           {totalPending > 0 && (
-            <span className="badge badge-pending" style={{ fontSize: '0.9375rem', padding: '6px 14px' }}>
+            <span className="badge badge-pending" style={{ fontSize: '0.9375rem', padding: '8px 16px' }}>
               {totalPending} pending
             </span>
           )}
@@ -192,12 +193,13 @@ export default function ManagerApprovalsPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="tab-group" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="tab-group" style={{ marginBottom: 'var(--space-6)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {(['ALL', 'LEAVE', 'CORRECTION'] as const).map(t => (
           <button
             key={t}
             onClick={() => setActiveType(t)}
-            className={`tab-btn ${activeType === t ? 'tab-btn-active' : ''}`}
+            className={`tab-btn neu-touch-btn ${activeType === t ? 'tab-btn-active' : ''}`}
+            style={{ minHeight: 44, padding: '0 16px' }}
             id={`tab-approvals-${t.toLowerCase()}`}
           >
             {t === 'ALL' ? `All (${totalPending})` : t === 'LEAVE' ? `Leave (${pendingLeaves?.length ?? 0})` : `Corrections (${pendingCorrections?.length ?? 0})`}
@@ -223,36 +225,41 @@ export default function ManagerApprovalsPage() {
           {/* Pending Leaves */}
           {(activeType === 'ALL' || activeType === 'LEAVE') && pendingLeaves?.map((l: any) => (
             <motion.div key={l.id} variants={STAGGER_ITEM} className="neu-card" style={{ borderLeft: '3px solid var(--accent)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-                <div className="avatar avatar-md" style={{ flexShrink: 0 }}>{l.employee?.full_name?.charAt(0) ?? '?'}</div>
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{l.employee?.full_name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span className="badge badge-accent"><CalendarDays size={12} /> {l.leave_type?.name}</span>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      {l.start_date} → {l.end_date} ({l.total_days}d)
-                    </span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', flex: 1, minWidth: 220 }}>
+                  <div className="avatar avatar-md" style={{ flexShrink: 0 }}>{l.employee?.full_name?.charAt(0) ?? '?'}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{l.employee?.full_name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span className="badge badge-accent"><CalendarDays size={12} /> {l.leave_type?.name}</span>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        {l.start_date} → {l.end_date} ({l.total_days}d)
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: 0 }} className="line-clamp-2">{l.reason}</p>
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: 0 }} className="line-clamp-2">{l.reason}</p>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+
+                <div style={{ display: 'flex', gap: 'var(--space-3)', width: '100%', maxWidth: 280, marginTop: 'var(--space-2)' }}>
                   <motion.button
                     whileTap={{ scale: 0.94 }}
                     onClick={() => leaveMutation.mutate({ id: l.id, action: 'APPROVED', leave: l })}
                     disabled={leaveMutation.isPending}
-                    className="btn btn-success btn-sm"
+                    className="btn btn-success neu-touch-btn"
+                    style={{ flex: 1, minHeight: 48, fontWeight: 600, fontSize: '0.875rem' }}
                     id={`btn-approve-leave-${l.id}`}
                   >
-                    <CheckCircle size={16} /> Approve
+                    <CheckCircle size={18} /> Approve
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.94 }}
                     onClick={() => leaveMutation.mutate({ id: l.id, action: 'REJECTED', leave: l })}
                     disabled={leaveMutation.isPending}
-                    className="btn btn-danger btn-sm"
+                    className="btn btn-danger neu-touch-btn"
+                    style={{ flex: 1, minHeight: 48, fontWeight: 600, fontSize: '0.875rem' }}
                     id={`btn-reject-leave-${l.id}`}
                   >
-                    <XCircle size={16} /> Reject
+                    <XCircle size={18} /> Reject
                   </motion.button>
                 </div>
               </div>
@@ -262,30 +269,37 @@ export default function ManagerApprovalsPage() {
           {/* Pending Corrections */}
           {(activeType === 'ALL' || activeType === 'CORRECTION') && pendingCorrections?.map((c: any) => (
             <motion.div key={c.id} variants={STAGGER_ITEM} className="neu-card" style={{ borderLeft: '3px solid var(--warning)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-                <div className="avatar avatar-md" style={{ flexShrink: 0 }}>{c.employee?.full_name?.charAt(0) ?? '?'}</div>
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{c.employee?.full_name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span className="badge badge-pending"><Clock size={12} /> Attendance Correction</span>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      {c.date ? format(parseISO(c.date), 'MMM d, yyyy') : '—'}
-                    </span>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', flex: 1, minWidth: 220 }}>
+                  <div className="avatar avatar-md" style={{ flexShrink: 0 }}>{c.employee?.full_name?.charAt(0) ?? '?'}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{c.employee?.full_name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span className="badge badge-pending"><Clock size={12} /> Attendance Correction</span>
+                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        {c.date ? format(parseISO(c.date), 'MMM d, yyyy') : '—'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }} className="line-clamp-2">{c.reason}</p>
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }} className="line-clamp-2">{c.reason}</p>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+
+                <div style={{ display: 'flex', gap: 'var(--space-3)', width: '100%', maxWidth: 280, marginTop: 'var(--space-2)' }}>
                   <motion.button whileTap={{ scale: 0.94 }}
                     onClick={() => correctionMutation.mutate({ id: c.id, action: 'APPROVED' })}
                     disabled={correctionMutation.isPending}
-                    className="btn btn-success btn-sm" id={`btn-approve-corr-${c.id}`}>
-                    <CheckCircle size={16} /> Approve
+                    className="btn btn-success neu-touch-btn"
+                    style={{ flex: 1, minHeight: 48, fontWeight: 600, fontSize: '0.875rem' }}
+                    id={`btn-approve-corr-${c.id}`}>
+                    <CheckCircle size={18} /> Approve
                   </motion.button>
                   <motion.button whileTap={{ scale: 0.94 }}
                     onClick={() => correctionMutation.mutate({ id: c.id, action: 'REJECTED' })}
                     disabled={correctionMutation.isPending}
-                    className="btn btn-danger btn-sm" id={`btn-reject-corr-${c.id}`}>
-                    <XCircle size={16} /> Reject
+                    className="btn btn-danger neu-touch-btn"
+                    style={{ flex: 1, minHeight: 48, fontWeight: 600, fontSize: '0.875rem' }}
+                    id={`btn-reject-corr-${c.id}`}>
+                    <XCircle size={18} /> Reject
                   </motion.button>
                 </div>
               </div>

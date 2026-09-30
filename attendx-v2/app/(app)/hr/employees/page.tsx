@@ -79,8 +79,8 @@ export default function HREmployeesPage() {
         />
       </div>
 
-      {/* Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Desktop Table (>= 769px) */}
+      <div className="neu-table-desktop card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
@@ -149,6 +149,67 @@ export default function HREmployeesPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Mobile Card List (< 769px) */}
+      <div className="neu-cards-mobile">
+        {isLoading ? (
+          <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+            Loading employees…
+          </div>
+        ) : filtered?.length === 0 ? (
+          <div className="neu-mobile-card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+            No employees found
+          </div>
+        ) : (
+          filtered?.map((e: any) => {
+            const risk = e.attrition?.[0]
+            const riskBadge = risk?.risk_level === 'HIGH' ? 'badge-rejected' :
+              risk?.risk_level === 'MEDIUM' ? 'badge-pending' :
+              risk?.risk_level === 'LOW' ? 'badge-approved' : 'badge-neutral'
+
+            return (
+              <div key={e.id} className="neu-mobile-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div className="avatar avatar-sm">{e.profile?.full_name?.charAt(0) ?? '?'}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                        {e.profile?.full_name || 'Employee'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                        {e.profile?.email}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`badge ${e.profile?.is_active ? 'badge-present' : 'badge-absent'}`}>
+                    {e.profile?.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8125rem', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginRight: 4 }}>Code:</span>
+                    <span className="badge badge-neutral" style={{ padding: '1px 6px' }}>{e.employee_code}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginRight: 4 }}>Type:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{e.employment_type?.replace('_', ' ')}</span>
+                  </div>
+                </div>
+
+                {risk && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                    <span style={{ color: 'var(--text-tertiary)' }}>Attrition Risk:</span>
+                    <span className={`badge ${riskBadge}`}>
+                      {risk.risk_level} ({Math.round(risk.score * 100)}%)
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
     </PageWrapper>
   )

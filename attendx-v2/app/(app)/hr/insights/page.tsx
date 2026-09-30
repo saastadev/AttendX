@@ -571,77 +571,127 @@ export default function HRInsightsPage() {
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ width: '100%', fontSize: '0.875rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '12px 16px' }}>Employee</th>
-                  <th style={{ textAlign: 'left', padding: '12px 16px' }}>Risk Level</th>
-                  <th style={{ textAlign: 'left', padding: '12px 16px' }}>Risk Score</th>
-                  <th style={{ textAlign: 'left', padding: '12px 16px' }}>Key Contributing Factors</th>
-                  <th style={{ textAlign: 'left', padding: '12px 16px' }}>AI Recommendation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scores.map((s: any) => {
-                  const pct = Math.round(Number(s.score) * 100)
-                  const isHigh = s.risk_level === 'HIGH'
-                  const isMed = s.risk_level === 'MEDIUM'
-                  const badgeClass = isHigh ? 'badge-danger' : isMed ? 'badge-warning' : 'badge-success'
-                  const topDriver = s.factors?.top_driver || (isHigh ? 'Declining Check-in Frequency & Overtime' : isMed ? 'Elevated Overtime' : 'Consistent Engagement')
-                  const recommendation = isHigh
-                    ? 'Schedule 1-on-1 check-in to balance workload & reduce overtime fatigue.'
-                    : isMed
-                    ? 'Monitor attendance consistency and review project deadlines.'
-                    : 'Optimal workload & retention health.'
+          <>
+            <div className="neu-table-desktop" style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ width: '100%', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Employee</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Risk Level</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Risk Score</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>Key Contributing Factors</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px' }}>AI Recommendation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scores.map((s: any) => {
+                    const pct = Math.round(Number(s.score) * 100)
+                    const isHigh = s.risk_level === 'HIGH'
+                    const isMed = s.risk_level === 'MEDIUM'
+                    const badgeClass = isHigh ? 'badge-danger' : isMed ? 'badge-warning' : 'badge-success'
+                    const topDriver = s.factors?.top_driver || (isHigh ? 'Declining Check-in Frequency & Overtime' : isMed ? 'Elevated Overtime' : 'Consistent Engagement')
+                    const recommendation = isHigh
+                      ? 'Schedule 1-on-1 check-in to balance workload & reduce overtime fatigue.'
+                      : isMed
+                      ? 'Monitor attendance consistency and review project deadlines.'
+                      : 'Optimal workload & retention health.'
 
-                  return (
-                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.06)' }}>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        <div>{s.employee?.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+                    return (
+                      <tr key={s.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.06)' }}>
+                        <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          <div>{s.employee?.full_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
+                            {s.employee?.email}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span className={`badge ${badgeClass}`} style={{ fontWeight: 700 }}>
+                            {s.risk_level}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 60, height: 6, background: 'rgba(128,128,180,0.15)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${pct}%`,
+                                  height: '100%',
+                                  background: isHigh ? '#EF4444' : isMed ? '#F59E0B' : '#10B981',
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontWeight: 700, color: isHigh ? '#EF4444' : isMed ? '#F59E0B' : '#10B981' }}>
+                              {pct}%
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>
+                            {topDriver}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                            {s.factors?.late_punches_30d !== undefined && `${s.factors.late_punches_30d} late punches`}
+                            {s.factors?.overtime_hours_30d !== undefined && ` • ${s.factors.overtime_hours_30d}h OT`}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                          {recommendation}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="neu-cards-mobile">
+              {scores.map((s: any) => {
+                const pct = Math.round(Number(s.score) * 100)
+                const isHigh = s.risk_level === 'HIGH'
+                const isMed = s.risk_level === 'MEDIUM'
+                const badgeClass = isHigh ? 'badge-danger' : isMed ? 'badge-warning' : 'badge-success'
+                const topDriver = s.factors?.top_driver || (isHigh ? 'Declining Check-in Frequency & Overtime' : isMed ? 'Elevated Overtime' : 'Consistent Engagement')
+                const recommendation = isHigh
+                  ? 'Schedule 1-on-1 check-in to balance workload & reduce overtime fatigue.'
+                  : isMed
+                  ? 'Monitor attendance consistency and review project deadlines.'
+                  : 'Optimal workload & retention health.'
+
+                return (
+                  <div key={s.id} className="neu-mobile-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                          {s.employee?.full_name}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
                           {s.employee?.email}
                         </div>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span className={`badge ${badgeClass}`} style={{ fontWeight: 700 }}>
-                          {s.risk_level}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 60, height: 6, background: 'rgba(128,128,180,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                            <div
-                              style={{
-                                width: `${pct}%`,
-                                height: '100%',
-                                background: isHigh ? '#EF4444' : isMed ? '#F59E0B' : '#10B981',
-                              }}
-                            />
-                          </div>
-                          <span style={{ fontWeight: 700, color: isHigh ? '#EF4444' : isMed ? '#F59E0B' : '#10B981' }}>
-                            {pct}%
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                        <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>
-                          {topDriver}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                          {s.factors?.late_punches_30d !== undefined && `${s.factors.late_punches_30d} late punches`}
-                          {s.factors?.overtime_hours_30d !== undefined && ` • ${s.factors.overtime_hours_30d}h OT`}
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 16px', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        {recommendation}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <span className={`badge ${badgeClass}`} style={{ fontWeight: 700 }}>
+                        {s.risk_level} ({pct}%)
+                      </span>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid rgba(128,128,180,0.08)', paddingTop: 8 }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {topDriver}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                        {s.factors?.late_punches_30d !== undefined && `${s.factors.late_punches_30d} late punches`}
+                        {s.factors?.overtime_hours_30d !== undefined && ` • ${s.factors.overtime_hours_30d}h OT`}
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--neu-bg-deep)', padding: 10, borderRadius: 8 }}>
+                      💡 {recommendation}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

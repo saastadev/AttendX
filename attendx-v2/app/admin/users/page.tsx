@@ -149,7 +149,8 @@ export default function AdminUsersPage() {
         </div>
         <button
           onClick={() => setShowInviteModal(true)}
-          className="btn btn-primary"
+          className="btn btn-primary neu-touch-btn"
+          style={{ minHeight: 48, padding: '0 20px', fontWeight: 600 }}
           id="btn-invite-user"
         >
           <UserPlus size={18} /> Invite Member
@@ -230,12 +231,13 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div className="tabs">
+          <div className="tabs" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
             {['ALL', 'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'].map(r => (
               <button
                 key={r}
                 onClick={() => setRoleFilter(r)}
-                className={`tab-item ${roleFilter === r ? 'active' : ''}`}
+                className={`tab-item neu-touch-btn ${roleFilter === r ? 'active' : ''}`}
+                style={{ minHeight: 44, padding: '0 16px' }}
               >
                 {r}
               </button>
@@ -244,8 +246,8 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 'var(--space-8)' }}>
+      {/* Users Table (Desktop) */}
+      <div className="neu-table-desktop card" style={{ padding: 0, overflow: 'hidden', marginBottom: 'var(--space-8)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
@@ -351,6 +353,112 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Users Cards (Mobile <768px) */}
+      <div className="neu-cards-mobile" style={{ marginBottom: 'var(--space-8)' }}>
+        {isLoading ? (
+          <div className="card" style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
+            <div className="skeleton skeleton-text" style={{ width: '60%', margin: '0 auto' }} />
+          </div>
+        ) : filteredUsers?.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--text-tertiary)' }}>
+            No members found matching filter
+          </div>
+        ) : (
+          filteredUsers?.map(u => {
+            const att = (glanceData as any)?.items?.find((i: any) => i.user_id === u.id)?.attendance
+
+            return (
+              <div key={u.id} className="neu-mobile-card">
+                {/* Member Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: 0 }}>
+                    <div className="avatar avatar-md" style={{ flexShrink: 0 }}>
+                      {u.full_name.charAt(0)}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {u.full_name}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {u.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className={`badge ${u.is_active ? 'badge-approved' : 'badge-rejected'}`} style={{ flexShrink: 0 }}>
+                    {u.is_active ? 'ACTIVE' : 'INACTIVE'}
+                  </span>
+                </div>
+
+                {/* Today Attendance Status */}
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'var(--neu-bg-deep)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8125rem',
+                }}>
+                  <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>TODAY</span>
+                  <div>
+                    {att?.clock_in_at && !att?.clock_out_at ? (
+                      <span className="badge badge-present" style={{ fontSize: '0.75rem' }}>
+                        🟢 Working Now ({new Date(att.clock_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                      </span>
+                    ) : att?.clock_out_at ? (
+                      <span className="badge" style={{ background: 'var(--accent-light)', color: 'var(--accent)', fontSize: '0.75rem' }}>
+                        ✓ Completed
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>⚪ Not Clocked In</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Role and Actions Controls */}
+                <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase' }}>
+                      Assigned Role
+                    </label>
+                    <select
+                      value={u.role}
+                      onChange={(e) => updateRoleMutation.mutate({
+                        userId: u.id,
+                        newRole: e.target.value as UserRole,
+                        roleRecordId: u.roleRecordId,
+                      })}
+                      className="input select neu-touch-btn"
+                      style={{ width: '100%', minHeight: 44, fontSize: '0.875rem', padding: '0 12px' }}
+                    >
+                      <option value="EMPLOYEE">EMPLOYEE</option>
+                      <option value="MANAGER">MANAGER</option>
+                      <option value="HR">HR</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SUPERADMIN">SUPERADMIN</option>
+                    </select>
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-tertiary)', marginBottom: 4, textTransform: 'uppercase' }}>
+                      Access Status
+                    </label>
+                    <button
+                      onClick={() => toggleActiveMutation.mutate({ userId: u.id, currentStatus: u.is_active })}
+                      className={`btn neu-touch-btn ${u.is_active ? 'btn-ghost' : 'btn-secondary'}`}
+                      style={{ width: '100%', minHeight: 44, fontSize: '0.875rem', fontWeight: 600 }}
+                    >
+                      {u.is_active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Audit Log Stream */}

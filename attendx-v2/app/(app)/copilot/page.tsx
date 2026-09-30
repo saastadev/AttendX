@@ -27,11 +27,18 @@ const SUGGESTED_PROMPTS = [
 
 /* ---- Ambient Orb (CSS-only, no WebGL) ----
    A simple pulsing morphing blob reacting to "thinking" state.
-   This is the personality moment — premium CSS, no R3F needed here
-   since a CSS orb at this scale performs better and reduces complexity. */
+   Responsive clamp sizing prevents viewport clipping on mobile. */
 function AmbientOrb({ thinking }: { thinking: boolean }) {
   return (
-    <div aria-hidden="true" style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'relative',
+        width: 'clamp(60px, 14vw, 100px)',
+        height: 'clamp(60px, 14vw, 100px)',
+        flexShrink: 0,
+      }}
+    >
       {/* Glow rings */}
       {thinking && [1, 2, 3].map(i => (
         <div key={i} style={{
@@ -43,7 +50,7 @@ function AmbientOrb({ thinking }: { thinking: boolean }) {
 
       {/* Core orb */}
       <div style={{
-        position: 'absolute', inset: 8,
+        position: 'absolute', inset: 6,
         borderRadius: '50%',
         backgroundImage: thinking
           ? 'linear-gradient(135deg, var(--accent), var(--brand-violet), var(--brand-cyan))'
@@ -67,8 +74,8 @@ function AmbientOrb({ thinking }: { thinking: boolean }) {
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {thinking
-            ? <Loader size={28} color="rgba(255,255,255,0.9)" style={{ animation: 'spin 1s linear infinite' }} />
-            : <Sparkles size={28} color="rgba(255,255,255,0.9)" />
+            ? <Loader size={22} color="rgba(255,255,255,0.9)" style={{ animation: 'spin 1s linear infinite' }} />
+            : <Sparkles size={22} color="rgba(255,255,255,0.9)" />
           }
         </div>
       </div>
@@ -229,13 +236,13 @@ export default function CopilotPage() {
   }
 
   return (
-    <PageWrapper style={{ maxWidth: 820, margin: '0 auto', height: 'calc(100dvh - 80px)', display: 'flex', flexDirection: 'column' }}>
+    <PageWrapper className="neu-copilot-container" style={{ maxWidth: 820, margin: '0 auto', height: 'calc(100dvh - 150px)', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-5)', marginBottom: 'var(--space-5)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)', flexShrink: 0 }}>
         <AmbientOrb thinking={thinking} />
         <div>
-          <h1 className="page-title" style={{ marginBottom: 4 }}>HR Copilot</h1>
-          <p className="page-subtitle">Ask anything about your attendance, leave, performance, or team</p>
+          <h1 className="page-title" style={{ marginBottom: 4, fontSize: 'clamp(1.25rem, 4vw, 1.75rem)' }}>HR Copilot</h1>
+          <p className="page-subtitle" style={{ fontSize: 'clamp(0.8125rem, 2.5vw, 0.9375rem)' }}>Ask anything about your attendance, leave, performance, or team</p>
           {backendError && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '0.75rem', color: 'var(--warning-dark)' }}>
               <AlertCircle size={12} />
@@ -248,19 +255,20 @@ export default function CopilotPage() {
       {/* Messages area */}
       <div style={{
         flex: 1, overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         background: 'var(--neu-bg-deep)', borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--elev-0)', padding: 'var(--space-5)',
+        boxShadow: 'var(--elev-0)', padding: 'var(--space-4)',
         display: 'flex', flexDirection: 'column', gap: 'var(--space-4)',
-        marginBottom: 'var(--space-4)',
+        marginBottom: 'var(--space-3)',
       }}>
         {messages.length === 0 && !thinking && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            style={{ textAlign: 'center', padding: 'var(--space-10) 0', color: 'var(--text-tertiary)' }}
+            style={{ textAlign: 'center', padding: 'var(--space-8) 0', color: 'var(--text-tertiary)' }}
           >
-            <Sparkles size={40} style={{ margin: '0 auto var(--space-4)', opacity: 0.5 }} />
-            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            <Sparkles size={36} style={{ margin: '0 auto var(--space-3)', opacity: 0.5 }} />
+            <p style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
               Hey {user?.profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'there'}, how can I help?
             </p>
             <p style={{ fontSize: 'var(--text-sm)' }}>Ask me anything about your workspace</p>
@@ -295,8 +303,8 @@ export default function CopilotPage() {
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-3)' }}>
           {SUGGESTED_PROMPTS.map(p => (
             <button key={p} onClick={() => { setInput(p); }}
-              className="btn btn-sm btn-secondary"
-              style={{ height: 'auto', padding: '6px 12px', whiteSpace: 'normal', textAlign: 'left', lineHeight: 1.4 }}>
+              className="btn btn-sm btn-secondary neu-touch-btn"
+              style={{ minHeight: 44, padding: '8px 14px', whiteSpace: 'normal', textAlign: 'left', lineHeight: 1.4, fontSize: '0.8125rem' }}>
               {p}
             </button>
           ))}
@@ -305,9 +313,9 @@ export default function CopilotPage() {
 
       {/* Input */}
       <div style={{
-        display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end', flexShrink: 0,
+        display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexShrink: 0,
         background: 'var(--neu-bg)', borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--elev-1)', padding: 'var(--space-3) var(--space-4)',
+        boxShadow: 'var(--elev-1)', padding: 'var(--space-2) var(--space-3)',
         border: '1px solid rgba(128,128,180,0.08)',
       }}>
         <textarea
@@ -319,16 +327,16 @@ export default function CopilotPage() {
           aria-label="Message to HR Copilot"
           style={{
             flex: 1, resize: 'none', background: 'none', border: 'none', outline: 'none',
-            fontFamily: 'var(--font-body)', fontSize: 'var(--text-base)',
-            color: 'var(--text-primary)', lineHeight: 1.6, minHeight: 24, maxHeight: 160,
+            fontFamily: 'var(--font-body)', fontSize: '1rem',
+            color: 'var(--text-primary)', lineHeight: 1.5, minHeight: 28, maxHeight: 120,
             overflowY: 'auto',
           }}
         />
         <button
           onClick={sendMessage}
           disabled={!input.trim() || thinking}
-          className="btn btn-primary btn-icon"
-          style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 'var(--radius-md)' }}
+          className="btn btn-primary btn-icon neu-touch-btn"
+          style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 'var(--radius-md)' }}
           aria-label="Send message"
           id="btn-copilot-send"
         >

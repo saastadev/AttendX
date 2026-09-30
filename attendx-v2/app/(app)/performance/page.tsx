@@ -99,7 +99,7 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+      <div className="neu-responsive-split">
         {/* Active Cycles */}
         <div className="card">
           <h2 style={{ fontSize: '1.125rem', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
