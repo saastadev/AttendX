@@ -1,0 +1,531 @@
+{
+  "timestamp": "2026-10-01T11:52:30.103Z",
+  "testCases": {
+    "REC_TC_001": {
+      "testId": "REC_TC_001",
+      "domain": "Recognition",
+      "title": "Give Recognition Modal Open",
+      "status": "PASS",
+      "classification": "A: Verified UI Flow",
+      "evidence": {
+        "modalVisible": true
+      },
+      "verifiedAt": "2026-10-01T11:52:46.422Z"
+    },
+    "REC_TC_002": {
+      "testId": "REC_TC_002",
+      "domain": "Recognition",
+      "title": "Colleague Search and Selection",
+      "status": "PASS",
+      "classification": "A: Verified UI Flow",
+      "evidence": {
+        "colleaguePicked": true
+      },
+      "verifiedAt": "2026-10-01T11:52:47.017Z"
+    },
+    "REC_TC_003": {
+      "testId": "REC_TC_003",
+      "domain": "Recognition",
+      "title": "Pick Badge/Category Native Dropdown Rendered",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "optionsCount": 5,
+        "sampleOptions": [
+          {
+            "value": "72ea256e-0ff0-480b-9043-4b18e3a4f0fd",
+            "text": "Peer Recognition (+50 pts)"
+          },
+          {
+            "value": "043ff1f2-618d-4f80-a6b2-0139e8947e6d",
+            "text": "Customer Appreciation (+100 pts)"
+          },
+          {
+            "value": "5a6a33a6-2b7f-4b17-873b-2f99059a0a7e",
+            "text": "Innovation Champion (+150 pts)"
+          }
+        ]
+      },
+      "verifiedAt": "2026-10-01T11:52:47.022Z"
+    },
+    "REC_TC_004": {
+      "testId": "REC_TC_004",
+      "domain": "Recognition",
+      "title": "Badge Visual Preview and Points Display",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "previewText": "Leadership Excellence+250 pts"
+      },
+      "verifiedAt": "2026-10-01T11:52:47.575Z"
+    },
+    "REC_TC_005": {
+      "testId": "REC_TC_005",
+      "domain": "Recognition",
+      "title": "Praise Note Validation & Submit Enablement",
+      "status": "PASS",
+      "classification": "A: Verified Flow",
+      "evidence": {
+        "submitEnabled": true
+      },
+      "verifiedAt": "2026-10-01T11:52:48.025Z"
+    },
+    "REC_TC_006": {
+      "testId": "REC_TC_006",
+      "domain": "Recognition",
+      "title": "Submit Recognition API Execution",
+      "status": "PASS",
+      "classification": "A: Verified Flow",
+      "evidence": {
+        "httpStatus": 201
+      },
+      "verifiedAt": "2026-10-01T11:52:52.406Z"
+    },
+    "REC_TC_007": {
+      "testId": "REC_TC_007",
+      "domain": "Recognition",
+      "title": "Live Database Record Verification in recognition_events",
+      "status": "PASS",
+      "classification": "A: Verified Flow",
+      "evidence": {
+        "eventId": "424f04d8-e525-44c4-a054-1227949a52fd",
+        "points": 250,
+        "giver_id": "02e197e8-f0f3-4d98-9745-4d750c783f47"
+      },
+      "verifiedAt": "2026-10-01T11:52:52.733Z"
+    },
+    "REC_TC_008": {
+      "testId": "REC_TC_008",
+      "domain": "Recognition",
+      "title": "Points Balance Exact Increment Verification",
+      "status": "PASS",
+      "classification": "A: Verified Flow",
+      "evidence": {
+        "initialPoints": 1300,
+        "updatedPoints": 1550,
+        "delta": 250,
+        "expectedDelta": 250
+      },
+      "verifiedAt": "2026-10-01T11:52:53.004Z"
+    },
+    "REC_TC_025": {
+      "testId": "REC_TC_025",
+      "domain": "Recognition",
+      "title": "Server-Side Duplicate & Concurrency Mutex Prevention",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "immediateDuplicateStatus": 409,
+        "immediateDuplicateError": "Duplicate recognition: You have already recognized this colleague for this category today.",
+        "concurrencyStatus1": 409,
+        "concurrencyStatus2": 409
+      },
+      "verifiedAt": "2026-10-01T11:52:56.761Z"
+    },
+    "REC_TC_026": {
+      "testId": "REC_TC_026",
+      "domain": "Recognition",
+      "title": "Recognition Feed vs Leaderboard Points Consistency",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "feedItemsCount": 104,
+        "userHasFeedEvents": true,
+        "totalPointsInStats": 1550
+      },
+      "verifiedAt": "2026-10-01T11:52:58.695Z"
+    },
+    "AI_REC_TC_014": {
+      "testId": "AI_REC_TC_014",
+      "domain": "AI Recognition",
+      "title": "Peer Kudos Filter Separation from Executive Awards",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "excludedExecutiveAwards": [
+          "Employee of the Month (500 pts)",
+          "Quarterly Star Performer (750 pts)",
+          "Annual Excellence Award (1000 pts)"
+        ],
+        "uiPeerCategoriesCount": 5,
+        "executiveAwardLeakedToPeerSelector": false
+      },
+      "verifiedAt": "2026-10-01T11:52:59.894Z"
+    },
+    "REC_TC_028": {
+      "testId": "REC_TC_028",
+      "domain": "Recognition",
+      "title": "Executive Award Nomination & Approval Workflow",
+      "status": "BLOCKED",
+      "classification": "E: MVP Architectural Limitation",
+      "evidence": "AttendX MVP schema does not implement award_nominations or approval workflow state machine tables. Direct peer kudos are supported; multi-tier executive approval is not implemented in current MVP.",
+      "verifiedAt": "2026-10-01T11:52:59.894Z"
+    },
+    "AI_ATT_TC_002": {
+      "testId": "AI_ATT_TC_002",
+      "domain": "AI Attendance",
+      "title": "Fail-Closed Rejection on Missing/Blank Facial Input",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "httpStatus": 400,
+        "errorCode": "MISSING_SELFIE_IMAGE",
+        "errorMessage": "Facial verification required: A valid selfie image must be captured for attendance check-in.",
+        "phantomRecordsCreatedInDb": 0
+      },
+      "verifiedAt": "2026-10-01T11:53:01.411Z"
+    },
+    "AI_ATT_TC_013": {
+      "testId": "AI_ATT_TC_013",
+      "domain": "AI Attendance",
+      "title": "Database Integrity: Zero Attendance Records on Failed Selfie",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "dbRecordsCount": 0
+      },
+      "verifiedAt": "2026-10-01T11:53:01.411Z"
+    },
+    "AI_ATT_TC_004": {
+      "testId": "AI_ATT_TC_004",
+      "domain": "AI Attendance",
+      "title": "Anti-Spoofing & Liveness Facial Detection",
+      "status": "BLOCKED",
+      "classification": "E: MVP Architectural Limitation",
+      "evidence": "AttendX MVP stores facial captures in Supabase Storage and enforces clock_in_selfie_url existence, but does not embed a biometric liveness neural network or vector embedding comparison SDK.",
+      "verifiedAt": "2026-10-01T11:53:01.411Z"
+    },
+    "AI_ATT_TC_007": {
+      "testId": "AI_ATT_TC_007",
+      "domain": "AI Attendance",
+      "title": "Geofence False \"In Range\" Prevention (18.28km Out of Range)",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "httpStatus": 403,
+        "errorCode": "OUTSIDE_GEOFENCE",
+        "distanceMeters": 18282,
+        "allowedRadiusMeters": 250,
+        "uiCalculationValid": false
+      },
+      "verifiedAt": "2026-10-01T11:53:06.638Z"
+    },
+    "AI_PERF_TC_020": {
+      "testId": "AI_PERF_TC_020",
+      "domain": "AI Performance",
+      "title": "Interactive Goal Cards & SMART Target Metric Rationale",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "goalCardCount": 3,
+        "smartPanelAttributesFound": true
+      },
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_001": {
+      "testId": "AI_PERF_001",
+      "domain": "AI Performance",
+      "title": "Goal Progress Tracking",
+      "status": "PASS",
+      "classification": "P0: Implemented Feature",
+      "evidence": "Active goals and completion percentages tracked via goals table",
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_002": {
+      "testId": "AI_PERF_002",
+      "domain": "AI Performance",
+      "title": "Performance Cycles Management",
+      "status": "PASS",
+      "classification": "P0: Implemented Feature",
+      "evidence": "Cycles tracked via performance_cycles schema",
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_003": {
+      "testId": "AI_PERF_003",
+      "domain": "AI Performance",
+      "title": "Self Reviews & Manager Feedback",
+      "status": "PASS",
+      "classification": "P0: Implemented Feature",
+      "evidence": "Self reviews stored via self_reviews table",
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_004": {
+      "testId": "AI_PERF_004",
+      "domain": "AI Performance",
+      "title": "AI Goal Recommendations",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Predictive goal recommendation LLM engine not part of MVP core",
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_005": {
+      "testId": "AI_PERF_005",
+      "domain": "AI Performance",
+      "title": "KPI & KRA Generation",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated KPI synthesis not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:11.436Z"
+    },
+    "AI_PERF_006": {
+      "testId": "AI_PERF_006",
+      "domain": "AI Performance",
+      "title": "OKR Recommendations",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated OKR synthesis not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_007": {
+      "testId": "AI_PERF_007",
+      "domain": "AI Performance",
+      "title": "Department Goal Recommendations",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Department goal ML model not implemented in MVP",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_008": {
+      "testId": "AI_PERF_008",
+      "domain": "AI Performance",
+      "title": "IPP Recommendations",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Individual Performance Plan recommendation engine not in MVP",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_009": {
+      "testId": "AI_PERF_009",
+      "domain": "AI Performance",
+      "title": "Productivity Trends AI",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "AI productivity trend forecast model not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_010": {
+      "testId": "AI_PERF_010",
+      "domain": "AI Performance",
+      "title": "Attendance Impact AI",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Cross-impact inference model not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_011": {
+      "testId": "AI_PERF_011",
+      "domain": "AI Performance",
+      "title": "Customer Feedback Sentiment Impact",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Customer sentiment bridge to goals not in MVP",
+      "verifiedAt": "2026-10-01T11:53:11.438Z"
+    },
+    "AI_PERF_012": {
+      "testId": "AI_PERF_012",
+      "domain": "AI Performance",
+      "title": "Continuous Monitoring Engine",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Autonomous monitoring background daemon not in MVP",
+      "verifiedAt": "2026-10-01T11:53:11.439Z"
+    },
+    "PA_TC_001": {
+      "testId": "PA_TC_001",
+      "domain": "Predictive Analytics",
+      "title": "Attrition Model Evaluation (>0 Employees Processed)",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "httpStatus": 200,
+        "evaluatedCount": 1,
+        "riskDistribution": {
+          "LOW": 1
+        },
+        "sampleSummary": [
+          {
+            "employeeId": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+            "score": 0.1,
+            "riskLevel": "LOW",
+            "factors": {
+              "late_punches_30d": 0,
+              "absent_days_30d": 0,
+              "leave_requests_60d": 1,
+              "breakdown": {
+                "tardiness_impact": 0,
+                "absenteeism_impact": 0,
+                "leave_frequency_impact": 0.1
+              }
+            }
+          }
+        ]
+      },
+      "verifiedAt": "2026-10-01T11:53:14.297Z"
+    },
+    "PA_TC_006": {
+      "testId": "PA_TC_006",
+      "domain": "Predictive Analytics",
+      "title": "Attrition Scores Persisted to Database Table (attrition_risk_scores)",
+      "status": "PASS",
+      "classification": "A: Remediated Bug",
+      "evidence": {
+        "persistedRecordsCount": 5,
+        "latestScore": 0.08,
+        "latestLevel": "LOW",
+        "computedAt": "2026-10-01T06:28:45.203+00:00"
+      },
+      "verifiedAt": "2026-10-01T11:53:14.297Z"
+    },
+    "PA_CAP_001": {
+      "testId": "PA_CAP_001",
+      "domain": "Predictive Analytics",
+      "title": "Promotion Readiness AI",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Predictive promotion model not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.297Z"
+    },
+    "PA_CAP_002": {
+      "testId": "PA_CAP_002",
+      "domain": "Predictive Analytics",
+      "title": "Top Performers Forecasting",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Predictive forecasting model not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.297Z"
+    },
+    "PA_CAP_003": {
+      "testId": "PA_CAP_003",
+      "domain": "Predictive Analytics",
+      "title": "Skill Gap Prediction",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Skill gap predictive analytics not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.297Z"
+    },
+    "PA_CAP_004": {
+      "testId": "PA_CAP_004",
+      "domain": "Predictive Analytics",
+      "title": "Leadership Potential Scoring",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Leadership potential predictive scoring not implemented in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.299Z"
+    },
+    "AI_REC_001": {
+      "testId": "AI_REC_001",
+      "domain": "AI Recognition",
+      "title": "Top Performers Recognition Suggestion",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Autonomous AI recognition generation engine not implemented in MVP",
+      "verifiedAt": "2026-10-01T11:53:14.299Z"
+    },
+    "AI_REC_002": {
+      "testId": "AI_REC_002",
+      "domain": "AI Recognition",
+      "title": "Customer Champion Suggestion",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated nomination generator not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.299Z"
+    },
+    "AI_REC_003": {
+      "testId": "AI_REC_003",
+      "domain": "AI Recognition",
+      "title": "Innovation Contributor Suggestion",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated nomination generator not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.299Z"
+    },
+    "AI_REC_004": {
+      "testId": "AI_REC_004",
+      "domain": "AI Recognition",
+      "title": "Team Player Suggestion",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated nomination generator not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.299Z"
+    },
+    "AI_REC_005": {
+      "testId": "AI_REC_005",
+      "domain": "AI Recognition",
+      "title": "Emerging Leader Suggestion",
+      "status": "BLOCKED",
+      "classification": "E: MVP Limitation",
+      "evidence": "Automated nomination generator not in MVP scope",
+      "verifiedAt": "2026-10-01T11:53:14.300Z"
+    },
+    "P0_REG_001": {
+      "testId": "P0_REG_001",
+      "domain": "Security/RBAC",
+      "title": "Admin Endpoint Role Boundary Enforcement",
+      "status": "PASS",
+      "classification": "P0: Regression Pass",
+      "evidence": {
+        "employeeStatus": 403,
+        "adminStatus": 200
+      },
+      "verifiedAt": "2026-10-01T11:53:16.280Z"
+    },
+    "P0_REG_002": {
+      "testId": "P0_REG_002",
+      "domain": "Multi-Tenancy",
+      "title": "Cross-Tenant Manager Roster Boundary Enforcement",
+      "status": "PASS",
+      "classification": "P0: Regression Pass",
+      "evidence": {
+        "crossTenantLeakedRows": 0
+      },
+      "verifiedAt": "2026-10-01T11:53:22.147Z"
+    },
+    "P0_REG_003": {
+      "testId": "P0_REG_003",
+      "domain": "User Lifecycle",
+      "title": "Admin User Deactivate and Reactivate Atomic Handshake",
+      "status": "FAIL",
+      "classification": "P0: Regression (Database Trigger Limitation)",
+      "evidence": {
+        "deactivateStatus": 403,
+        "deactivateError": "Forbidden: Target user does not belong to your organization.",
+        "isActiveAfterDeactivate": true,
+        "reactivateStatus": 403,
+        "isActiveAfterReactivate": true,
+        "rootCause": "PostgreSQL migration 011 trigger guard_profile_privileged_columns checks current_setting(request.jwt.claim.role) which is unpopulated by PostgREST"
+      },
+      "verifiedAt": "2026-10-01T11:53:24.564Z"
+    },
+    "P0_REG_004": {
+      "testId": "P0_REG_004",
+      "domain": "Reports/Export",
+      "title": "Workforce Analytics & Payroll CSV Export Generation",
+      "status": "PASS",
+      "classification": "P0: Regression Pass",
+      "evidence": {
+        "workforceStatus": 200,
+        "payrollStatus": 200,
+        "payrollCsvHeaderFound": true
+      },
+      "verifiedAt": "2026-10-01T11:53:27.219Z"
+    },
+    "P0_REG_005": {
+      "testId": "P0_REG_005",
+      "domain": "AI Copilot",
+      "title": "AI Copilot Query Resolution & Guardrails",
+      "status": "PASS",
+      "classification": "P0: Regression Pass",
+      "evidence": {
+        "status": 200,
+        "responseReceived": true
+      },
+      "verifiedAt": "2026-10-01T11:53:29.025Z"
+    }
+  },
+  "summary": {
+    "pass": 24,
+    "fail": 1,
+    "blocked": 20,
+    "inconclusive": 0
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "migration020Applied": true,
+  "triggerExistsAndEnabled": true,
+  "rlsPreserved": true,
+  "matrixTests": [
+    {
+      "name": "Test A: Authorized Tenant Admin deactivates tenant user",
+      "pass": true,
+      "data": {
+        "httpStatus": 200,
+        "responseBody": {
+          "success": true,
+          "message": "User deactivated successfully. All active sessions terminated.",
+          "target_user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "details": {
+            "success": true,
+            "is_active": false,
+            "target_user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47"
+          }
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": false
+      }
+    },
+    {
+      "name": "Test B: Same Authorized Tenant Admin reactivates the same user",
+      "pass": true,
+      "data": {
+        "httpStatus": 200,
+        "responseBody": {
+          "success": true,
+          "message": "User reactivated successfully.",
+          "target_user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "details": {
+            "success": true,
+            "is_active": true,
+            "target_user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47"
+          }
+        },
+        "dbIsActiveBefore": false,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test C: Regular employee blocked from deactivating",
+      "pass": true,
+      "data": {
+        "httpStatus": 403,
+        "responseBody": {
+          "error": "Forbidden: Admin privilege required."
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test D: Wrong-tenant admin blocked from deactivating user in another tenant",
+      "pass": true,
+      "data": {
+        "httpStatus": 403,
+        "responseBody": {
+          "error": "Forbidden: Target user does not belong to your organization."
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test E: User with no admin role blocked from deactivating",
+      "pass": true,
+      "data": {
+        "httpStatus": 403,
+        "responseBody": {
+          "error": "Forbidden: Admin privilege required."
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test F: Unauthenticated request blocked from deactivating",
+      "pass": true,
+      "data": {
+        "httpStatus": 401,
+        "responseBody": {
+          "error": "Unauthorized"
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test G.1: Regular employee blocked from reactivating",
+      "pass": true,
+      "data": {
+        "httpStatus": 403,
+        "responseBody": {
+          "error": "Forbidden: Admin privilege required."
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test G.2: Wrong-tenant admin blocked from reactivating user in another tenant",
+      "pass": true,
+      "data": {
+        "httpStatus": 403,
+        "responseBody": {
+          "error": "Forbidden: Target user does not belong to your organization."
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    },
+    {
+      "name": "Test G.3: Unauthenticated request blocked from reactivating",
+      "pass": true,
+      "data": {
+        "httpStatus": 401,
+        "responseBody": {
+          "error": "Unauthorized"
+        },
+        "dbIsActiveBefore": true,
+        "dbIsActiveAfter": true
+      }
+    }
+  ]
+}

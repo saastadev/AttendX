@@ -2,11 +2,99 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const recognitionSchema = z.object({
-  receiver_id: z.string().uuid('Invalid receiver ID'),
-  category_id: z.string().uuid('Invalid category ID'),
+  receiver_id: z.string().regex(uuidRegex, 'Invalid receiver ID'),
+  category_id: z.string().regex(uuidRegex, 'Invalid category ID'),
   note: z.string().trim().min(2, 'Praise note must be at least 2 characters').max(500, 'Praise note too long'),
 })
+
+// In-flight mutex for atomic race-condition duplicate protection (REC_TC_025)
+const activeSubmissions = new Set<string>()
+
+/**
+ * Authoritatively resolves tenant context strictly server-side (Charter Rule 2 & 3).
+ * Validates candidate tenant against live user_roles database records.
+ * Multi-tenant Admins/Superadmins are validated against registered tenants.
+ * Regular employees fail closed if requesting a tenant they do not belong to.
+ */
+async function resolveAuthoritativeTenantContext(
+  req: NextRequest,
+  user: any,
+  serviceClient: any,
+  overrideTenantId?: string | null
+): Promise<{ tenantId: string; role: string } | null> {
+  const headerTenant = req.headers.get('x-tenant-id')?.trim()
+  const queryTenant = req.nextUrl?.searchParams?.get('tenant_id')?.trim()
+  const candidate = (headerTenant || queryTenant || overrideTenantId || '').trim() || null
+
+  const { data: roleRows, error: roleErr } = await serviceClient
+    .from('user_roles')
+    .select('role, tenant_id')
+    .eq('user_id', user.id)
+
+  if (roleErr || !roleRows || roleRows.length === 0) {
+    return null
+  }
+
+  const isSuperOrAdmin = roleRows.some((r: any) => ['SUPERADMIN', 'ADMIN'].includes(r.role))
+  const jwtTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
+
+  if (candidate) {
+    const matched = roleRows.find((r: any) => r.tenant_id === candidate)
+    if (matched) {
+      return { tenantId: matched.tenant_id, role: matched.role }
+    }
+    if (isSuperOrAdmin) {
+      const { data: tenantExists } = await serviceClient
+        .from('tenants')
+        .select('id')
+        .eq('id', candidate)
+        .maybeSingle()
+      if (tenantExists) {
+        const adminRole = roleRows.find((r: any) => ['SUPERADMIN', 'ADMIN'].includes(r.role))?.role || 'ADMIN'
+        return { tenantId: candidate, role: adminRole }
+      }
+    }
+    return null
+  }
+
+  if (jwtTenantClaim) {
+    const matchedJwt = roleRows.find((r: any) => r.tenant_id === jwtTenantClaim)
+    if (matchedJwt) {
+      return { tenantId: matchedJwt.tenant_id, role: matchedJwt.role }
+    }
+    if (isSuperOrAdmin) {
+      const { data: tenantExists } = await serviceClient
+        .from('tenants')
+        .select('id')
+        .eq('id', jwtTenantClaim)
+        .maybeSingle()
+      if (tenantExists) {
+        return { tenantId: jwtTenantClaim, role: 'ADMIN' }
+      }
+    }
+  }
+
+  const { data: profile } = await serviceClient
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.tenant_id) {
+    const matchedProfile = roleRows.find((r: any) => r.tenant_id === profile.tenant_id)
+    if (matchedProfile) {
+      return { tenantId: matchedProfile.tenant_id, role: matchedProfile.role }
+    }
+    if (isSuperOrAdmin) {
+      return { tenantId: profile.tenant_id, role: 'ADMIN' }
+    }
+  }
+
+  return { tenantId: roleRows[0].tenant_id, role: roleRows[0].role }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,22 +118,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Resolve tenant strictly server-side (Charter Rule 2)
-    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
-    const { data: roleRows } = await serviceClient
-      .from('user_roles')
-      .select('role, tenant_id')
-      .eq('user_id', user.id)
-
-    const roleRow = (roleRows || []).find((r: any) => activeTenantClaim ? r.tenant_id === activeTenantClaim : true) || roleRows?.[0]
-    const tenantId = roleRow?.tenant_id || activeTenantClaim
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'No active tenant context found' }, { status: 403 })
+    // Resolve tenant strictly server-side with authoritative membership validation
+    const tenantCtx = await resolveAuthoritativeTenantContext(req, user, serviceClient)
+    if (!tenantCtx) {
+      return NextResponse.json({ error: 'No active tenant context found or access denied' }, { status: 403 })
     }
+    const { tenantId } = tenantCtx
 
     // Parallel authoritative fetches
-    const [catsRes, profsRes, empsRes, deptsRes, feedRes, lbRes] = await Promise.all([
+    const [catsRes, profsRes, empsRes, deptsRes, feedRes, myFeedRes, lbRes] = await Promise.all([
       serviceClient
         .from('recognition_categories')
         .select('*')
@@ -73,6 +154,13 @@ export async function GET(req: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(100),
       serviceClient
+        .from('recognition_events')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .or(`receiver_id.eq.${user.id},giver_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      serviceClient
         .from('recognition_leaderboard')
         .select('*')
         .eq('tenant_id', tenantId)
@@ -80,22 +168,54 @@ export async function GET(req: NextRequest) {
         .limit(10),
     ])
 
+    // Merge events deduplicated by ID to guarantee personal history is complete (REC_TC_026)
+    const mergedEventsMap = new Map<string, any>()
+    for (const ev of (feedRes.data || [])) mergedEventsMap.set(ev.id, ev)
+    for (const ev of (myFeedRes.data || [])) mergedEventsMap.set(ev.id, ev)
+    const combinedEvents = Array.from(mergedEventsMap.values()).sort(
+      (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+
     // Build department and employee lookup maps
     const deptMap = new Map((deptsRes.data || []).map((d: any) => [d.id, d.name]))
     const empMap = new Map((empsRes.data || []).map((e: any) => [e.id, e]))
 
-    // Format colleagues with department & employee code
-    const colleagues = (profsRes.data || []).map((p: any) => {
+    // Format colleagues with department & employee code, strictly deduplicated by authoritative user ID (Phase 5)
+    const uniqueColleaguesMap = new Map<string, any>()
+    for (const p of (profsRes.data || [])) {
+      if (!p.id || uniqueColleaguesMap.has(p.id)) continue
       const emp = empMap.get(p.id)
-      return {
+
+      let displayName = (p.full_name || '').trim()
+      if (displayName && displayName === displayName.toLowerCase()) {
+        displayName = displayName
+          .split(/\s+/)
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(' ')
+      }
+
+      uniqueColleaguesMap.set(p.id, {
         id: p.id,
-        full_name: p.full_name,
-        email: p.email,
-        avatar_url: p.avatar_url,
+        tenant_id: tenantId,
+        full_name: displayName || 'Colleague',
+        email: p.email || '',
+        avatar_url: p.avatar_url || null,
         employee_code: emp?.employee_code || ('EMP-' + p.id.slice(0, 5).toUpperCase()),
         department_name: emp?.department_id ? deptMap.get(emp.department_id) || 'General' : 'General',
-      }
-    })
+      })
+    }
+
+    let colleagues = Array.from(uniqueColleaguesMap.values())
+
+    // Server-side search filtering support
+    const searchParam = req.nextUrl?.searchParams?.get('search') || req.nextUrl?.searchParams?.get('q')
+    if (searchParam && searchParam.trim()) {
+      const qTokens = searchParam.trim().toLowerCase().split(/\s+/).filter(Boolean)
+      colleagues = colleagues.filter((c: any) => {
+        const haystack = `${c.full_name || ''} ${c.email || ''} ${c.department_name || ''} ${c.employee_code || ''}`.toLowerCase()
+        return qTokens.every((tok: string) => haystack.includes(tok))
+      })
+    }
 
     // Fetch all profiles in tenant for feed givers & receivers
     const { data: allTenantProfiles } = await serviceClient
@@ -106,7 +226,7 @@ export async function GET(req: NextRequest) {
     const profileMap = new Map((allTenantProfiles || []).map((p: any) => [p.id, p]))
     const catMap = new Map((catsRes.data || []).map((c: any) => [c.id, c]))
 
-    const feed = (feedRes.data || []).map((ev: any) => ({
+    const feed = combinedEvents.map((ev: any) => ({
       ...ev,
       giver: profileMap.get(ev.giver_id) || { full_name: 'Colleague' },
       receiver: profileMap.get(ev.receiver_id) || { full_name: 'Team Member' },
@@ -154,8 +274,8 @@ export async function GET(req: NextRequest) {
 
     // Authoritative personal stats for the authenticated employee/user
     const myLb = normalizedLeaderboard.find((row: any) => row.user_id === user.id || row.employee_id === user.id)
-    const myReceived = (feedRes.data || []).filter((ev: any) => ev.receiver_id === user.id)
-    const myGiven = (feedRes.data || []).filter((ev: any) => ev.giver_id === user.id)
+    const myReceived = combinedEvents.filter((ev: any) => ev.receiver_id === user.id)
+    const myGiven = combinedEvents.filter((ev: any) => ev.giver_id === user.id)
     const myPoints = myLb ? myLb.total_points : myReceived.reduce((sum: number, ev: any) => sum + (ev.points || 0), 0)
 
     const myStats = {
@@ -214,26 +334,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You cannot give kudos to yourself' }, { status: 400 })
     }
 
-    // Resolve tenant strictly server-side
-    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
-    const { data: roleRows } = await serviceClient
-      .from('user_roles')
-      .select('role, tenant_id')
-      .eq('user_id', user.id)
-
-    const roleRow = (roleRows || []).find((r: any) => activeTenantClaim ? r.tenant_id === activeTenantClaim : true) || roleRows?.[0]
-    const tenantId = roleRow?.tenant_id || activeTenantClaim
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'No active tenant context found' }, { status: 403 })
+    // Resolve tenant strictly server-side with authoritative membership validation (Charter Rule 2 & 3)
+    const tenantCtx = await resolveAuthoritativeTenantContext(req, user, serviceClient, body?.tenant_id)
+    if (!tenantCtx) {
+      return NextResponse.json({ error: 'No active tenant context found or access denied' }, { status: 403 })
     }
+    const { tenantId } = tenantCtx
 
-    // Verify receiver belongs to the same tenant (Fail-closed Rule 3)
+    // Verify receiver belongs to the same tenant and is active (Fail-closed Rule 3)
     const { data: receiverProfile } = await serviceClient
       .from('profiles')
-      .select('id, full_name, email, tenant_id')
+      .select('id, full_name, email, tenant_id, is_active')
       .eq('id', receiver_id)
       .eq('tenant_id', tenantId)
+      .eq('is_active', true)
       .maybeSingle()
 
     if (!receiverProfile) {
@@ -255,6 +369,7 @@ export async function POST(req: NextRequest) {
       .select('*')
       .eq('id', category_id)
       .eq('tenant_id', tenantId)
+      .eq('is_active', true)
       .maybeSingle()
 
     if (!category) {
@@ -263,78 +378,116 @@ export async function POST(req: NextRequest) {
 
     const points = category.points || 50
 
-    // 1. Insert recognition event
-    const { data: eventRow, error: evErr } = await serviceClient
+    // Enforce REC_TC_025: Duplicate recognition prevention
+    // Same sender + recipient + category + day must be rejected server-side
+    const startOfDay = new Date()
+    startOfDay.setUTCHours(0, 0, 0, 0)
+    const startOfDayIso = startOfDay.toISOString()
+
+    const flightKey = `${tenantId}:${user.id}:${receiver_id}:${category_id}:${startOfDayIso.slice(0, 10)}`
+    if (activeSubmissions.has(flightKey)) {
+      return NextResponse.json(
+        { error: 'Duplicate recognition: A recognition for this colleague and category is already being processed.' },
+        { status: 409 }
+      )
+    }
+
+    const { data: existingDuplicate } = await serviceClient
       .from('recognition_events')
-      .insert({
-        tenant_id: tenantId,
-        giver_id: user.id,
-        receiver_id: receiver_id,
-        category_id: category_id,
-        points: points,
-        note: note.trim(),
-        is_public: true,
-      })
-      .select()
-      .single()
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('giver_id', user.id)
+      .eq('receiver_id', receiver_id)
+      .eq('category_id', category_id)
+      .gte('created_at', startOfDayIso)
+      .limit(1)
+      .maybeSingle()
 
-    if (evErr) {
-      console.error('[Recognition POST] Insert event error:', evErr)
-      return NextResponse.json({ error: 'Failed to record recognition: ' + evErr.message }, { status: 500 })
+    if (existingDuplicate) {
+      return NextResponse.json(
+        { error: 'Duplicate recognition: You have already recognized this colleague for this category today.' },
+        { status: 409 }
+      )
     }
 
-    // 2. Dispatch notification to the recipient (User requirement: sent to the person)
+    activeSubmissions.add(flightKey)
+
     try {
-      const { error: notifErr } = await serviceClient.from('notifications').insert({
-        tenant_id: tenantId,
-        user_id: receiver_id,
-        type: 'RECOGNITION_RECEIVED',
-        title: `Kudos from ${giverName}! 🎉`,
-        body: `"${note.trim()}" (+${points} pts for ${category.name})`,
-        deep_link: '/recognition',
-        data: {
-          event_id: eventRow.id,
+      // 1. Insert recognition event
+      const { data: eventRow, error: evErr } = await serviceClient
+        .from('recognition_events')
+        .insert({
+          tenant_id: tenantId,
           giver_id: user.id,
-          giver_name: giverName,
-          category_id: category.id,
-          category_name: category.name,
+          receiver_id: receiver_id,
+          category_id: category_id,
           points: points,
-        },
-        is_read: false,
-      })
-      if (notifErr) {
-        console.error('[Recognition POST] Notification dispatch DB error:', notifErr)
+          note: note.trim(),
+          is_public: true,
+        })
+        .select()
+        .single()
+
+      if (evErr) {
+        console.error('[Recognition POST] Insert event error:', evErr)
+        return NextResponse.json({ error: 'Failed to record recognition: ' + evErr.message }, { status: 500 })
       }
-    } catch (notifErr) {
-      console.warn('[Recognition POST] Notification dispatch non-blocking error:', notifErr)
-    }
 
-    // 3. Refresh materialized view concurrently
-    try {
-      await serviceClient.rpc('refresh_leaderboard')
-    } catch {
-      // Non-blocking if rpc is not exposed or trigger already ran
-    }
+      // 2. Dispatch notification to the recipient (User requirement: sent to the person)
+      try {
+        const { error: notifErr } = await serviceClient.from('notifications').insert({
+          tenant_id: tenantId,
+          user_id: receiver_id,
+          type: 'RECOGNITION_RECEIVED',
+          title: `Kudos from ${giverName}! 🎉`,
+          body: `"${note.trim()}" (+${points} pts for ${category.name})`,
+          deep_link: '/recognition',
+          data: {
+            event_id: eventRow.id,
+            giver_id: user.id,
+            giver_name: giverName,
+            category_id: category.id,
+            category_name: category.name,
+            points: points,
+          },
+          is_read: false,
+        })
+        if (notifErr) {
+          console.error('[Recognition POST] Notification dispatch DB error:', notifErr)
+        }
+      } catch (notifErr) {
+        console.warn('[Recognition POST] Notification dispatch non-blocking error:', notifErr)
+      }
 
-    // 4. Record audit log
-    try {
-      await serviceClient.from('audit_log').insert({
-        tenant_id: tenantId,
-        actor_id: user.id,
-        action: 'KUDOS_GIVEN',
-        table_name: 'recognition_events',
-        record_id: eventRow.id,
-        new_data: { receiver_id, category_id, points, note: note.trim() },
-      })
-    } catch (auditErr) {
-      console.warn('[Recognition POST] Audit log non-blocking error:', auditErr)
-    }
+      // 3. Refresh materialized view concurrently
+      try {
+        await serviceClient.rpc('refresh_leaderboard')
+      } catch {
+        // Non-blocking if rpc is not exposed or trigger already ran
+      }
 
-    return NextResponse.json({
-      success: true,
-      event: eventRow,
-      message: `Kudos sent to ${receiverProfile.full_name}! 🎉`,
-    }, { status: 201 })
+      // 4. Record audit log
+      try {
+        await serviceClient.from('audit_log').insert({
+          tenant_id: tenantId,
+          actor_id: user.id,
+          action: 'KUDOS_GIVEN',
+          table_name: 'recognition_events',
+          record_id: eventRow.id,
+          new_data: { receiver_id, category_id, points, note: note.trim() },
+        })
+      } catch (auditErr) {
+        console.warn('[Recognition POST] Audit log non-blocking error:', auditErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        event: eventRow,
+        message: `Kudos sent to ${receiverProfile.full_name}! 🎉`,
+      }, { status: 201 })
+    } finally {
+      activeSubmissions.delete(flightKey)
+    }
   } catch (err: any) {
     console.error('[Recognition POST] error:', err)
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 })

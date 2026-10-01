@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-10-01T13:30:48.980Z",
+  "results": {
+    "tenantResults": {
+      "Acme": "PASS",
+      "FutureLearn Portal": "PASS",
+      "SwiftLogix Fleet": "PASS",
+      "Globex": "PASS",
+      "Attend": "PASS",
+      "Initech HR": "PASS"
+    },
+    "crossTenantSecurity": "PASS",
+    "duplicateUserResult": "PASS",
+    "uiFlow": "PASS",
+    "evidence": [
+      {
+        "tenant": "Acme",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "giver": "employee@acme-tech.com",
+        "receiver": "David Manager",
+        "receiver_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+        "event_id": "a531440c-ee0b-439d-9e9a-39582832b2fc",
+        "status": "PASS"
+      },
+      {
+        "tenant": "FutureLearn Portal",
+        "tenant_id": "50000000-0000-0000-0000-000000000005",
+        "giver": "grace@futurelearn.edu",
+        "receiver": "Prof Sharma",
+        "receiver_id": "50000000-0000-0000-0000-000000000012",
+        "event_id": "a3354f3d-b6b1-4895-a7f5-3d724dc9da56",
+        "status": "PASS"
+      },
+      {
+        "tenant": "SwiftLogix Fleet",
+        "tenant_id": "40000000-0000-0000-0000-000000000004",
+        "giver": "frank@swiftlogix.com",
+        "receiver": "Suresh Driver",
+        "receiver_id": "40000000-0000-0000-0000-000000000012",
+        "event_id": "338c4087-b0f9-478b-a74e-0471534ca29c",
+        "status": "PASS"
+      },
+      {
+        "tenant": "Globex",
+        "tenant_id": "20000000-0000-0000-0000-000000000002",
+        "giver": "admin@globex-corp.com",
+        "receiver": "Ian Manager",
+        "receiver_id": "06a8e43b-f538-4e1e-a2e3-2fd0d3f33c98",
+        "event_id": "3d928854-a92f-449e-8b9d-684222fc4311",
+        "status": "PASS"
+      },
+      {
+        "tenant": "Attend",
+        "tenant_id": "11111111-0000-0000-0000-000000000001",
+        "giver": "alice@acme-tech.com",
+        "receiver": "Priya Engineer",
+        "receiver_id": "11111111-0000-0000-0000-000000000012",
+        "event_id": "ee1fd08f-6543-4224-8722-6155735c96fd",
+        "status": "PASS"
+      },
+      {
+        "tenant": "Initech HR",
+        "tenant_id": "30000000-0000-0000-0000-000000000003",
+        "giver": "admin@initech-ltd.com",
+        "receiver": "Karen Manager",
+        "receiver_id": "5d3f8182-c838-4689-acc3-0217b4413892",
+        "event_id": "d411592f-f639-4633-bc54-5706c874aad2",
+        "status": "PASS"
+      }
+    ]
+  },
+  "finalVerdict": "PASS"
+}

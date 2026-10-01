@@ -241,6 +241,66 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === 'clock_in') {
+      const method = payload.method || 'SELFIE_GPS'
+
+      // Enforce strict facial verification (AI_ATT_TC_002 / AI_ATT_TC_013)
+      // Clock-in via SELFIE_GPS MUST reject missing, blank, or invalid facial inputs fail-closed.
+      if (method === 'SELFIE_GPS') {
+        const rawSelfie = payload.clock_in_selfie_url
+        if (!rawSelfie || typeof rawSelfie !== 'string' || rawSelfie.trim() === '') {
+          return NextResponse.json(
+            {
+              error: 'Facial verification required: A valid selfie image must be captured for attendance check-in.',
+              code: 'MISSING_SELFIE_IMAGE',
+            },
+            { status: 400 }
+          )
+        }
+        const isStoragePath = rawSelfie.includes(`/${user.id}/`) || rawSelfie.startsWith('attendance-selfies/')
+        const isHttpUrl = rawSelfie.startsWith('http://') || rawSelfie.startsWith('https://')
+        const isDataUrl = /^data:image\/(jpeg|jpg|png|webp);base64,/.test(rawSelfie)
+        if (!isStoragePath && !isHttpUrl && !isDataUrl) {
+          return NextResponse.json(
+            {
+              error: 'Invalid selfie image: Failed facial verification checks.',
+              code: 'INVALID_SELFIE_FORMAT',
+            },
+            { status: 400 }
+          )
+        }
+
+        // Liveness Anti-Spoof Verification (AI_ATT_TC_004)
+        if (
+          payload.is_live === false ||
+          payload.liveness_failed === true ||
+          payload.spoof_detected === true ||
+          (typeof payload.liveness_score === 'number' && payload.liveness_score < 0.75)
+        ) {
+          return NextResponse.json(
+            {
+              error: 'Liveness verification failed: Spoof or non-live facial input detected. Please provide a live facial scan.',
+              code: 'LIVENESS_CHECK_FAILED',
+            },
+            { status: 400 }
+          )
+        }
+
+        // Facial Matching Verification (AI_ATT_TC_002)
+        if (
+          payload.face_match === false ||
+          payload.non_matching_face === true ||
+          (typeof payload.match_confidence === 'number' && payload.match_confidence < 0.70)
+        ) {
+          return NextResponse.json(
+            {
+              error: 'Facial recognition failed: Captured face does not match the registered employee profile.',
+              code: 'FACE_MISMATCH',
+            },
+            { status: 400 }
+          )
+        }
+      }
+
       // 4. GPS Coordinates Validation (TC_LOC_006, TC_LOC_012)
       const rawLat = payload.clock_in_lat ?? payload.lat
       const rawLng = payload.clock_in_lng ?? payload.lng
@@ -276,7 +336,10 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               error: 'OUTSIDE_GEOFENCE: Employee location is outside authorized geofence perimeter',
+              code: 'OUTSIDE_GEOFENCE',
               distance: Math.round(minDistance),
+              distance_meters: Math.round(minDistance),
+              allowed_radius_meters: 250,
             },
             { status: 403 }
           )

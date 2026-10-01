@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Star, Award, Heart, Zap, Users, Crown, Trophy, Plus, Search } from 'lucide-react'
+import { Star, Award, Heart, Zap, Users, Crown, Trophy, Plus, Search, Gift, CheckCircle2, Clock, Calendar } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
@@ -10,7 +10,7 @@ import { PageWrapper } from '@/components/ui/PageWrapper'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 const ICON_COMPONENT: Record<string, React.ComponentType<any>> = {
-  users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown, star: Star, award: Award, trophy: Trophy,
+  users: Users, lightbulb: Star, heart: Heart, zap: Zap, crown: Crown, star: Star, award: Award, trophy: Trophy, gift: Gift,
 }
 
 export default function RecognitionPage() {
@@ -25,17 +25,28 @@ export default function RecognitionPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'received' | 'given'>('all')
+  const [mainSection, setMainSection] = useState<'wall' | 'awards' | 'rewards'>('wall')
 
   const myUserId = user?.id || (user as any)?.profile?.id
+  const activeTenantId = user?.tenant?.id || (user as any)?.tenant_id || (user as any)?.profile?.tenant_id || null
+
+  // Reset selected recipient and search query when tenant context changes (Phase 6 requirement)
+  useEffect(() => {
+    setSelectedRecipient(null)
+    setRecipientSearch('')
+  }, [activeTenantId])
 
   // Fetch authoritative recognition dataset (categories, colleagues, feed, leaderboard, myStats)
   const { data: recData, isLoading, refetch } = useQuery({
-    queryKey: ['recognition-data', myUserId, user?.tenant?.id || (user as any)?.tenant_id],
+    queryKey: ['recognition-data', myUserId, activeTenantId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession()
       const headers: Record<string, string> = {}
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      if (activeTenantId) {
+        headers['x-tenant-id'] = activeTenantId
       }
       const res = await fetch('/api/recognition', { headers, credentials: 'include' })
       if (!res.ok) {
@@ -47,11 +58,35 @@ export default function RecognitionPage() {
     enabled: !!user,
   })
 
+  // Fetch executive awards catalog & nominations (REC_TC_009 - REC_TC_019, REC_TC_028)
+  const { data: awardsData, isLoading: awardsLoading, refetch: refetchAwards } = useQuery({
+    queryKey: ['recognition-awards', activeTenantId],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+      if (activeTenantId) {
+        headers['x-tenant-id'] = activeTenantId
+      }
+      const res = await fetch('/api/recognition/awards', { headers, credentials: 'include' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load awards')
+      }
+      return res.json()
+    },
+    enabled: !!user,
+  })
+
   const feedLoading = isLoading
   const lbLoading = isLoading
   const leaderboard = recData?.leaderboard || []
   const feed = recData?.feed || []
   const categories = recData?.categories || []
+  // Peer-to-peer recognition categories (REC-002: 50, 100, 150, 200, 250 pts; excludes executive awards, AI_REC_TC_014)
+  const peerCategories = (categories as any[])?.filter((c: any) => (c.points || 0) <= 250)
   const allColleagues = recData?.colleagues || []
   const rawStats = recData?.myStats || {
     total_points: 0,
@@ -60,14 +95,26 @@ export default function RecognitionPage() {
     rank: null,
   }
 
-  // Filtered colleague search results
-  const searchResults = (allColleagues || []).filter((p: any) =>
-    !recipientSearch.trim() ||
-    p.full_name?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-    p.email?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-    p.department_name?.toLowerCase().includes(recipientSearch.toLowerCase()) ||
-    p.employee_code?.toLowerCase().includes(recipientSearch.toLowerCase())
-  )
+  // Deduplicate colleagues strictly by authoritative ID (Phase 5: Prevent duplicate display results like David / david)
+  const deduplicatedColleagues = useMemo(() => {
+    const seenIds = new Set<string>()
+    const list: any[] = []
+    for (const p of (allColleagues || [])) {
+      if (p?.id && !seenIds.has(p.id)) {
+        seenIds.add(p.id)
+        list.push(p)
+      }
+    }
+    return list
+  }, [allColleagues])
+
+  // Filtered colleague search results (resilient to whitespace, case, tokens, name/email/department/code)
+  const searchTokens = recipientSearch.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const searchResults = deduplicatedColleagues.filter((p: any) => {
+    if (searchTokens.length === 0) return true
+    const haystack = `${p.full_name || ''} ${p.email || ''} ${p.department_name || ''} ${p.employee_code || ''}`.toLowerCase()
+    return searchTokens.every(token => haystack.includes(token))
+  })
 
   const isReceivedItem = (r: any) =>
     Boolean(myUserId && r.receiver_id === myUserId) ||
@@ -109,6 +156,9 @@ export default function RecognitionPage() {
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
+      if (activeTenantId) {
+        headers['x-tenant-id'] = activeTenantId
+      }
 
       const res = await fetch('/api/recognition', {
         method: 'POST',
@@ -118,6 +168,7 @@ export default function RecognitionPage() {
           receiver_id: selectedRecipient.id,
           category_id: selectedCategory,
           note: message.trim(),
+          tenant_id: activeTenantId,
         }),
       })
 
@@ -155,6 +206,32 @@ export default function RecognitionPage() {
     }
   }
 
+  const approveNominationMutation = useMutation({
+    mutationFn: async (nominationId: string) => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`
+      if (activeTenantId) headers['x-tenant-id'] = activeTenantId
+
+      const res = await fetch('/api/recognition/awards', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'approve', nomination_id: nominationId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to approve nomination')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      success('Nomination approved! Award points granted 🎉')
+      refetchAwards()
+      refetch()
+    },
+    onError: (err: any) => error('Approval failed', err.message),
+  })
+
   return (
     <PageWrapper style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-header" style={{ marginBottom: 'var(--space-5)' }}>
@@ -171,6 +248,36 @@ export default function RecognitionPage() {
         </button>
       </div>
 
+      {/* Navigation Switcher Tabs */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 'var(--space-6)', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setMainSection('wall')}
+          className={`btn btn-sm ${mainSection === 'wall' ? 'btn-primary' : 'btn-outline'}`}
+          id="tab-kudos-feed"
+        >
+          <Users size={16} /> Kudos & Feed
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainSection('awards')}
+          className={`btn btn-sm ${mainSection === 'awards' ? 'btn-primary' : 'btn-outline'}`}
+          id="tab-awards-catalog"
+        >
+          <Trophy size={16} /> Awards & Nominations
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainSection('rewards')}
+          className={`btn btn-sm ${mainSection === 'rewards' ? 'btn-primary' : 'btn-outline'}`}
+          id="tab-performance-rewards"
+        >
+          <Gift size={16} /> Performance Rewards
+        </button>
+      </div>
+
+      {mainSection === 'wall' && (
+        <>
       {/* Personal Employee Recognition Spotlight */}
       <div
         className="card"
@@ -475,6 +582,342 @@ export default function RecognitionPage() {
           </div>
         </div>
       </div>
+      </>
+      )}
+
+      {/* Awards & Nominations Catalog Section (REC_TC_009 - REC_TC_014, REC_TC_028) */}
+      {mainSection === 'awards' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          {/* Header Card */}
+          <div className="card" style={{
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(99, 102, 241, 0.08))',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            padding: 'var(--space-5)',
+            borderRadius: 'var(--radius-xl)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trophy size={24} color="#F59E0B" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  Executive Awards & Period Honors
+                </h2>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  Authoritative institutional awards governed by leadership nomination and committee approval
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Awards (REC_TC_009) */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--space-3)' }}>
+              <Calendar size={18} color="var(--accent)" />
+              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Monthly Awards (500 pts)</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-4)' }}>
+              {(awardsData?.monthly_awards || [
+                { id: 'award-m-01', name: 'Employee of the Month', points: 500, description: 'Highest performing team member of the calendar month.' },
+                { id: 'award-m-02', name: 'Rising Star Award', points: 500, description: 'Most promising contributor with rapid learning and delivery.' },
+                { id: 'award-m-03', name: 'Customer Champion Award', points: 500, description: 'Exemplary customer satisfaction and stakeholder service.' },
+                { id: 'award-m-04', name: 'Team Player Award', points: 500, description: 'Outstanding peer collaboration and team enablement.' },
+              ]).map((aw: any) => (
+                <div
+                  key={aw.id}
+                  className="card award-catalog-card"
+                  data-award-id={aw.id}
+                  data-award-period="MONTHLY"
+                  data-award-points={aw.points}
+                  data-award-name={aw.name}
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 'var(--radius-lg)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <span className="badge badge-accent" style={{ fontSize: '0.6875rem' }}>MONTHLY</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#F59E0B' }}>+{aw.points} pts</span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: 6, color: 'var(--text-primary)' }}>{aw.name}</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{aw.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quarterly Awards (REC_TC_010) */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--space-3)' }}>
+              <Award size={18} color="#0EA5E9" />
+              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Quarterly Awards (750 pts)</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-4)' }}>
+              {(awardsData?.quarterly_awards || [
+                { id: 'award-q-01', name: 'Innovation Award', points: 750, description: 'Pioneering solution or process optimization delivering tangible impact.' },
+                { id: 'award-q-02', name: 'Excellence in Delivery Award', points: 750, description: 'Flawless milestone execution and high-quality project turnaround.' },
+                { id: 'award-q-03', name: 'Sales Achiever Award', points: 750, description: 'Target milestone overachievement and revenue acceleration.' },
+                { id: 'award-q-04', name: 'Operational Excellence Award', points: 750, description: 'Unwavering systems reliability and operational rigor.' },
+              ]).map((aw: any) => (
+                <div
+                  key={aw.id}
+                  className="card award-catalog-card"
+                  data-award-id={aw.id}
+                  data-award-period="QUARTERLY"
+                  data-award-points={aw.points}
+                  data-award-name={aw.name}
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 'var(--radius-lg)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <span className="badge" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0EA5E9', fontSize: '0.6875rem' }}>QUARTERLY</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#0EA5E9' }}>+{aw.points} pts</span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: 6, color: 'var(--text-primary)' }}>{aw.name}</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{aw.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Annual Awards (REC_TC_011) */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--space-3)' }}>
+              <Crown size={18} color="#EC4899" />
+              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Annual Awards (1000 pts)</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--space-4)' }}>
+              {(awardsData?.annual_awards || [
+                { id: 'award-a-01', name: 'Employee of the Year', points: 1000, description: 'Premier organizational contributor across performance and culture.' },
+                { id: 'award-a-02', name: 'Leadership Excellence Award', points: 1000, description: 'Exemplary leadership, mentorship, and strategic impact.' },
+                { id: 'award-a-03', name: 'Innovator of the Year', points: 1000, description: 'Transformational innovation adopted organization-wide.' },
+                { id: 'award-a-04', name: 'Customer Delight Award', points: 1000, description: 'Exceptional long-term client trust and relationship stewardship.' },
+                { id: 'award-a-05', name: 'Best Manager Award', points: 1000, description: 'Top team retention, growth, and empathetic people management.' },
+                { id: 'award-a-06', name: 'Culture Champion Award', points: 1000, description: 'Inspiring adherence to core company values and ethics.' },
+                { id: 'award-a-07', name: 'Top Performer Award', points: 1000, description: 'Sustained top-percentile KPI delivery throughout the year.' },
+                { id: 'award-a-08', name: 'CEO Excellence Award', points: 1000, description: 'Executive board recognition for landmark enterprise contributions.' },
+              ]).map((aw: any) => (
+                <div
+                  key={aw.id}
+                  className="card award-catalog-card"
+                  data-award-id={aw.id}
+                  data-award-period="ANNUAL"
+                  data-award-points={aw.points}
+                  data-award-name={aw.name}
+                  style={{
+                    padding: 'var(--space-4)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 'var(--radius-lg)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <span className="badge" style={{ background: 'rgba(236, 72, 153, 0.15)', color: '#EC4899', fontSize: '0.6875rem' }}>ANNUAL</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 800, color: '#EC4899' }}>+{aw.points} pts</span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', marginBottom: 6, color: 'var(--text-primary)' }}>{aw.name}</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{aw.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Awards & Nominations Activity Log (REC_TC_012 - REC_TC_014, REC_TC_028) */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Clock size={18} color="var(--accent)" />
+                <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Executive Nominations & Awards Registry</h3>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              {awardsLoading ? (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading nominations...</div>
+              ) : (awardsData?.awards_and_nominations || []).length === 0 ? (
+                <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                  No nominations recorded yet in this tenant.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                        <th style={{ padding: '12px 16px' }}>Nominee</th>
+                        <th style={{ padding: '12px 16px' }}>Award</th>
+                        <th style={{ padding: '12px 16px' }}>Points</th>
+                        <th style={{ padding: '12px 16px' }}>Nominator</th>
+                        <th style={{ padding: '12px 16px' }}>Reason</th>
+                        <th style={{ padding: '12px 16px' }}>Status</th>
+                        <th style={{ padding: '12px 16px' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(awardsData?.awards_and_nominations || []).map((row: any) => {
+                        const canApprove = ['admin', 'manager', 'hr'].includes((user?.role || '').toLowerCase())
+                        return (
+                          <tr
+                            key={row.id}
+                            className="nomination-row"
+                            data-nomination-id={row.id}
+                            data-nomination-status={row.status}
+                            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                          >
+                            <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>{row.nominee_name}</td>
+                            <td style={{ padding: '12px 16px' }}>{row.award_name}</td>
+                            <td style={{ padding: '12px 16px', fontWeight: 700, color: '#F59E0B' }}>+{row.points}</td>
+                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{row.nominator_name}</td>
+                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {row.reason}
+                            </td>
+                            <td style={{ padding: '12px 16px' }}>
+                              <span
+                                className={`badge ${row.status === 'APPROVED' ? 'badge-success' : 'badge-warning'}`}
+                                style={{
+                                  padding: '3px 8px',
+                                  borderRadius: 12,
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 700,
+                                  background: row.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                  color: row.status === 'APPROVED' ? '#10B981' : '#F59E0B',
+                                }}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 16px' }}>
+                              {row.status === 'PENDING_APPROVAL' && canApprove && (
+                                <button
+                                  type="button"
+                                  onClick={() => approveNominationMutation.mutate(row.id)}
+                                  className="btn btn-sm btn-primary"
+                                  disabled={approveNominationMutation.isPending}
+                                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                                >
+                                  Approve
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Performance Rewards Mapping Section (REC_TC_015 - REC_TC_019) */}
+      {mainSection === 'rewards' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          {/* Header */}
+          <div className="card" style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(99, 102, 241, 0.08))',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            padding: 'var(--space-5)',
+            borderRadius: 'var(--radius-xl)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Gift size={24} color="#10B981" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  Continuous Performance Reward Matrix
+                </h2>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  Automated incentive linkages converting performance appraisal tiers directly into rewards and kudos points
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Reward Tiers Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 'var(--space-4)' }}>
+            {(awardsData?.reward_mappings || [
+              { performance_level: 'Meets Expectations', reward_item: 'Appreciation Certificate', value_type: 'CERTIFICATE', points: 100 },
+              { performance_level: 'Exceeds Expectations', reward_item: 'Gift Voucher', value_type: 'VOUCHER', points: 250 },
+              { performance_level: 'Outstanding Performer', reward_item: 'Performance Bonus', value_type: 'BONUS', points: 500 },
+              { performance_level: 'Employee of the Quarter', reward_item: 'Trophy + Voucher', value_type: 'TROPHY_VOUCHER', points: 750 },
+              { performance_level: 'Employee of the Year', reward_item: 'Trophy + Cash Award + Additional Leave', value_type: 'COMPREHENSIVE_PACKAGE', points: 1000 },
+            ]).map((rm: any, idx: number) => {
+              const colors = ['#0EA5E9', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899']
+              const color = colors[idx % colors.length]
+              return (
+                <div
+                  key={rm.performance_level}
+                  className="card reward-mapping-card"
+                  data-performance-level={rm.performance_level}
+                  data-reward-item={rm.reward_item}
+                  data-reward-points={rm.points}
+                  style={{
+                    padding: 'var(--space-5)',
+                    border: `1px solid ${color}44`,
+                    borderRadius: 'var(--radius-xl)',
+                    background: `linear-gradient(135deg, ${color}11, var(--neu-base))`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <span className="badge" style={{ background: `${color}22`, color, fontWeight: 700, fontSize: '0.75rem' }}>
+                        Tier {idx + 1}
+                      </span>
+                      <span style={{ fontSize: '1.125rem', fontWeight: 800, color, fontFamily: 'var(--font-display)' }}>
+                        +{rm.points} pts
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                      {rm.performance_level}
+                    </h4>
+
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                      Entitled Reward: <strong style={{ color: 'var(--text-primary)' }}>{rm.reward_item}</strong>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    paddingTop: 12,
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: '0.75rem',
+                    color: 'var(--text-tertiary)',
+                  }}>
+                    <CheckCircle2 size={14} color={color} />
+                    <span>Automatically credited upon review finalization</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Give Kudos Modal */}
       {showGiveModal && (
@@ -499,6 +942,8 @@ export default function RecognitionPage() {
             style={{
               maxWidth: 520,
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               background: 'var(--neu-base, #1e2235)',
               borderRadius: 'var(--radius-xl)',
               boxShadow: 'var(--shadow-raised-lg)',
@@ -550,6 +995,7 @@ export default function RecognitionPage() {
                     <div className="input-wrap" style={{ position: 'relative' }}>
                       <Search size={18} className="input-icon" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-tertiary)' }} />
                       <input
+                        id="recipient-search-input"
                         type="text"
                         className="input has-icon-left"
                         placeholder="Search colleague by name, email, or department…"
@@ -575,6 +1021,8 @@ export default function RecognitionPage() {
                         searchResults.map((p: any, idx: number) => (
                           <div
                             key={`colleague-pick-${p.id || idx}-${idx}`}
+                            className="colleague-pick-item"
+                            data-employee-id={p.id}
                             onClick={() => { setSelectedRecipient(p); setRecipientSearch('') }}
                             style={{
                               padding: '10px 12px',
@@ -613,41 +1061,169 @@ export default function RecognitionPage() {
                 )}
               </div>
 
-              {/* Category Badges */}
+              {/* Category Selection & Visual Badge Grid */}
               <div className="input-group">
-                <label className="input-label input-label-required" style={{ fontWeight: 600, marginBottom: 6, display: 'block' }}>
+                <label
+                  htmlFor="badge-category-select"
+                  className="input-label input-label-required"
+                  style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}
+                >
                   Pick a Badge / Category
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
-                  {(categories as any[])?.map((cat, idx: number) => {
-                    const IconComp = ICON_COMPONENT[cat.icon] ?? Star
-                    const isSelected = selectedCategory === cat.id
-                    return (
-                      <button
-                        key={`cat-badge-${cat.id || idx}-${idx}`}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat.id)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: `2px solid ${isSelected ? (cat.color || '#6366f1') : 'rgba(255,255,255,0.1)'}`,
-                          background: isSelected ? `${cat.color || '#6366f1'}25` : 'var(--neu-bg-deep, #141724)',
-                          cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)',
-                          transition: 'all 0.15s ease',
-                          textAlign: 'left',
-                        }}
-                      >
-                        <IconComp size={18} color={cat.color || '#6366f1'} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ lineHeight: 1.2 }}>{cat.name}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>+{cat.points} pts</div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+
+                {(!peerCategories || peerCategories.length === 0) ? (
+                  <div
+                    id="no-categories-message"
+                    style={{
+                      padding: 16,
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--neu-bg-deep, #141724)',
+                      border: '1px dashed var(--neu-border, rgba(255,255,255,0.15))',
+                      color: 'var(--text-tertiary)',
+                      textAlign: 'center',
+                      fontSize: '0.875rem',
+                      marginBottom: 8,
+                    }}
+                  >
+                    No recognition categories available.
+                  </div>
+                ) : (
+                  <>
+                    {/* Explicit Visible Dropdown Control */}
+                    <select
+                      id="badge-category-select"
+                      className="input select"
+                      aria-label="Pick a Badge / Category"
+                      value={selectedCategory}
+                      onChange={e => setSelectedCategory(e.target.value)}
+                      style={{
+                        width: '100%',
+                        marginBottom: 10,
+                        background: 'var(--neu-bg-deep, #141724)',
+                        color: 'var(--text-primary)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--neu-border, rgba(255,255,255,0.1))',
+                        padding: '10px 12px',
+                        fontSize: '0.875rem',
+                      }}
+                      required
+                    >
+                      <option value="" disabled style={{ color: 'var(--text-tertiary)' }}>
+                        Select a badge / category…
+                      </option>
+                      {(peerCategories as any[])?.map((cat: any) => (
+                        <option
+                          key={`cat-opt-${cat.id}`}
+                          value={cat.id}
+                          style={{ background: '#1e2235', color: '#fff' }}
+                        >
+                          {cat.name} (+{cat.points} pts)
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Visual Badge / Category Options Grid */}
+                    <div
+                      id="badge-category-grid"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                        gap: 8,
+                        maxHeight: 180,
+                        overflowY: 'auto',
+                      }}
+                    >
+                    {(peerCategories as any[]).map((cat: any, idx: number) => {
+                      const IconComp = ICON_COMPONENT[cat.icon] ?? Star
+                      const isSelected = selectedCategory === cat.id
+                      const catColor = cat.color || '#6366f1'
+                      return (
+                        <button
+                          key={`cat-badge-${cat.id || idx}-${idx}`}
+                          type="button"
+                          className={`badge-category-option ${isSelected ? 'selected' : ''}`}
+                          data-category-id={cat.id}
+                          data-category-name={cat.name}
+                          data-category-points={cat.points}
+                          onClick={() => setSelectedCategory(cat.id)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: 'var(--radius-md)',
+                            border: `1.5px solid ${isSelected ? catColor : 'rgba(255,255,255,0.08)'}`,
+                            background: isSelected ? `${catColor}25` : 'var(--neu-bg-deep, #141724)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontWeight: 600,
+                            fontSize: '0.8125rem',
+                            color: isSelected ? '#fff' : 'var(--text-primary)',
+                            transition: 'all 0.15s ease',
+                            textAlign: 'left',
+                            boxShadow: isSelected ? `0 0 10px ${catColor}35` : 'none',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              background: `${catColor}20`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <IconComp size={16} color={catColor} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ lineHeight: 1.2, fontWeight: 700, fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {cat.name}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: isSelected ? catColor : 'var(--text-tertiary)' }}>
+                              +{cat.points} pts
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
+                {/* Selected Badge Visual Feedback (TC-REC-004) */}
+                {selectedCategory && (() => {
+                  const selectedCat = (peerCategories as any[])?.find((c: any) => c.id === selectedCategory)
+                  if (!selectedCat) return null
+                  const IconComp = ICON_COMPONENT[selectedCat.icon] ?? Star
+                  const catColor = selectedCat.color || '#6366f1'
+                  return (
+                    <div
+                      id="selected-badge-preview"
+                      style={{
+                        marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        background: `${catColor}20`,
+                        border: `1.5px solid ${catColor}`,
+                      }}
+                    >
+                      <IconComp size={18} color={catColor} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                          {selectedCat.name}
+                        </span>
+                        <span style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 600, color: catColor }}>
+                          +{selectedCat.points} pts
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Message */}
