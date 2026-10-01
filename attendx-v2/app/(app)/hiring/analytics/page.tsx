@@ -178,11 +178,11 @@ export default function HiringAnalyticsPage() {
   const selectedCandidate = CANDIDATES.find(c => c.id === selectedCandidateId) || CANDIDATES[0]
 
   return (
-    <PageWrapper style={{ maxWidth: 1280, margin: '0 auto', paddingBottom: 40 }}>
+    <PageWrapper className="w-full max-w-full" style={{ maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
             Hiring Analytics & AI Insights
           </h1>
           <p className="page-subtitle" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -195,22 +195,14 @@ export default function HiringAnalyticsPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
           gap: 16,
           marginBottom: 24,
         }}
       >
         {/* Total Applicants */}
         <div
-          className="card"
-          style={{
-            padding: '20px 22px',
-            background: 'var(--neu-base)',
-            boxShadow: 'var(--elev-1)',
-            borderRadius: 18,
-            border: '1px solid rgba(226, 232, 240, 0.7)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-          }}
+          className="card neu-analytics-metric-card"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Total Applicants</span>
@@ -226,15 +218,7 @@ export default function HiringAnalyticsPage() {
 
         {/* Successful Hires */}
         <div
-          className="card"
-          style={{
-            padding: '20px 22px',
-            background: 'var(--neu-base)',
-            boxShadow: 'var(--elev-1)',
-            borderRadius: 18,
-            border: '1px solid rgba(226, 232, 240, 0.7)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-          }}
+          className="card neu-analytics-metric-card"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Successful Hires</span>
@@ -250,15 +234,7 @@ export default function HiringAnalyticsPage() {
 
         {/* Overall Conversion */}
         <div
-          className="card"
-          style={{
-            padding: '20px 22px',
-            background: 'var(--neu-base)',
-            boxShadow: 'var(--elev-1)',
-            borderRadius: 18,
-            border: '1px solid rgba(226, 232, 240, 0.7)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-          }}
+          className="card neu-analytics-metric-card"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Overall Conversion</span>
@@ -274,15 +250,7 @@ export default function HiringAnalyticsPage() {
 
         {/* Avg Time to Hire */}
         <div
-          className="card"
-          style={{
-            padding: '20px 22px',
-            background: 'var(--neu-base)',
-            boxShadow: 'var(--elev-1)',
-            borderRadius: 18,
-            border: '1px solid rgba(226, 232, 240, 0.7)',
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-          }}
+          className="card neu-analytics-metric-card"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Avg Time to Hire</span>
@@ -325,12 +293,9 @@ export default function HiringAnalyticsPage() {
 
           {/* Candidate Items List — Stretches evenly */}
           <div
+            className="neu-analytics-candidate-list"
             style={{
-              display: 'flex',
-              flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: 10,
-              flex: 1,
               marginBottom: 14,
             }}
           >
@@ -349,6 +314,7 @@ export default function HiringAnalyticsPage() {
                       setSelectedCandidateId(candidate.id)
                     }
                   }}
+                  className="neu-analytics-candidate-item"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -362,10 +328,9 @@ export default function HiringAnalyticsPage() {
                       : '0 1px 3px rgba(0, 0, 0, 0.03)',
                     cursor: 'pointer',
                     transition: 'all 0.18s ease',
-                    flex: '1 1 auto',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                     {/* Initials Avatar */}
                     <div
                       style={{
@@ -387,11 +352,11 @@ export default function HiringAnalyticsPage() {
                     </div>
 
                     {/* Info */}
-                    <div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {candidate.name}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {candidate.role} · Interviewed {candidate.lastInterviewDate}
                       </div>
                     </div>
@@ -404,6 +369,7 @@ export default function HiringAnalyticsPage() {
                       fontWeight: 800,
                       color: scoreColor,
                       paddingLeft: 10,
+                      flexShrink: 0,
                     }}
                   >
                     {candidate.overallScore}
@@ -420,10 +386,12 @@ export default function HiringAnalyticsPage() {
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingTop: 14,
-              height: 40,
+              minHeight: 40,
               borderTop: '1px solid rgba(226, 232, 240, 0.7)',
               fontSize: '0.75rem',
               color: 'var(--text-tertiary)',
+              flexWrap: 'wrap',
+              gap: 8,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -449,16 +417,8 @@ export default function HiringAnalyticsPage() {
           }}
         >
           {/* Header section with Candidate info & overall score */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              paddingBottom: 18,
-              borderBottom: '1px solid rgba(226, 232, 240, 0.7)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div className="neu-candidate-detail-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: '1 1 auto' }}>
               <div
                 style={{
                   width: 50,
@@ -478,8 +438,8 @@ export default function HiringAnalyticsPage() {
                 {selectedCandidate.initials}
               </div>
 
-              <div>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: 'clamp(1.1rem, 3vw, 1.3rem)', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
                   {selectedCandidate.name}
                 </h2>
                 <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: 3 }}>
@@ -504,10 +464,10 @@ export default function HiringAnalyticsPage() {
             </div>
 
             {/* Performance Score Badge */}
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div
                 style={{
-                  fontSize: '2.4rem',
+                  fontSize: 'clamp(1.8rem, 4vw, 2.4rem)',
                   fontWeight: 800,
                   color: getScoreColor(selectedCandidate.overallScore),
                   lineHeight: 1,
@@ -534,78 +494,81 @@ export default function HiringAnalyticsPage() {
             </p>
 
             {/* Vertical Bar Chart */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${selectedCandidate.rounds.length}, 1fr)`,
-                gap: 14,
-                alignItems: 'end',
-                paddingTop: 6,
-                paddingBottom: 2,
-              }}
-            >
-              {selectedCandidate.rounds.map((round, idx) => {
-                const barColor = getScoreColor(round.score)
-                const barHeightPct = Math.min(100, Math.max(20, round.score))
+            <div className="neu-chart-scroll-wrapper">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${selectedCandidate.rounds.length}, minmax(76px, 1fr))`,
+                  minWidth: 340,
+                  gap: 14,
+                  alignItems: 'end',
+                  paddingTop: 6,
+                  paddingBottom: 2,
+                }}
+              >
+                {selectedCandidate.rounds.map((round, idx) => {
+                  const barColor = getScoreColor(round.score)
+                  const barHeightPct = Math.min(100, Math.max(20, round.score))
 
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    {/* Score Label on top */}
-                    <span
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: 700,
-                        color: barColor,
-                      }}
-                    >
-                      {round.score}
-                    </span>
-
-                    {/* Bar Pillar in capsule track */}
+                  return (
                     <div
+                      key={idx}
                       style={{
-                        width: '100%',
-                        maxWidth: 44,
-                        height: 88,
-                        background: 'var(--neu-bg-deep, #F1F5F9)',
-                        borderRadius: 10,
                         display: 'flex',
-                        alignItems: 'flex-end',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
                       }}
                     >
+                      {/* Score Label on top */}
+                      <span
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          color: barColor,
+                        }}
+                      >
+                        {round.score}
+                      </span>
+
+                      {/* Bar Pillar in capsule track */}
                       <div
                         style={{
                           width: '100%',
-                          height: `${barHeightPct}%`,
-                          background: barColor,
-                          borderRadius: '8px 8px 6px 6px',
-                          transition: 'height 0.4s ease, background-color 0.3s ease',
+                          maxWidth: 44,
+                          height: 88,
+                          background: 'var(--neu-bg-deep, #F1F5F9)',
+                          borderRadius: 10,
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
                         }}
-                      />
-                    </div>
+                      >
+                        <div
+                          style={{
+                            width: '100%',
+                            height: `${barHeightPct}%`,
+                            background: barColor,
+                            borderRadius: '8px 8px 6px 6px',
+                            transition: 'height 0.4s ease, background-color 0.3s ease',
+                          }}
+                        />
+                      </div>
 
-                    {/* Round name & date */}
-                    <div style={{ textAlign: 'center', marginTop: 2 }}>
-                      <div style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {round.name}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 1 }}>
-                        {round.date}
+                      {/* Round name & date */}
+                      <div style={{ textAlign: 'center', marginTop: 2 }}>
+                        <div style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          {round.name}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 1, whiteSpace: 'nowrap' }}>
+                          {round.date}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
 
@@ -634,116 +597,80 @@ export default function HiringAnalyticsPage() {
               Evaluation scores aggregated across technical and culture interviews vs organization benchmarks. The dark tick marks the target for each competency.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-              {selectedCandidate.competencies.map((comp, idx) => {
-                const barColor = getScoreColor(comp.score)
-                const isAboveTarget = comp.score >= comp.target
+            <div className="neu-chart-scroll-wrapper">
+              <div style={{ minWidth: 440, display: 'flex', flexDirection: 'column', gap: 11, paddingBottom: 4 }}>
+                {selectedCandidate.competencies.map((comp, idx) => {
+                  const barColor = getScoreColor(comp.score)
+                  const isAboveTarget = comp.score >= comp.target
 
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 14,
-                    }}
-                  >
-                    {/* Competency Name */}
+                  return (
                     <div
-                      style={{
-                        width: 125,
-                        fontSize: '0.825rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        flexShrink: 0,
-                      }}
+                      key={idx}
+                      className="neu-competency-row"
                     >
-                      {comp.name}
-                    </div>
+                      {/* Competency Name */}
+                      <div className="neu-competency-name">
+                        {comp.name}
+                      </div>
 
-                    {/* Progress Track with Target Tick */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        flex: 1,
-                        height: 9,
-                        background: 'var(--neu-bg-deep, #E2E8F0)',
-                        borderRadius: 5,
-                      }}
-                    >
-                      {/* Filled Progress Bar */}
-                      <div
-                        style={{
-                          width: `${Math.min(100, comp.score)}%`,
-                          height: '100%',
-                          background: barColor,
-                          borderRadius: 5,
-                          transition: 'width 0.4s ease',
-                        }}
-                      />
+                      {/* Progress Track with Target Tick */}
+                      <div className="neu-competency-track">
+                        {/* Filled Progress Bar */}
+                        <div
+                          style={{
+                            width: `${Math.min(100, comp.score)}%`,
+                            height: '100%',
+                            background: barColor,
+                            borderRadius: 5,
+                            transition: 'width 0.4s ease',
+                          }}
+                        />
 
-                      {/* Target Dark Tick Mark */}
-                      <div
-                        title={`Target benchmark: ${comp.target}%`}
-                        style={{
-                          position: 'absolute',
-                          left: `${comp.target}%`,
-                          top: -3,
-                          bottom: -3,
-                          width: 2,
-                          background: '#334155',
-                          borderRadius: 1,
-                          zIndex: 2,
-                        }}
-                      />
-                    </div>
+                        {/* Target Dark Tick Mark */}
+                        <div
+                          title={`Target benchmark: ${comp.target}%`}
+                          style={{
+                            position: 'absolute',
+                            left: `${comp.target}%`,
+                            top: -3,
+                            bottom: -3,
+                            width: 2,
+                            background: '#334155',
+                            borderRadius: 1,
+                            zIndex: 2,
+                          }}
+                        />
+                      </div>
 
-                    {/* Score / Target Label */}
-                    <div
-                      style={{
-                        width: 82,
-                        textAlign: 'right',
-                        fontSize: '0.825rem',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <b style={{ color: isAboveTarget ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
-                        {comp.score}%
-                      </b>
-                      <span style={{ color: 'var(--text-tertiary)', marginLeft: 4 }}>/ {comp.target}%</span>
+                      {/* Score / Target Label */}
+                      <div className="neu-competency-score">
+                        <b style={{ color: isAboveTarget ? '#10B981' : '#F59E0B', fontWeight: 700 }}>
+                          {comp.score}%
+                        </b>
+                        <span style={{ color: 'var(--text-tertiary)', marginLeft: 4 }}>/ {comp.target}%</span>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
 
           {/* Color Legend Footer — Aligned with Left Panel Footer */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 20,
-              paddingTop: 14,
-              height: 40,
-              borderTop: '1px solid rgba(226, 232, 240, 0.7)',
-              fontSize: '0.75rem',
-              color: 'var(--text-secondary)',
-              marginTop: 16,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ width: 11, height: 11, borderRadius: 3, background: '#10B981' }} />
-              <span>80 and above</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ width: 11, height: 11, borderRadius: 3, background: '#F59E0B' }} />
-              <span>65 to 79</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <div style={{ width: 11, height: 11, borderRadius: 3, background: '#EF4444' }} />
-              <span>Below 65</span>
+          <div className="neu-chart-scroll-wrapper" style={{ borderTop: '1px solid rgba(226, 232, 240, 0.7)', marginTop: 16, paddingTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, minWidth: 320, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                <div style={{ width: 11, height: 11, borderRadius: 3, background: '#10B981' }} />
+                <span style={{ whiteSpace: 'nowrap' }}>80 and above</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                <div style={{ width: 11, height: 11, borderRadius: 3, background: '#F59E0B' }} />
+                <span style={{ whiteSpace: 'nowrap' }}>65 to 79</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                <div style={{ width: 11, height: 11, borderRadius: 3, background: '#EF4444' }} />
+                <span style={{ whiteSpace: 'nowrap' }}>Below 65</span>
+              </div>
             </div>
           </div>
         </div>
