@@ -34,12 +34,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: HR/Admin role required' }, { status: 403 })
     }
 
+    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
     const { searchParams } = new URL(req.url)
     let tenantId = searchParams.get('tenant_id')
 
+    if (tenantId && activeTenantClaim && tenantId !== activeTenantClaim) {
+      const hasTenantRole = roles?.some(r => r.tenant_id === tenantId && ['HR', 'ADMIN', 'SUPERADMIN'].includes(r.role))
+      if (!hasTenantRole) {
+        return NextResponse.json({ error: 'Forbidden: Tenant isolation mismatch' }, { status: 403 })
+      }
+    }
+
     if (!tenantId) {
-      const { data: prof } = await serviceClient.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
-      tenantId = prof?.tenant_id ?? (user.app_metadata as any)?.tenant_id ?? roles?.[0]?.tenant_id
+      const roleRow = (roles || []).find((r: any) => activeTenantClaim ? r.tenant_id === activeTenantClaim : true) || roles?.[0]
+      tenantId = activeTenantClaim || roleRow?.tenant_id
+    }
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant context missing' }, { status: 400 })
     }
 
     // 1. Fetch scores
@@ -141,24 +153,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: HR/Admin role required' }, { status: 403 })
     }
 
+    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
     const body = await req.json().catch(() => ({}))
     let tenantId = body?.tenant_id
 
+    if (tenantId && activeTenantClaim && tenantId !== activeTenantClaim) {
+      const hasTenantRole = roles?.some(r => r.tenant_id === tenantId && ['HR', 'ADMIN', 'SUPERADMIN'].includes(r.role))
+      if (!hasTenantRole) {
+        return NextResponse.json({ error: 'Forbidden: Tenant isolation mismatch' }, { status: 403 })
+      }
+    }
+
     if (!tenantId) {
-      const { data: prof } = await serviceClient.from('profiles').select('tenant_id').eq('id', user.id).maybeSingle()
-      tenantId = prof?.tenant_id ?? (user.app_metadata as any)?.tenant_id ?? roles?.[0]?.tenant_id
+      const roleRow = (roles || []).find((r: any) => activeTenantClaim ? r.tenant_id === activeTenantClaim : true) || roles?.[0]
+      tenantId = activeTenantClaim || roleRow?.tenant_id
     }
 
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant context missing' }, { status: 400 })
     }
 
-    const { data: employees } = await serviceClient
-      .from('employees')
-      .select('id, created_at')
-      .eq('tenant_id', tenantId)
+    // Query employees and active tenant profiles to ensure all valid employees are included (PA_TC_001 / PA_TC_006)
+    const [empRes, profRes] = await Promise.all([
+      serviceClient.from('employees').select('id, created_at').eq('tenant_id', tenantId),
+      serviceClient.from('profiles').select('id, created_at').eq('tenant_id', tenantId).eq('is_active', true),
+    ])
 
-    if (!employees || employees.length === 0) {
+    const empMap = new Map<string, any>()
+    for (const emp of (empRes.data || [])) empMap.set(emp.id, emp)
+    for (const prof of (profRes.data || [])) {
+      if (!empMap.has(prof.id)) {
+        empMap.set(prof.id, { id: prof.id, created_at: prof.created_at })
+      }
+    }
+    const employees = Array.from(empMap.values())
+
+    if (employees.length === 0) {
       return NextResponse.json({ processed: 0, message: 'No employees to score' })
     }
 
@@ -228,10 +258,18 @@ export async function POST(req: NextRequest) {
       new_data: { processedCount: scoringResults.length },
     })
 
+    const counts = scoringResults.reduce((acc: Record<string, number>, r: any) => {
+      acc[r.riskLevel] = (acc[r.riskLevel] ?? 0) + 1
+      return acc
+    }, {})
+
     return NextResponse.json({
       success: true,
       processed: scoringResults.length,
+      evaluated_count: scoringResults.length,
       scores: scoringResults,
+      results: scoringResults,
+      risk_distribution: counts,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

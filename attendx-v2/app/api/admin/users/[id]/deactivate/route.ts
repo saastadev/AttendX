@@ -19,7 +19,21 @@ export async function POST(
     }
 
     const supabase = await getSupabaseServerClient()
-    const { data: { user: caller }, error: authErr } = await supabase.auth.getUser()
+    let { data: { user: caller }, error: authErr } = await supabase.auth.getUser()
+
+    const serviceClient = getSupabaseServiceClient()
+
+    if (!caller || authErr) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7).trim()
+        const { data: userData } = await serviceClient.auth.getUser(token)
+        if (userData?.user) {
+          caller = userData.user
+          authErr = null
+        }
+      }
+    }
 
     if (!caller || authErr) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -28,14 +42,14 @@ export async function POST(
     const body = await req.json().catch(() => ({}))
     const reason = body?.reason || 'Administrative Deactivation'
 
-    const serviceClient = getSupabaseServiceClient()
-
-    // 1. Resolve Caller Role and Tenant server-side
-    const { data: callerRoleRow } = await serviceClient
+    // 1. Resolve Caller Role and Tenant server-side (multi-tenant cardinality safe)
+    const activeTenant = (caller.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
+    const { data: callerRoles } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', caller.id)
-      .maybeSingle()
+
+    const callerRoleRow = (callerRoles || []).find((r: any) => activeTenant ? r.tenant_id === activeTenant : true) || callerRoles?.[0]
 
     if (!callerRoleRow || !['SUPERADMIN', 'ADMIN'].includes(callerRoleRow.role)) {
       return NextResponse.json({ error: 'Forbidden: Admin privilege required.' }, { status: 403 })

@@ -131,29 +131,26 @@ export default function CheckInPage() {
         setGpsCoords(coords)
         setGpsLoading(false)
 
-        // Validate against geofences
+        // Immediate calculation if geofences already loaded
         if (geofences && geofences.length > 0) {
           let nearestGeofence: Geofence | null = null
           let nearestDistance = Infinity
 
           for (const gf of geofences) {
-            const dist = haversineDistance(coords.lat, coords.lng, gf.lat, gf.lng)
+            const dist = haversineDistance(coords.lat, coords.lng, Number(gf.lat), Number(gf.lng))
             if (dist < nearestDistance) {
               nearestDistance = dist
               nearestGeofence = gf
             }
           }
 
-          const isValid = nearestGeofence !== null && nearestDistance <= nearestGeofence.radius_m
+          const isValid = nearestGeofence !== null && nearestDistance <= Number(nearestGeofence.radius_m)
 
           setGeofenceResult({
             valid: isValid,
             geofence: nearestGeofence,
             distance: Math.round(nearestDistance),
           })
-        } else {
-          // No geofences configured — allow clock-in from anywhere
-          setGeofenceResult({ valid: true, geofence: null, distance: null })
         }
       },
       (err) => {
@@ -169,6 +166,33 @@ export default function CheckInPage() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     )
   }, [geofences])
+
+  // Reactive geofence re-evaluation whenever GPS or geofences update (AI_ATT_TC_007)
+  useEffect(() => {
+    if (!gpsCoords) return
+    if (geofences && geofences.length > 0) {
+      let nearestGeofence: Geofence | null = null
+      let nearestDistance = Infinity
+
+      for (const gf of geofences) {
+        const dist = haversineDistance(gpsCoords.lat, gpsCoords.lng, Number(gf.lat), Number(gf.lng))
+        if (dist < nearestDistance) {
+          nearestDistance = dist
+          nearestGeofence = gf
+        }
+      }
+
+      const isValid = nearestGeofence !== null && nearestDistance <= Number(nearestGeofence.radius_m)
+
+      setGeofenceResult({
+        valid: isValid,
+        geofence: nearestGeofence,
+        distance: Math.round(nearestDistance),
+      })
+    } else if (geofences && geofences.length === 0) {
+      setGeofenceResult({ valid: true, geofence: null, distance: null })
+    }
+  }, [gpsCoords, geofences])
 
   // Capture selfie (with video element fallback)
   const captureSelfie = useCallback(() => {
@@ -295,11 +319,20 @@ export default function CheckInPage() {
             const { publicUrl } = await selfieRes.json()
             selfieUrl = publicUrl
           } else {
-            console.warn('[Checkin] Selfie upload failed via API:', await selfieRes.text())
+            const errData = await selfieRes.json().catch(() => ({}))
+            throw new Error(errData.error || 'Failed to upload selfie verification photo')
           }
-        } catch (e) {
-          console.warn('[Checkin] Selfie upload exception:', e)
+        } catch (e: any) {
+          throw new Error(e.message || 'Facial verification upload failed')
         }
+      }
+
+      if (isOnline && !selfieUrl) {
+        throw new Error('Facial verification failed: A valid selfie image is required.')
+      }
+
+      if (geofenceResult && !geofenceResult.valid) {
+        throw new Error(`Location outside authorized geofence (${geofenceResult.distance}m away). Clock-in blocked.`)
       }
 
       const actionType = checkinType
@@ -778,14 +811,16 @@ export default function CheckInPage() {
             <button
               id="confirm-checkin-btn"
               onClick={() => checkinMutation.mutate()}
-              disabled={checkinMutation.isPending}
+              disabled={checkinMutation.isPending || (geofenceResult !== null && !geofenceResult.valid)}
               className={`neu-btn neu-btn--primary ${checkinMutation.isPending ? 'neu-btn--loading' : ''}`}
-              style={{ flex: 1 }}
+              style={{ flex: 1, opacity: (geofenceResult !== null && !geofenceResult.valid) ? 0.6 : 1 }}
               aria-label={`Confirm ${checkinType === 'in' ? 'clock in' : 'clock out'}`}
             >
               {!checkinMutation.isPending && <CheckCircle size={18} aria-hidden="true" />}
               {checkinMutation.isPending
                 ? 'Submitting…'
+                : geofenceResult !== null && !geofenceResult.valid
+                ? 'Outside Work Site (Blocked)'
                 : checkinType === 'in' ? 'Confirm Clock In' : 'Confirm Clock Out'
               }
             </button>

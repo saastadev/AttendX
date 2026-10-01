@@ -7,14 +7,28 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
 import type { AttendanceGlanceMetrics } from '@/types/reporting'
 
-const ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN', 'HR'] as const
+const ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN'] as const
 
 export async function GET(req: NextRequest) {
   const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID()
 
   try {
     const supabase = await getSupabaseServerClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    let { data: { user }, error: authErr } = await supabase.auth.getUser()
+    const serviceClient = getSupabaseServiceClient()
+
+    if (!user || authErr) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7).trim()
+        const { data: userData } = await serviceClient.auth.getUser(token)
+        if (userData?.user) {
+          user = userData.user
+          authErr = null
+        }
+      }
+    }
+
     if (!user || authErr) {
       return NextResponse.json(
         { error: 'Unauthorized', code: 'UNAUTHENTICATED' },
@@ -22,25 +36,78 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const serviceClient = getSupabaseServiceClient()
+    // Resolve candidate tenant ID (server independently verifies membership below)
+    const requestedTenantId = req.nextUrl.searchParams.get('tenant_id') || req.headers.get('x-tenant-id')
+    let targetTenantId: string | null = requestedTenantId
 
-    // 1. Authoritative Role Verification
-    const { data: roleRow } = await serviceClient
+    if (!targetTenantId) {
+      const appMetaTenant = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id
+      if (typeof appMetaTenant === 'string' && appMetaTenant) {
+        targetTenantId = appMetaTenant
+      }
+    }
+
+    if (!targetTenantId) {
+      const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (profile?.tenant_id) {
+        targetTenantId = profile.tenant_id
+      }
+    }
+
+    if (!targetTenantId) {
+      const { data: allUserRoles } = await serviceClient
+        .from('user_roles')
+        .select('tenant_id')
+        .eq('user_id', user.id)
+      if (allUserRoles && allUserRoles.length === 1) {
+        targetTenantId = allUserRoles[0].tenant_id
+      }
+    }
+
+    if (!targetTenantId) {
+      return NextResponse.json(
+        { error: 'Forbidden: No organization context established.', code: 'FORBIDDEN_TENANT' },
+        { status: 403, headers: { 'x-correlation-id': correlationId } }
+      )
+    }
+
+    // 1. Authoritative Server-Side Role Verification for the Target Tenant
+    const { data: roleRow, error: roleError } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', user.id)
+      .eq('tenant_id', targetTenantId)
       .maybeSingle()
 
-    if (!roleRow || !ALLOWED_ROLES.includes(roleRow.role as any)) {
+    if (roleError) {
+      console.error('[Admin Glance] Authorization lookup error:', roleError)
       return NextResponse.json(
-        { error: 'Forbidden: Insufficient privileges', code: 'FORBIDDEN_ROLE' },
+        { error: 'Forbidden: Authorization check failed.', code: 'AUTHORIZATION_CHECK_FAILED' },
+        { status: 403, headers: { 'x-correlation-id': correlationId } }
+      )
+    }
+
+    if (!roleRow) {
+      return NextResponse.json(
+        { error: 'Forbidden: You do not belong to this organization.', code: 'FORBIDDEN_TENANT' },
+        { status: 403, headers: { 'x-correlation-id': correlationId } }
+      )
+    }
+
+    if (!ALLOWED_ROLES.includes(roleRow.role as any)) {
+      return NextResponse.json(
+        { error: 'Forbidden: Insufficient privileges for this organization.', code: 'FORBIDDEN_ROLE' },
         { status: 403, headers: { 'x-correlation-id': correlationId } }
       )
     }
 
     // 2. Execute Data Engine Canonical RPC (Strictly Zero API-Layer Math - BRD §30)
     const { data: rpcRows, error: rpcErr } = await serviceClient.rpc('admin_attendance_glance', {
-      p_tenant_id: roleRow.tenant_id,
+      p_tenant_id: targetTenantId,
     })
 
     if (rpcErr || !rpcRows) {
