@@ -92,7 +92,7 @@ export default function InterviewStatusPage() {
   })
 
   return (
-    <PageWrapper className="w-full max-w-full neu-mobile-safe-bottom" style={{ maxWidth: 1280, margin: '0 auto' }}>
+    <PageWrapper className="w-full max-w-full" style={{ maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
