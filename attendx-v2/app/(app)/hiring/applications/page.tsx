@@ -219,7 +219,7 @@ export default function ApplicationsPage() {
           </p>
         </div>
         {selectedAppIds.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent)' }}>
               {selectedAppIds.length} selected
             </span>
@@ -245,11 +245,7 @@ export default function ApplicationsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="card" style={{
-        padding: '16px 20px',
-        borderRadius: 16,
-        background: 'var(--neu-base)',
-        boxShadow: 'var(--elev-1)',
+      <div className="card neu-interview-card" style={{
         marginBottom: 24,
         display: 'flex',
         flexWrap: 'wrap',
@@ -257,19 +253,12 @@ export default function ApplicationsPage() {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', flex: 1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', flex: 1, minWidth: 0, width: '100%' }}>
           {/* Search Box */}
-          <div style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 260,
-            background: 'var(--neu-bg-raised)',
-            borderRadius: 12,
+          <div className="neu-filter-search" style={{
             boxShadow: 'var(--elev-0)',
-            padding: '0 12px',
           }}>
-            <Search size={16} color="var(--text-tertiary)" />
+            <Search size={16} color="var(--text-tertiary)" style={{ flexShrink: 0 }} />
             <input
               type="text"
               placeholder="Search by name, role, email…"
@@ -291,15 +280,7 @@ export default function ApplicationsPage() {
           <select
             value={selectedRequisition}
             onChange={(e) => setSelectedRequisition(e.target.value)}
-            style={{
-              padding: '9px 14px',
-              borderRadius: 12,
-              border: '1px solid rgba(128,128,180,0.2)',
-              background: 'var(--neu-bg-raised)',
-              fontSize: '0.875rem',
-              color: 'var(--text-primary)',
-              outline: 'none',
-            }}
+            className="neu-filter-select"
           >
             <option value="ALL">All Requisitions</option>
             {requisitions.map((r: any) => (
@@ -311,15 +292,7 @@ export default function ApplicationsPage() {
           <select
             value={selectedStage}
             onChange={(e) => setSelectedStage(e.target.value)}
-            style={{
-              padding: '9px 14px',
-              borderRadius: 12,
-              border: '1px solid rgba(128,128,180,0.2)',
-              background: 'var(--neu-bg-raised)',
-              fontSize: '0.875rem',
-              color: 'var(--text-primary)',
-              outline: 'none',
-            }}
+            className="neu-filter-select"
           >
             <option value="ALL">All Pipeline Stages</option>
             <option value="APPLIED">Applied</option>
@@ -334,7 +307,7 @@ export default function ApplicationsPage() {
         </div>
 
         {/* Min Match Score Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>
             Min Match: <b style={{ color: 'var(--accent)' }}>{minScore}%</b>
           </span>
@@ -672,13 +645,12 @@ export default function ApplicationsPage() {
           zIndex: 9999,
           backdropFilter: 'blur(4px)',
         }}>
-          <div className="card" style={{
+          <div className="card neu-interview-card" style={{
             width: '100%',
             maxWidth: 540,
             background: 'var(--neu-base)',
             boxShadow: 'var(--elev-4)',
             borderRadius: 20,
-            padding: 28,
             maxHeight: '90vh',
             overflowY: 'auto',
           }}>
@@ -720,7 +692,7 @@ export default function ApplicationsPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="neu-modal-split">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
                     Round Type
@@ -771,7 +743,7 @@ export default function ApplicationsPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+              <div className="neu-modal-split neu-modal-split-2-1">
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
                     Date & Start Time
@@ -872,17 +844,17 @@ export default function ApplicationsPage() {
 
       {/* Candidate Details Drawer */}
       {candidateDrawer && (
-        <div style={{
+        <div className="neu-interview-card" style={{
           position: 'fixed',
           top: 0,
           right: 0,
-          width: 520,
+          width: 'min(520px, 100vw)',
           maxWidth: '100%',
           height: '100%',
           background: 'var(--neu-base)',
           boxShadow: 'var(--elev-4)',
           zIndex: 10000,
-          padding: 28,
+          borderRadius: 0,
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
