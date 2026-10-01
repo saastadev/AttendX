@@ -229,15 +229,17 @@ export default function CandidateOfferPortalPage({
     <div style={{
       minHeight: '100vh',
       background: '#E8EBF2',
-      padding: '40px 20px',
+      padding: 'clamp(20px, 4vw, 40px) clamp(12px, 3vw, 20px)',
       fontFamily: 'Inter, sans-serif',
     }}>
-      <div style={{ maxWidth: 840, margin: '0 auto' }}>
+      <div style={{ maxWidth: 840, margin: '0 auto', width: '100%' }}>
         {/* Header Branding */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
           marginBottom: 28,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -252,6 +254,7 @@ export default function CandidateOfferPortalPage({
               color: '#fff',
               fontWeight: 800,
               fontSize: '1.2rem',
+              flexShrink: 0,
             }}>
               A
             </div>
@@ -271,6 +274,7 @@ export default function CandidateOfferPortalPage({
             display: 'flex',
             alignItems: 'center',
             gap: 6,
+            flexShrink: 0,
           }}>
             <Shield size={14} /> 256-Bit Encrypted Link
           </div>
@@ -280,24 +284,25 @@ export default function CandidateOfferPortalPage({
         <div style={{
           background: '#F2F4F9',
           borderRadius: 24,
-          padding: 32,
+          padding: 'clamp(16px, 4vw, 32px)',
           boxShadow: '8px 8px 20px #C2C6D6, -8px -8px 20px #FFFFFF',
           marginBottom: 28,
+          boxSizing: 'border-box',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, borderBottom: '1px solid rgba(128,128,180,0.15)', paddingBottom: 24, marginBottom: 24 }}>
-            <div>
+            <div style={{ minWidth: 0, flex: '1 1 240px' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7C3AED', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Employment Offer Letter
               </span>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1A1D2E', marginTop: 4 }}>
+              <h1 style={{ fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800, color: '#1A1D2E', marginTop: 4, wordBreak: 'break-word' }}>
                 {offer.designation}
               </h1>
-              <div style={{ fontSize: '0.9rem', color: '#4A5272', marginTop: 4 }}>
+              <div style={{ fontSize: 'clamp(0.82rem, 2.5vw, 0.9rem)', color: '#4A5272', marginTop: 4, wordBreak: 'break-word' }}>
                 Extended to: <b>{candidate.full_name}</b> ({candidate.email})
               </div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ minWidth: 120 }}>
               <div style={{ fontSize: '0.75rem', color: '#8890B0' }}>Offer Reference</div>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#1A1D2E' }}>{offer.offer_number}</div>
             </div>
@@ -306,27 +311,27 @@ export default function CandidateOfferPortalPage({
           {/* Key Details Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: 16,
             marginBottom: 28,
           }}>
             <div style={{ background: '#E8EBF2', padding: 16, borderRadius: 14 }}>
               <div style={{ fontSize: '0.75rem', color: '#8890B0', marginBottom: 4 }}>Total CTC (Annual)</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4F46E5' }}>
+              <div style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.4rem)', fontWeight: 800, color: '#4F46E5', wordBreak: 'break-word' }}>
                 ₹{Number(offer.total_ctc).toLocaleString('en-IN')}
               </div>
             </div>
 
             <div style={{ background: '#E8EBF2', padding: 16, borderRadius: 14 }}>
               <div style={{ fontSize: '0.75rem', color: '#8890B0', marginBottom: 4 }}>Joining Date</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A1D2E' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A1D2E', wordBreak: 'break-word' }}>
                 {offer.joining_date}
               </div>
             </div>
 
             <div style={{ background: '#E8EBF2', padding: 16, borderRadius: 14 }}>
               <div style={{ fontSize: '0.75rem', color: '#8890B0', marginBottom: 4 }}>Work Mode & Location</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A1D2E' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A1D2E', wordBreak: 'break-word' }}>
                 {offer.work_mode} ({offer.work_location})
               </div>
             </div>
@@ -338,15 +343,15 @@ export default function CandidateOfferPortalPage({
               Compensation Breakdown
             </h3>
             <div style={{ background: '#E8EBF2', borderRadius: 14, padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(128,128,180,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '6px 0', borderBottom: '1px solid rgba(128,128,180,0.1)' }}>
                 <span style={{ fontSize: '0.875rem', color: '#4A5272' }}>Fixed Annual Salary:</span>
                 <b style={{ fontSize: '0.875rem', color: '#1A1D2E' }}>₹{Number(offer.fixed_salary).toLocaleString('en-IN')}</b>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(128,128,180,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '6px 0', borderBottom: '1px solid rgba(128,128,180,0.1)' }}>
                 <span style={{ fontSize: '0.875rem', color: '#4A5272' }}>Performance Variable:</span>
                 <b style={{ fontSize: '0.875rem', color: '#1A1D2E' }}>₹{Number(offer.variable_salary || 0).toLocaleString('en-IN')}</b>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '6px 0' }}>
                 <span style={{ fontSize: '0.875rem', color: '#4A5272' }}>Joining / Retention Bonus:</span>
                 <b style={{ fontSize: '0.875rem', color: '#1A1D2E' }}>₹{Number(offer.bonus || 0).toLocaleString('en-IN')}</b>
               </div>
@@ -365,6 +370,7 @@ export default function CandidateOfferPortalPage({
               fontSize: '0.85rem',
               color: '#4A5272',
               lineHeight: 1.6,
+              wordBreak: 'break-word',
             }}>
               {offer.terms_and_conditions || 'Standard employment policies of AttendX apply. This offer is contingent upon successful verification of identity and academic credentials.'}
             </div>
@@ -375,8 +381,9 @@ export default function CandidateOfferPortalPage({
             background: 'rgba(79, 70, 229, 0.05)',
             border: '1px solid rgba(79, 70, 229, 0.25)',
             borderRadius: 16,
-            padding: 24,
+            padding: 'clamp(16px, 3.5vw, 24px)',
             marginBottom: 28,
+            boxSizing: 'border-box',
           }}>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1A1D2E', marginBottom: 12 }}>
               Electronic Acknowledgment & Signature
@@ -403,23 +410,24 @@ export default function CandidateOfferPortalPage({
                   fontSize: '0.95rem',
                   color: '#1A1D2E',
                   outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.85rem', color: '#1A1D2E' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '0.85rem', color: '#1A1D2E' }}>
               <input
                 type="checkbox"
                 checked={eAckConfirmed}
                 onChange={(e) => setEAckConfirmed(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: '#4F46E5' }}
+                style={{ width: 18, height: 18, accentColor: '#4F46E5', flexShrink: 0, marginTop: 2 }}
               />
               <span>I have read, understood, and accept all the terms of this offer.</span>
             </label>
           </div>
 
           {/* Decision Buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 12 }}>
             <button
               onClick={() => setShowDeclineModal(true)}
               style={{
@@ -431,6 +439,7 @@ export default function CandidateOfferPortalPage({
                 fontWeight: 700,
                 fontSize: '0.9rem',
                 cursor: 'pointer',
+                flex: '1 1 130px',
               }}
             >
               Decline Offer
@@ -450,7 +459,9 @@ export default function CandidateOfferPortalPage({
                 cursor: (!eAckName.trim() || !eAckConfirmed) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 8,
+                flex: '2 1 180px',
               }}
             >
               <Check size={18} /> {responseMutation.isPending ? 'Processing…' : 'Accept Offer'}
@@ -471,14 +482,16 @@ export default function CandidateOfferPortalPage({
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
+            padding: 16,
           }}>
             <div style={{
               background: '#F2F4F9',
               borderRadius: 20,
-              padding: 28,
+              padding: 'clamp(16px, 4vw, 28px)',
               maxWidth: 440,
               width: '100%',
               boxShadow: '12px 12px 30px #C2C6D6',
+              boxSizing: 'border-box',
             }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1A1D2E', marginBottom: 12 }}>
                 Confirm Decline
@@ -499,12 +512,13 @@ export default function CandidateOfferPortalPage({
                   marginBottom: 16,
                   outline: 'none',
                   fontSize: '0.85rem',
+                  boxSizing: 'border-box',
                 }}
               />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
                 <button
                   onClick={() => setShowDeclineModal(false)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 16px', fontWeight: 600 }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 16px', fontWeight: 600, flex: '1 1 80px' }}
                 >
                   Cancel
                 </button>
@@ -519,6 +533,7 @@ export default function CandidateOfferPortalPage({
                     padding: '8px 18px',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    flex: '2 1 140px',
                   }}
                 >
                   Confirm Decline

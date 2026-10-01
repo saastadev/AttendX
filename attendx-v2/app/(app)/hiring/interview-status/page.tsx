@@ -92,12 +92,12 @@ export default function InterviewStatusPage() {
   })
 
   return (
-    <PageWrapper style={{ maxWidth: 1280, margin: '0 auto', paddingBottom: 64 }}>
+    <PageWrapper className="w-full max-w-full" style={{ maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 28 }}>
+      <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800 }}>Interview Status & AI Screening</h1>
-          <p className="page-subtitle" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800 }}>Interview Status & AI Screening</h1>
+          <p className="page-subtitle" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
             Track multi-round interview progression, evaluator scorecards, automated voice calls, and record hiring decisions.
           </p>
         </div>
@@ -105,7 +105,7 @@ export default function InterviewStatusPage() {
 
       <div className="neu-interview-grid">
         {/* Candidates List Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, width: '100%' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
             In-Progress Candidates ({applications.length})
           </h3>
@@ -113,72 +113,70 @@ export default function InterviewStatusPage() {
           {isLoading ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading candidates…</div>
           ) : applications.length === 0 ? (
-            <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 14 }}>
+            <div className="card neu-interview-card" style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
               No candidates in interview stage currently.
             </div>
           ) : (
-            applications.map((app: any) => {
-              const isSelected = (activeApp?.id === app.id)
-              return (
-                <div
-                  key={app.id}
-                  onClick={() => setSelectedCandidateId(app.id)}
-                  className="card card-hover"
-                  style={{
-                    padding: 16,
-                    borderRadius: 14,
-                    background: isSelected ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
-                    boxShadow: 'var(--elev-1)',
-                    cursor: 'pointer',
-                    border: isSelected ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                      {app.candidate?.full_name}
+            <div className="neu-interview-candidates-list">
+              {applications.map((app: any) => {
+                const isSelected = (activeApp?.id === app.id)
+                return (
+                  <div
+                    key={app.id}
+                    onClick={() => setSelectedCandidateId(app.id)}
+                    className="card card-hover neu-interview-candidate-item"
+                    style={{
+                      padding: 16,
+                      borderRadius: 14,
+                      background: isSelected ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
+                      boxShadow: 'var(--elev-1)',
+                      cursor: 'pointer',
+                      border: isSelected ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {app.candidate?.full_name}
+                      </div>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        background: app.stage === 'SELECTED'
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : app.stage === 'REJECTED'
+                          ? 'rgba(239, 68, 68, 0.15)'
+                          : 'rgba(79, 70, 229, 0.12)',
+                        color: app.stage === 'SELECTED'
+                          ? '#059669'
+                          : app.stage === 'REJECTED'
+                          ? '#DC2626'
+                          : 'var(--accent)',
+                      }}>
+                        {app.stage}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: 10,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      background: app.stage === 'SELECTED'
-                        ? 'rgba(16, 185, 129, 0.15)'
-                        : app.stage === 'REJECTED'
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : 'rgba(79, 70, 229, 0.12)',
-                      color: app.stage === 'SELECTED'
-                        ? '#059669'
-                        : app.stage === 'REJECTED'
-                        ? '#DC2626'
-                        : 'var(--accent)',
-                    }}>
-                      {app.stage}
-                    </span>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Role: {app.requisition?.title}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Role: {app.requisition?.title}
-                  </div>
-                </div>
-              )
-            })
+                )
+              })}
+            </div>
           )}
         </div>
 
         {/* Selected Candidate Detailed View */}
         {activeApp ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%' }}>
             {/* Candidate Header Card */}
-            <div className="card" style={{
-              padding: 24,
-              borderRadius: 18,
-              background: 'var(--neu-base)',
-              boxShadow: 'var(--elev-1)',
-            }}>
+            <div className="card neu-interview-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h2 style={{ fontSize: 'clamp(1.15rem, 3.5vw, 1.4rem)', fontWeight: 800, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                       {activeApp.candidate?.full_name}
                     </h2>
                     <span style={{
@@ -188,17 +186,18 @@ export default function InterviewStatusPage() {
                       borderRadius: 12,
                       background: 'rgba(79, 70, 229, 0.12)',
                       color: 'var(--accent)',
+                      flexShrink: 0,
                     }}>
                       {activeApp.application_code}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 4, wordBreak: 'break-word' }}>
                     Role: <b>{activeApp.requisition?.title}</b> ({typeof activeApp.requisition?.department === 'object' ? activeApp.requisition?.department?.name : activeApp.requisition?.department}) • Match Score: <b>{Math.round(activeApp.match_score)}%</b>
                   </div>
                 </div>
 
                 {/* Actions: Selected, Rejected, Voice Call */}
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="neu-interview-actions">
                   <button
                     onClick={() => voiceCallMutation.mutate(activeApp.candidate.id)}
                     disabled={voiceCallMutation.isPending}
@@ -234,14 +233,14 @@ export default function InterviewStatusPage() {
                 <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 12 }}>
                   Interview Round Progress (Rounds Completed vs Total)
                 </h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="neu-stepper-scroll">
                   {[
                     { round: 1, name: 'Round 1: HR Screening', done: true },
                     { round: 2, name: 'Round 2: Technical Deep-Dive', done: true },
                     { round: 3, name: 'Round 3: System Architecture', done: activeApp.stage === 'SELECTED' },
                     { round: 4, name: 'Round 4: Final Leadership', done: activeApp.stage === 'SELECTED' },
                   ].map((step, idx) => (
-                    <div key={idx} style={{ flex: 1 }}>
+                    <div key={idx} className="neu-stepper-item">
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -250,10 +249,12 @@ export default function InterviewStatusPage() {
                         borderRadius: 12,
                         background: step.done ? 'rgba(16, 185, 129, 0.12)' : 'var(--neu-bg-deep)',
                         border: step.done ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                        whiteSpace: 'nowrap',
                       }}>
                         <div style={{
                           width: 22,
                           height: 22,
+                          minWidth: 22,
                           borderRadius: '50%',
                           background: step.done ? '#10B981' : 'var(--text-tertiary)',
                           color: '#fff',
@@ -262,6 +263,7 @@ export default function InterviewStatusPage() {
                           justifyContent: 'center',
                           fontSize: '0.75rem',
                           fontWeight: 800,
+                          flexShrink: 0,
                         }}>
                           {step.done ? '✓' : step.round}
                         </div>
@@ -276,14 +278,9 @@ export default function InterviewStatusPage() {
             </div>
 
             {/* Scorecards & AI Summary Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="neu-responsive-split" style={{ gap: 20 }}>
               {/* Evaluator Scorecard */}
-              <div className="card" style={{
-                padding: 22,
-                borderRadius: 16,
-                background: 'var(--neu-base)',
-                boxShadow: 'var(--elev-1)',
-              }}>
+              <div className="card neu-interview-card">
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Award size={18} color="var(--accent)" /> Interview Evaluation Scorecard
                 </h3>
@@ -337,24 +334,21 @@ export default function InterviewStatusPage() {
                   marginTop: 18,
                   fontSize: '0.8rem',
                   lineHeight: 1.5,
-                  color: 'var(--text-secondary)'
+                  color: 'var(--text-secondary)',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
                 }}>
                   <b>Evaluator Recommendation:</b> Strong Hire. Candidate has outstanding production experience in multi-tenant architectures and PostgreSQL indexing.
                 </div>
               </div>
 
               {/* AI Voice & Screening Summary */}
-              <div className="card" style={{
-                padding: 22,
-                borderRadius: 16,
-                background: 'var(--neu-base)',
-                boxShadow: 'var(--elev-1)',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div className="card neu-interview-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Sparkles size={18} color="#8B5CF6" /> AI Screening Summary
                   </h3>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--neu-bg-deep)', padding: '2px 8px', borderRadius: 8, color: 'var(--text-tertiary)' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--neu-bg-deep)', padding: '2px 8px', borderRadius: 8, color: 'var(--text-tertiary)', flexShrink: 0 }}>
                     Claude 3.7 Sonnet
                   </span>
                 </div>
@@ -367,11 +361,13 @@ export default function InterviewStatusPage() {
                   color: 'var(--text-primary)',
                   lineHeight: 1.6,
                   marginBottom: 14,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
                 }}>
                   Candidate demonstrated deep practical domain expertise in Next.js 15 App Router, React 19 concurrent features, and Supabase Row-Level Security. Notice period is confirmed at 30 days (negotiable to 15 days).
                 </div>
 
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                   <div>• <b>Identified Strengths:</b> High agency, system modeling, clean API design</div>
                   <div>• <b>Areas to Probe:</b> Experience with multi-region database failover</div>
                   <div>• <b>Voice Call Status:</b> Completed (Duration: 3m 15s, Sentiment: Positive)</div>
@@ -386,36 +382,30 @@ export default function InterviewStatusPage() {
                   fontSize: '0.72rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6
+                  gap: 6,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
                 }}>
-                  <Shield size={14} /> AI drafts & summarizes. Human recruiter must trigger hiring stage changes.
+                  <Shield size={14} style={{ flexShrink: 0 }} /> AI drafts & summarizes. Human recruiter must trigger hiring stage changes.
                 </div>
               </div>
             </div>
 
             {/* Next Step Banner if Selected */}
             {activeApp.stage === 'SELECTED' && (
-              <div className="card" style={{
-                padding: '18px 24px',
-                borderRadius: 16,
-                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
-                border: '1px solid rgba(79, 70, 229, 0.3)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
+              <div className="card neu-selected-banner">
                 <div>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                     🎉 Candidate Selected! Next Step: Offer & Onboarding
                   </h4>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2, wordBreak: 'break-word' }}>
                     Generate formal job offer, release candidate portal link, and collect onboarding documents.
                   </p>
                 </div>
                 <Link
                   href="/hiring/onboard"
                   className="btn btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.875rem' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.875rem' }}
                 >
                   <FileCheck size={16} /> Go to Onboard & Release Offer <ArrowRight size={15} />
                 </Link>

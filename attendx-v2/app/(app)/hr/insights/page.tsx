@@ -73,7 +73,7 @@ function AttendanceSvgChart({ data }: { data: Array<{ date: string; present: num
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       {/* Legend & Hover Display */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, fontSize: '0.8125rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12, fontSize: '0.8125rem' }}>
         <div style={{ display: 'flex', gap: 16 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--accent)' }} /> Present
@@ -93,11 +93,13 @@ function AttendanceSvgChart({ data }: { data: Array<{ date: string; present: num
         )}
       </div>
 
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        style={{ width: '100%', height: 'auto', overflow: 'visible' }}
-        onMouseLeave={() => setHoverIdx(null)}
-      >
+      <div className="neu-chart-scroll-wrapper">
+        <div style={{ minWidth: 540 }}>
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            style={{ width: '100%', height: 'auto', overflow: 'visible' }}
+            onMouseLeave={() => setHoverIdx(null)}
+          >
         <defs>
           <linearGradient id="presentGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
@@ -167,6 +169,8 @@ function AttendanceSvgChart({ data }: { data: Array<{ date: string; present: num
           </g>
         )}
       </svg>
+        </div>
+      </div>
     </div>
   )
 }
@@ -448,7 +452,7 @@ export default function HRInsightsPage() {
   })
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <div className="w-full max-w-full" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       {/* Header */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
@@ -475,7 +479,7 @@ export default function HRInsightsPage() {
       </div>
 
       {/* Key Risk Factor Analytics Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
         <div className="neu-card" style={{ borderLeft: '4px solid #EF4444', padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -523,7 +527,7 @@ export default function HRInsightsPage() {
       </div>
 
       {/* Main Analytics Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
         {/* Attrition Risk Distribution */}
         <div className="neu-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
