@@ -217,12 +217,12 @@ export default function OnboardPage() {
   const totalCtcCalc = Number(offerForm.fixed_salary) + Number(offerForm.variable_salary) + Number(offerForm.bonus)
 
   return (
-    <PageWrapper style={{ maxWidth: 1300, margin: '0 auto', paddingBottom: 64 }}>
+    <PageWrapper className="w-full max-w-full" style={{ maxWidth: 1300, margin: '0 auto', paddingBottom: 'clamp(24px, 4vw, 48px)' }}>
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 28 }}>
+      <div className="page-header" style={{ marginBottom: 'clamp(16px, 3vw, 28px)' }}>
         <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800 }}>Automated Onboarding & Digital Offers</h1>
-          <p className="page-subtitle" style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.35rem, 3.5vw, 1.75rem)', fontWeight: 800 }}>Automated Onboarding & Digital Offers</h1>
+          <p className="page-subtitle" style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', marginTop: 4 }}>
             Extend formal employment offers with single-use 7-day candidate links, verify credentials, and convert to active employees.
           </p>
         </div>
@@ -231,13 +231,13 @@ export default function OnboardPage() {
       {/* Selected Candidates Waiting For Offer Banner */}
       {selectedApps.length > 0 && (
         <div className="card" style={{
-          padding: 20,
+          padding: 'clamp(14px, 3vw, 20px)',
           borderRadius: 16,
           background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
           border: '1px solid rgba(79, 70, 229, 0.25)',
           marginBottom: 28,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Sparkles size={18} color="var(--accent)" />
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -254,18 +254,22 @@ export default function OnboardPage() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
                   gap: 12,
                   background: 'var(--neu-base)',
                   padding: '10px 16px',
                   borderRadius: 12,
                   boxShadow: 'var(--elev-1)',
+                  flex: '1 1 240px',
+                  minWidth: 0,
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                     {app.candidate?.full_name}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
                     {app.requisition?.title}
                   </div>
                 </div>
@@ -280,7 +284,7 @@ export default function OnboardPage() {
                     setShowOfferModal(true)
                   }}
                   className="btn btn-primary"
-                  style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4 }}
+                  style={{ fontSize: '0.78rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
                 >
                   <Send size={13} /> Release Offer
                 </button>
@@ -293,86 +297,89 @@ export default function OnboardPage() {
       {/* Main Grid: Onboarding List & Detail */}
       <div className="neu-onboard-grid">
         {/* Onboarding Processes Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', minWidth: 0 }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Active Onboarding ({processes.length})
           </h3>
 
-          {isLoading ? (
-            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading onboarding list…</div>
-          ) : processes.length === 0 ? (
-            <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16 }}>
-              No candidates currently in onboarding. Release an offer above to begin.
-            </div>
-          ) : (
-            processes.map((proc: any) => {
-              const isSelected = (detailedProcess?.id === proc.id)
-              return (
-                <div
-                  key={proc.id}
-                  onClick={() => setSelectedProcessId(proc.id)}
-                  className="card card-hover"
-                  style={{
-                    padding: 18,
-                    borderRadius: 16,
-                    background: isSelected ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
-                    boxShadow: 'var(--elev-1)',
-                    cursor: 'pointer',
-                    border: isSelected ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                      {proc.candidate?.full_name}
+          <div className="neu-onboard-candidate-list">
+            {isLoading ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', width: '100%' }}>Loading onboarding list…</div>
+            ) : processes.length === 0 ? (
+              <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16, width: '100%' }}>
+                No candidates currently in onboarding. Release an offer above to begin.
+              </div>
+            ) : (
+              processes.map((proc: any) => {
+                const isSelected = (detailedProcess?.id === proc.id)
+                return (
+                  <div
+                    key={proc.id}
+                    onClick={() => setSelectedProcessId(proc.id)}
+                    className="card card-hover"
+                    style={{
+                      padding: 18,
+                      borderRadius: 16,
+                      background: isSelected ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
+                      boxShadow: 'var(--elev-1)',
+                      cursor: 'pointer',
+                      border: isSelected ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', wordBreak: 'break-word', minWidth: 0 }}>
+                        {proc.candidate?.full_name}
+                      </div>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        background: proc.status === 'COMPLETED'
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : 'rgba(79, 70, 229, 0.12)',
+                        color: proc.status === 'COMPLETED' ? '#059669' : 'var(--accent)',
+                        flexShrink: 0,
+                      }}>
+                        {proc.status.replace(/_/g, ' ')}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: 10,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      background: proc.status === 'COMPLETED'
-                        ? 'rgba(16, 185, 129, 0.15)'
-                        : 'rgba(79, 70, 229, 0.12)',
-                      color: proc.status === 'COMPLETED' ? '#059669' : 'var(--accent)',
-                    }}>
-                      {proc.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
 
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
-                    Offer: <b>{proc.offer?.designation || 'Software Engineer'}</b> ({proc.offer?.offer_number})
-                  </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 12, wordBreak: 'break-word' }}>
+                      Offer: <b>{proc.offer?.designation || 'Software Engineer'}</b> ({proc.offer?.offer_number})
+                    </div>
 
-                  {/* Progress Bar */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-tertiary)' }}>Completion</span>
-                      <b style={{ color: 'var(--accent)' }}>{Math.round(proc.completion_percentage)}%</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${proc.completion_percentage}%`, height: '100%', background: 'var(--accent)' }} />
+                    {/* Progress Bar */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 4 }}>
+                        <span style={{ color: 'var(--text-tertiary)' }}>Completion</span>
+                        <b style={{ color: 'var(--accent)' }}>{Math.round(proc.completion_percentage)}%</b>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
+                        <div style={{ width: `${proc.completion_percentage}%`, height: '100%', background: 'var(--accent)' }} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })
-          )}
+                )
+              })
+            )}
+          </div>
         </div>
 
         {/* Selected Onboarding Detail */}
         {detailedProcess ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0, width: '100%' }}>
             {/* Header info card */}
             <div className="card" style={{
-              padding: 24,
+              padding: 'clamp(16px, 3.5vw, 24px)',
               borderRadius: 18,
               background: 'var(--neu-base)',
               boxShadow: 'var(--elev-1)',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <div style={{ minWidth: 0, flex: '1 1 220px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h2 style={{ fontSize: 'clamp(1.15rem, 3.5vw, 1.35rem)', fontWeight: 800, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
                       {detailedProcess.candidate?.full_name}
                     </h2>
                     <span style={{
@@ -382,17 +389,18 @@ export default function OnboardPage() {
                       borderRadius: 10,
                       background: 'rgba(16, 185, 129, 0.15)',
                       color: '#059669',
+                      flexShrink: 0,
                     }}>
                       {detailedProcess.status}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4, wordBreak: 'break-word' }}>
                     Email: {detailedProcess.candidate?.email} • Joining Date: <b>{detailedProcess.offer?.joining_date || 'TBD'}</b>
                   </div>
                 </div>
 
                 {/* Convert to Employee Button */}
-                <div>
+                <div style={{ flexShrink: 0 }}>
                   {detailedProcess.status === 'COMPLETED' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontWeight: 700, fontSize: '0.875rem' }}>
                       <CheckCircle2 size={18} /> Active Employee
@@ -407,7 +415,7 @@ export default function OnboardPage() {
                         setShowConvertModal(true)
                       }}
                       className="btn btn-primary"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', width: '100%' }}
                     >
                       <UserCheck size={16} /> Convert to Employee
                     </button>
@@ -418,12 +426,12 @@ export default function OnboardPage() {
 
             {/* Documents Verification Section */}
             <div className="card" style={{
-              padding: 24,
+              padding: 'clamp(16px, 3.5vw, 24px)',
               borderRadius: 18,
               background: 'var(--neu-base)',
               boxShadow: 'var(--elev-1)',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
                 <div>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     Required Onboarding Documents
@@ -447,24 +455,26 @@ export default function OnboardPage() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '14px 18px',
+                        flexWrap: 'wrap',
+                        gap: 12,
+                        padding: '14px clamp(12px, 3vw, 18px)',
                         borderRadius: 12,
                         background: 'var(--neu-bg-raised)',
                         boxShadow: 'var(--elev-0)',
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 180px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem', wordBreak: 'break-word' }}>
                           {doc.document_name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2, wordBreak: 'break-word' }}>
                           Type: {doc.document_type} • Status: <b style={{
                             color: doc.status === 'VERIFIED' ? '#059669' : doc.status === 'SUBMITTED' ? '#0891B2' : 'var(--text-tertiary)'
                           }}>{doc.status}</b>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
                         {doc.file_url && (
                           <a
                             href={doc.file_url}
@@ -539,7 +549,7 @@ export default function OnboardPage() {
 
             {/* Checklist Tasks Section */}
             <div className="card" style={{
-              padding: 24,
+              padding: 'clamp(16px, 3.5vw, 24px)',
               borderRadius: 18,
               background: 'var(--neu-base)',
               boxShadow: 'var(--elev-1)',
@@ -556,12 +566,14 @@ export default function OnboardPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '12px 16px',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      padding: '12px clamp(10px, 2.5vw, 16px)',
                       borderRadius: 12,
                       background: 'var(--neu-bg-raised)',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: '1 1 200px' }}>
                       <input
                         type="checkbox"
                         checked={t.status === 'COMPLETED'}
@@ -569,18 +581,19 @@ export default function OnboardPage() {
                           taskId: t.id,
                           status: e.target.checked ? 'COMPLETED' : 'PENDING'
                         })}
-                        style={{ accentColor: 'var(--accent)', width: 16, height: 16 }}
+                        style={{ accentColor: 'var(--accent)', width: 16, height: 16, flexShrink: 0 }}
                       />
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{
                           fontSize: '0.875rem',
                           fontWeight: 600,
                           color: 'var(--text-primary)',
-                          textDecoration: t.status === 'COMPLETED' ? 'line-through' : 'none'
+                          textDecoration: t.status === 'COMPLETED' ? 'line-through' : 'none',
+                          wordBreak: 'break-word',
                         }}>
                           {t.task_name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
                           [{t.category}] {t.description}
                         </div>
                       </div>
@@ -593,6 +606,7 @@ export default function OnboardPage() {
                       borderRadius: 8,
                       background: t.status === 'COMPLETED' ? 'rgba(16, 185, 129, 0.15)' : 'var(--neu-bg-deep)',
                       color: t.status === 'COMPLETED' ? '#059669' : 'var(--text-tertiary)',
+                      flexShrink: 0,
                     }}>
                       {t.status}
                     </span>
@@ -618,6 +632,7 @@ export default function OnboardPage() {
           justifyContent: 'center',
           zIndex: 9999,
           backdropFilter: 'blur(4px)',
+          padding: 16,
         }}>
           <div className="card" style={{
             width: '100%',
@@ -625,9 +640,10 @@ export default function OnboardPage() {
             background: 'var(--neu-base)',
             boxShadow: 'var(--elev-4)',
             borderRadius: 20,
-            padding: 28,
+            padding: 'clamp(16px, 4vw, 28px)',
             maxHeight: '90vh',
             overflowY: 'auto',
+            boxSizing: 'border-box',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
@@ -667,19 +683,20 @@ export default function OnboardPage() {
                 }}>
                   {generatedPortalLink}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <a
                     href={generatedPortalLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', flex: '1 1 auto', justifyContent: 'center' }}
                   >
                     Open Candidate Portal <ExternalLink size={14} />
                   </a>
                   <button
                     onClick={() => setShowOfferModal(false)}
                     className="btn btn-secondary"
+                    style={{ flex: '0 1 100px' }}
                   >
                     Done
                   </button>
@@ -703,11 +720,12 @@ export default function OnboardPage() {
                       background: 'var(--neu-bg-raised)',
                       fontSize: '0.875rem',
                       color: 'var(--text-primary)',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
                   <div>
                     <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                       Fixed Salary (₹)
@@ -724,6 +742,7 @@ export default function OnboardPage() {
                         background: 'var(--neu-bg-raised)',
                         fontSize: '0.875rem',
                         color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -744,6 +763,7 @@ export default function OnboardPage() {
                         background: 'var(--neu-bg-raised)',
                         fontSize: '0.875rem',
                         color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -764,6 +784,7 @@ export default function OnboardPage() {
                         background: 'var(--neu-bg-raised)',
                         fontSize: '0.875rem',
                         color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -776,12 +797,14 @@ export default function OnboardPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
                 }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Calculated Total CTC:</span>
                   <b style={{ fontSize: '1.05rem', color: 'var(--accent)' }}>₹{totalCtcCalc.toLocaleString('en-IN')}</b>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12 }}>
                   <div>
                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                       Joining Date
@@ -798,6 +821,7 @@ export default function OnboardPage() {
                         background: 'var(--neu-bg-raised)',
                         fontSize: '0.875rem',
                         color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -817,6 +841,7 @@ export default function OnboardPage() {
                         background: 'var(--neu-bg-raised)',
                         fontSize: '0.875rem',
                         color: 'var(--text-primary)',
+                        boxSizing: 'border-box',
                       }}
                     >
                       <option value="HYBRID">Hybrid</option>
@@ -826,11 +851,12 @@ export default function OnboardPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
                   <button
                     onClick={() => setShowOfferModal(false)}
                     className="btn btn-secondary"
                     disabled={releaseOfferMutation.isPending}
+                    style={{ flex: '1 1 100px' }}
                   >
                     Cancel
                   </button>
@@ -838,7 +864,7 @@ export default function OnboardPage() {
                     onClick={() => releaseOfferMutation.mutate()}
                     disabled={releaseOfferMutation.isPending}
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flex: '2 1 180px' }}
                   >
                     {releaseOfferMutation.isPending ? 'Releasing Offer…' : 'Confirm & Release Offer'}
                   </button>
@@ -863,6 +889,7 @@ export default function OnboardPage() {
           justifyContent: 'center',
           zIndex: 9999,
           backdropFilter: 'blur(4px)',
+          padding: 16,
         }}>
           <div className="card" style={{
             width: '100%',
@@ -870,7 +897,8 @@ export default function OnboardPage() {
             background: 'var(--neu-base)',
             boxShadow: 'var(--elev-4)',
             borderRadius: 20,
-            padding: 28,
+            padding: 'clamp(16px, 4vw, 28px)',
+            boxSizing: 'border-box',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -906,6 +934,7 @@ export default function OnboardPage() {
                     background: 'var(--neu-bg-raised)',
                     fontSize: '0.875rem',
                     color: 'var(--text-primary)',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
@@ -925,6 +954,7 @@ export default function OnboardPage() {
                     background: 'var(--neu-bg-raised)',
                     fontSize: '0.875rem',
                     color: 'var(--text-primary)',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <option value="EMPLOYEE">Employee</option>
@@ -933,11 +963,12 @@ export default function OnboardPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
                 <button
                   onClick={() => setShowConvertModal(false)}
                   className="btn btn-secondary"
                   disabled={convertEmployeeMutation.isPending}
+                  style={{ flex: '1 1 100px' }}
                 >
                   Cancel
                 </button>
@@ -945,7 +976,7 @@ export default function OnboardPage() {
                   onClick={() => convertEmployeeMutation.mutate()}
                   disabled={convertEmployeeMutation.isPending}
                   className="btn btn-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flex: '2 1 180px' }}
                 >
                   {convertEmployeeMutation.isPending ? 'Converting…' : 'Confirm Conversion'}
                 </button>

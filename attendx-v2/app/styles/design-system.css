@@ -3044,12 +3044,36 @@ p { color: var(--text-secondary); }
 
 .neu-onboard-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
+  width: 100%;
+  max-width: 100%;
 }
 @media (min-width: 769px) {
   .neu-onboard-grid {
-    grid-template-columns: 360px 1fr;
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+
+.neu-onboard-candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .neu-onboard-candidate-list {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+    gap: 12px;
+  }
+  .neu-onboard-candidate-list > .card {
+    min-width: min(85vw, 300px);
+    max-width: 320px;
+    flex-shrink: 0;
   }
 }
 
