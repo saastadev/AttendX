@@ -55,5 +55,10 @@ export function getSupabaseServiceClient(): SupabaseClient {
 
 export function isDevMockSupabase(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return url.includes('attendx-dev.supabase.co') || url.includes('dummy') || process.env.ATTENDX_OFFLINE_MODE === 'true'
+  return (
+    url.includes('attendx-dev.supabase.co') ||
+    url.includes('dummy') ||
+    process.env.ATTENDX_OFFLINE_MODE === 'true' ||
+    process.env.ATTENDX_MOCK_STORE === 'true'
+  )
 }

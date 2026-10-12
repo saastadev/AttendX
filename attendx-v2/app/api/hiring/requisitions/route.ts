@@ -6,9 +6,8 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { RequisitionService } from '@/lib/hiring/requisition-service'
-import { mockHiringStore } from '@/lib/hiring/mock-store'
 
 export async function GET(request: Request) {
   try {
@@ -27,27 +26,28 @@ export async function GET(request: Request) {
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
     }
 
-    try {
-      const serviceClient = getSupabaseServiceClient()
-      const result = await RequisitionService.list(serviceClient, caller.tenantId, filters)
-      const list = result.data || []
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listRequisitions(caller.tenantId, filters)
       return NextResponse.json({
-        requisitions: list,
-        data: list,
-        total: result.total ?? list.length,
-        page: result.page ?? 1,
-        limit: result.limit ?? 20,
-      })
-    } catch {
-      const result = mockHiringStore.listRequisitions(caller.tenantId, filters)
-      return NextResponse.json({
-        requisitions: result.data,
-        data: result.data,
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
+        requisitions: mockResult.data,
+        data: mockResult.data,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
       })
     }
+
+    const serviceClient = getSupabaseServiceClient()
+    const result = await RequisitionService.list(serviceClient, caller.tenantId, filters)
+    const list = result.data || []
+    return NextResponse.json({
+      requisitions: list,
+      data: list,
+      total: result.total ?? list.length,
+      page: result.page ?? 1,
+      limit: result.limit ?? 20,
+    })
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
@@ -71,20 +71,21 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
 
-    try {
-      const serviceClient = getSupabaseServiceClient()
-      const requisition = await RequisitionService.create(
-        serviceClient,
-        caller.tenantId,
-        caller.userId,
-        body,
-        { ip, userAgent }
-      )
-      return NextResponse.json(requisition, { status: 201 })
-    } catch {
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
       const requisition = mockHiringStore.createRequisition(caller.tenantId, body)
       return NextResponse.json(requisition, { status: 201 })
     }
+
+    const serviceClient = getSupabaseServiceClient()
+    const requisition = await RequisitionService.create(
+      serviceClient,
+      caller.tenantId,
+      caller.userId,
+      body,
+      { ip, userAgent }
+    )
+    return NextResponse.json(requisition, { status: 201 })
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })

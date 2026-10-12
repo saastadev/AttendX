@@ -10,10 +10,10 @@
 
 import crypto from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringStateMachine } from './state-machine'
-import { HiringAuditLogger } from './audit-logger'
-import { EmailProviderFactory } from './email-provider'
-import { TemplateEngine } from './template-engine'
+import { HiringStateMachine } from './state-machine.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
+import { EmailProviderFactory } from './email-provider.ts'
+import { TemplateEngine } from './template-engine.ts'
 import type { UserRole } from '@/types/database'
 
 export interface CreateOfferInput {
@@ -141,7 +141,7 @@ export class OfferService {
   ) {
     const { data: offer, error: fetchErr } = await client
       .from('job_offers')
-      .select('*, candidate:candidates!candidate_id(id, full_name, email, phone), application:job_applications!application_id(id, stage, application_code)')
+      .select('*, candidate:candidates!candidate_id(id, first_name, last_name, email, phone), application:job_applications!application_id(id, stage, application_code)')
       .eq('id', offerId)
       .eq('organization_id', organizationId)
       .single()
@@ -209,11 +209,12 @@ export class OfferService {
     // 4. Send notification email to candidate
     const portalUrl = `${portalBaseUrl}/offer-portal/${rawToken}`
     if (offer.candidate?.email) {
+      const candName = `${offer.candidate.first_name || ''} ${offer.candidate.last_name || ''}`.trim() || 'Candidate'
       const emailProvider = EmailProviderFactory.getProvider()
       const emailBody = TemplateEngine.render(
         'Dear {{candidate_name}},\n\nWe are delighted to extend an offer for the position of {{designation}} at AttendX!\n\nPlease review your formal offer letter and confirm your decision by visiting your secure candidate portal:\n{{portal_url}}\n\nThis secure link is valid for 7 days (until {{expires_at}}).\n\nWarm regards,\nTalent Acquisition Team',
         {
-          candidate_name: offer.candidate.full_name,
+          candidate_name: candName,
           designation: offer.designation,
           portal_url: portalUrl,
           expires_at: new Date(expiresAt).toLocaleDateString(),
@@ -327,7 +328,7 @@ export class OfferService {
         .update({
           status: 'ACCEPTED',
           accepted_at: nowIso,
-          e_ack_name: input.e_ack_name || candidate.full_name,
+          e_ack_name: input.e_ack_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate',
           e_ack_timestamp: nowIso,
           e_ack_ip: input.ip_address || '127.0.0.1',
         })
@@ -400,6 +401,7 @@ export class OfferService {
             task_name: task.name,
             description: task.desc,
             status: 'PENDING',
+            is_required: true,
           })
         }
       }
@@ -414,7 +416,14 @@ export class OfferService {
         user_agent: input.user_agent,
       })
 
-      return { success: true, decision: 'ACCEPT', nextStage }
+      return {
+        success: true,
+        decision: 'ACCEPT',
+        status: 'ACCEPTED',
+        stage: nextStage,
+        nextStage,
+        onboarding_id: onboarding?.id,
+      }
     } else {
       // DECLINE
       await client
@@ -449,7 +458,13 @@ export class OfferService {
         metadata: { decision: 'DECLINE', reason: input.decline_reason },
       })
 
-      return { success: true, decision: 'DECLINE', nextStage }
+      return {
+        success: true,
+        decision: 'DECLINE',
+        status: 'DECLINED',
+        stage: nextStage,
+        nextStage,
+      }
     }
   }
 }

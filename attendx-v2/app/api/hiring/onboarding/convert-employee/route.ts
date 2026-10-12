@@ -6,8 +6,8 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
-import { OnboardingService } from '@/lib/hiring/onboarding-service'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
+import { OnboardingService, JoiningReadinessError } from '@/lib/hiring/onboarding-service'
 import type { UserRole } from '@/types/database'
 
 export async function POST(request: Request) {
@@ -28,6 +28,12 @@ export async function POST(request: Request) {
 
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const result = mockHiringStore.convertToEmployee(caller.tenantId, onboarding_id, body)
+      return NextResponse.json(result)
+    }
 
     const serviceClient = getSupabaseServiceClient()
     const result = await OnboardingService.convertToEmployee(
@@ -50,6 +56,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (err: any) {
     const status = err.status || 500
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
+    return NextResponse.json({
+      error: err.message || 'Internal server error',
+      code: err.code || (status === 400 ? 'BAD_REQUEST' : status === 403 ? 'FORBIDDEN' : status === 404 ? 'NOT_FOUND' : 'INTERNAL_ERROR'),
+      ...(err.readiness ? { readiness: err.readiness } : {}),
+    }, { status })
   }
 }

@@ -418,3 +418,121 @@ export interface HiringAiRecommendation {
   model_version?: string | null
   created_at: string
 }
+
+export type CandidateAssessmentStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'EVALUATED' | 'EXPIRED'
+
+export interface AssessmentQuestion {
+  id: string
+  question_text: string
+  question_type: 'MULTIPLE_CHOICE' | 'TEXT' | 'CODE'
+  options?: string[]
+  correct_option_index?: number
+  rubric_keywords?: string[]
+  points: number
+}
+
+export interface Assessment {
+  id: string
+  organization_id: string
+  requisition_id?: string | null
+  title: string
+  description?: string | null
+  time_limit_minutes: number
+  passing_score: number
+  questions: AssessmentQuestion[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CandidateAssessment {
+  id: string
+  organization_id: string
+  assessment_id: string
+  candidate_id: string
+  application_id?: string | null
+  status: CandidateAssessmentStatus
+  answers: Record<string, any>
+  score?: number | null
+  passed?: boolean | null
+  ai_evaluation: Record<string, any>
+  started_at?: string | null
+  submitted_at?: string | null
+  evaluated_at?: string | null
+  created_at: string
+  // Joins
+  assessment?: Assessment
+  candidate?: Candidate
+  application?: JobApplication
+}
+
+// ------------------------------------------------------------
+// Voice AI Calling Types (Module 4.4)
+// ------------------------------------------------------------
+export type VoiceCallPurpose = 'SCREENING' | 'SCHEDULING' | 'FOLLOW_UP'
+export type VoiceCallStatus = 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'BUSY' | 'NO_ANSWER' | 'FAILED'
+export type VoiceCallSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'MIXED'
+export type VoiceCallProviderType = 'VAPI' | 'TWILIO' | 'MOCK'
+
+export interface VoiceCallExtractedData {
+  currentCtc?: number | null
+  expectedCtc?: number | null
+  noticePeriodDays?: number | null
+  relevantExperienceYears?: number | null
+  currentRole?: string | null
+  location?: string | null
+  workModePreference?: 'REMOTE' | 'HYBRID' | 'ONSITE' | null
+  candidateInterestLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null
+  keyStrengths?: string[]
+  skillHighlights?: string[]
+  candidateQuestions?: string[]
+  screeningResponses?: Record<string, string>
+  [key: string]: any
+}
+
+export interface VoiceCallDimensionScore {
+  score: number
+  weight: number
+  reasoning: string
+}
+
+export interface VoiceCallScoreBreakdown {
+  skill_relevance: VoiceCallDimensionScore
+  role_relevance: VoiceCallDimensionScore
+  communication: VoiceCallDimensionScore
+  experience: VoiceCallDimensionScore
+  availability_fit: VoiceCallDimensionScore
+  overall_score: number
+  reasoning: string[]
+}
+
+export interface AiVoiceCall {
+  id: string
+  organization_id: string
+  candidate_id: string
+  requisition_id?: string | null
+  application_id?: string | null
+  call_provider: VoiceCallProviderType
+  provider_call_id?: string | null
+  phone_number: string
+  call_purpose: VoiceCallPurpose
+  status: VoiceCallStatus
+  duration_seconds: number
+  recording_url?: string | null
+  transcript?: string | null
+  ai_summary?: string | null
+  overall_score?: number | null
+  sentiment?: VoiceCallSentiment | null
+  sentiment_confidence?: number | null
+  extracted_data: VoiceCallExtractedData
+  model_name?: string | null
+  model_version?: string | null
+  webhook_verified: boolean
+  created_at: string
+  updated_at: string
+  // Joins
+  candidate?: Candidate
+  requisition?: JobRequisition
+  application?: JobApplication
+}
+
