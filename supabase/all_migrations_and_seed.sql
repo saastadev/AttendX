@@ -1,3 +1,12 @@
+-- ==========================================================================
+-- AttendX v2 — Complete Consolidated Supabase PostgreSQL Database Script
+-- Clean UTF-8 without BOM. Compatible with Supabase SQL Editor & psql.
+-- ==========================================================================
+
+-- ==========================================================================
+-- SECTION: 001_initial_schema.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Initial Schema Migration
 -- Run against a fresh Supabase project (Postgres 15+)
@@ -897,6 +906,11 @@ $$;
 CREATE TRIGGER trg_refresh_leaderboard
   AFTER INSERT ON recognition_events
   FOR EACH STATEMENT EXECUTE FUNCTION refresh_leaderboard();
+
+-- ==========================================================================
+-- SECTION: 002_rls_policies.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Row-Level Security Policies
 -- Run after 001_initial_schema.sql
@@ -1549,6 +1563,11 @@ CREATE POLICY "offline_log_self" ON offline_sync_log
 
 CREATE POLICY "offline_log_service" ON offline_sync_log
   FOR ALL USING (auth.role() = 'service_role');
+
+-- ==========================================================================
+-- SECTION: 003_rls_hardening.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — RLS Hardening
 -- Run after 002_rls_policies.sql
@@ -1752,6 +1771,11 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
   END LOOP;
 END $$;
+
+-- ==========================================================================
+-- SECTION: 004_audit_triggers.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Migration 004: Audit Triggers & Hardening
 -- Automatically writes changes on privileged tables to audit_log
@@ -1869,6 +1893,11 @@ DROP TRIGGER IF EXISTS trg_audit_employees ON employees;
 CREATE TRIGGER trg_audit_employees
   AFTER INSERT OR UPDATE OR DELETE ON employees
   FOR EACH ROW EXECUTE FUNCTION public.fn_audit_log_trigger();
+
+-- ==========================================================================
+-- SECTION: 005_tenants_public_slug_read.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Migration 005: Allow Public Tenant Slug Lookup
 -- Allows unauthenticated signup forms to query tenant by slug
@@ -1879,6 +1908,11 @@ DROP POLICY IF EXISTS "tenants_public_slug_read" ON tenants;
 CREATE POLICY "tenants_public_slug_read" ON tenants
   FOR SELECT
   USING (true);
+
+-- ==========================================================================
+-- SECTION: 006_auth_user_trigger.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Migration 006: Auto-Create Profile & User Role
 -- Safe trigger that never fails or blocks auth.users operations
@@ -1947,7 +1981,12 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-﻿-- ============================================================
+
+-- ==========================================================================
+-- SECTION: 007_admin_provisioning.sql
+-- ==========================================================================
+
+-- ============================================================
 -- AttendX v2 — Migration 007: Admin Provisioning & Glance View
 -- ============================================================
 
@@ -2097,66 +2136,11 @@ REVOKE ALL ON FUNCTION public.admin_attendance_glance(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_attendance_glance(UUID) TO service_role;
 REVOKE ALL ON FUNCTION public.admin_provision_employee(UUID,UUID,TEXT,TEXT,user_role,UUID,UUID,DATE,UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_provision_employee(UUID,UUID,TEXT,TEXT,user_role,UUID,UUID,DATE,UUID) TO service_role;
--- ============================================================
--- AttendX v2 — Migration 007: Announcements & Notifications Tables
--- ============================================================
 
--- 1. ANNOUNCEMENTS TABLE
-CREATE TABLE IF NOT EXISTS public.announcements (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  body TEXT NOT NULL,
-  cta_label TEXT,
-  cta_url TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- ==========================================================================
+-- SECTION: 008_invites_and_unified_auth.sql
+-- ==========================================================================
 
--- 2. ANNOUNCEMENT DISMISSALS TABLE
-CREATE TABLE IF NOT EXISTS public.announcement_dismissals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  announcement_id UUID REFERENCES public.announcements(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (announcement_id, user_id)
-);
-
--- 3. NOTIFICATIONS TABLE
-CREATE TABLE IF NOT EXISTS public.notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  body TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'SYSTEM',
-  is_read BOOLEAN NOT NULL DEFAULT FALSE,
-  link_url TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- RLS Enablement
-ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.announcement_dismissals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.announcements FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.announcement_dismissals FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications FORCE ROW LEVEL SECURITY;
-
--- RLS Policies
-DROP POLICY IF EXISTS "announcements_read_tenant" ON public.announcements;
-CREATE POLICY "announcements_read_tenant" ON public.announcements
-  FOR SELECT USING (tenant_id = get_my_tenant_id() OR auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "announcement_dismissals_self" ON public.announcement_dismissals;
-CREATE POLICY "announcement_dismissals_self" ON public.announcement_dismissals
-  FOR ALL USING (user_id = auth.uid());
-
-DROP POLICY IF EXISTS "notifications_read_self" ON public.notifications;
-CREATE POLICY "notifications_read_self" ON public.notifications
-  FOR SELECT USING (user_id = auth.uid());
 -- ============================================================
 -- AttendX v2 — Migration 008: Invites and Unified Authentication
 -- Implements single-use cryptographic invite tokens & verification
@@ -2341,6 +2325,11 @@ BEGIN
   );
 END;
 $$;
+
+-- ==========================================================================
+-- SECTION: 009_first_login_password_change.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 009_first_login_password_change.sql
 -- Scope A (Part 2): First-Login Password Change & Anti-Tampering
@@ -2374,6 +2363,11 @@ CREATE TRIGGER trg_guard_profile_onboarding
 -- 3. Audit log trigger extension for password changes during onboarding
 COMMENT ON COLUMN public.profiles.onboarding_completed IS 
   'Flag indicating whether the user has completed forced first-login password change.';
+
+-- ==========================================================================
+-- SECTION: 010_session_management_hardening.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 010_session_management_hardening.sql
 -- Scope A (Part 3): Session Management, Device Tracking & Revocation
@@ -2453,6 +2447,11 @@ CREATE POLICY active_sessions_service_modify ON public.active_sessions
   TO authenticated
   USING (current_setting('request.jwt.claim.role', true) = 'service_role')
   WITH CHECK (current_setting('request.jwt.claim.role', true) = 'service_role');
+
+-- ==========================================================================
+-- SECTION: 011_inactive_accounts_and_deactivation.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 011_inactive_accounts_and_deactivation.sql
 -- Scope A (Part 4) & Scope B.12: Inactive Accounts & Deactivation
@@ -2673,6 +2672,11 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- ==========================================================================
+-- SECTION: 012_session_edge_cases_and_token_security.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 012_session_edge_cases_and_token_security.sql
 -- Scope A (Part 5) & Scope E.27: Session Edge Cases & Token Security
@@ -2790,6 +2794,11 @@ CREATE TRIGGER trg_profiles_deactivation_change
   AFTER UPDATE OF is_active ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_handle_user_authorization_change();
+
+-- ==========================================================================
+-- SECTION: 013_admin_provisioning_hardening.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 013_admin_provisioning_hardening.sql
 -- Scope B (Specs 07-12): Admin Provisioning, Atomic Seat Limit & Rollback RPC
@@ -2913,6 +2922,11 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_provision_employee_v2 FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_provision_employee_v2 TO service_role;
+
+-- ==========================================================================
+-- SECTION: 014_multi_tenant_switcher_rpc.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX Migration: 014_multi_tenant_switcher_rpc.sql
 -- Scope C (Specs 13-14): Multi-Tenant Switcher & Membership Validation
@@ -2992,6 +3006,11 @@ $$;
 
 REVOKE ALL ON FUNCTION public.validate_tenant_membership(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.validate_tenant_membership(UUID, UUID) TO service_role;
+
+-- ==========================================================================
+-- SECTION: 016_canonical_reporting_rpcs.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Migration 016: Canonical Data Engine Reporting RPCs
 -- Spec: docs/specs/29_31_ai_data_engine_handoff_spec.md (BRD §30)
@@ -3052,6 +3071,11 @@ $$;
 REVOKE ALL ON FUNCTION public.admin_attendance_glance(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_attendance_glance(UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION public.admin_attendance_glance(UUID) TO authenticated;
+
+-- ==========================================================================
+-- SECTION: 001_seed_data.sql
+-- ==========================================================================
+
 -- ============================================================
 -- AttendX v2 — Seed Data
 -- 3 Tenants × 5 roles each + realistic multi-tenant data

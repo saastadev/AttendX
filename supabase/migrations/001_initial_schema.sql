@@ -82,31 +82,66 @@ END
 $shim$;
 
 -- ============================================================
--- ENUMS
+-- ENUMS (Idempotent creation)
 -- ============================================================
 
-CREATE TYPE user_role AS ENUM ('SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE');
-CREATE TYPE attendance_status AS ENUM ('PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'ON_LEAVE', 'HOLIDAY', 'WEEKEND');
-CREATE TYPE attendance_method AS ENUM ('SELFIE_GPS', 'MANUAL', 'CORRECTION');
-CREATE TYPE leave_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'WITHDRAWN');
-CREATE TYPE case_status AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REOPENED');
-CREATE TYPE case_priority AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
-CREATE TYPE review_cycle_status AS ENUM ('DRAFT', 'ACTIVE', 'SELF_REVIEW', 'MANAGER_REVIEW', 'COMPLETED', 'CANCELLED');
-CREATE TYPE notification_type AS ENUM (
-  'LEAVE_REQUEST', 'LEAVE_APPROVED', 'LEAVE_REJECTED',
-  'CORRECTION_REQUEST', 'CORRECTION_APPROVED', 'CORRECTION_REJECTED',
-  'CASE_UPDATE', 'CASE_ASSIGNED', 'CASE_RESOLVED',
-  'PERFORMANCE_REVIEW', 'GOAL_ASSIGNED', 'REVIEW_DUE',
-  'RECOGNITION_RECEIVED', 'BADGE_EARNED',
-  'ANNOUNCEMENT', 'SYSTEM'
-);
-CREATE TYPE offline_sync_status AS ENUM ('PENDING', 'SYNCED', 'FAILED');
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE attendance_status AS ENUM ('PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'ON_LEAVE', 'HOLIDAY', 'WEEKEND');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE attendance_method AS ENUM ('SELFIE_GPS', 'MANUAL', 'CORRECTION');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE leave_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'WITHDRAWN');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE case_status AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REOPENED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE case_priority AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE review_cycle_status AS ENUM ('DRAFT', 'ACTIVE', 'SELF_REVIEW', 'MANAGER_REVIEW', 'COMPLETED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE notification_type AS ENUM (
+    'LEAVE_REQUEST', 'LEAVE_APPROVED', 'LEAVE_REJECTED',
+    'CORRECTION_REQUEST', 'CORRECTION_APPROVED', 'CORRECTION_REJECTED',
+    'CASE_UPDATE', 'CASE_ASSIGNED', 'CASE_RESOLVED',
+    'PERFORMANCE_REVIEW', 'GOAL_ASSIGNED', 'REVIEW_DUE',
+    'RECOGNITION_RECEIVED', 'BADGE_EARNED',
+    'ANNOUNCEMENT', 'SYSTEM'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE offline_sync_status AS ENUM ('PENDING', 'SYNCED', 'FAILED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- TENANTS (Organizations)
 -- ============================================================
 
-CREATE TABLE tenants (
+CREATE TABLE IF NOT EXISTS tenants (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name          TEXT NOT NULL,
   slug          TEXT NOT NULL UNIQUE,            -- URL-safe identifier
@@ -130,11 +165,20 @@ CREATE TABLE tenants (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on tenants for column-level idempotency
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS accent_color TEXT NOT NULL DEFAULT '#6C63FF';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS app_name TEXT NOT NULL DEFAULT 'AttendX';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS features JSONB NOT NULL DEFAULT '{"copilot": true, "face_checkin": true, "skill_gap": true}'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'standard';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_employees INT NOT NULL DEFAULT 500;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'UTC';
+
 -- ============================================================
 -- USER PROFILES (shadow of auth.users)
 -- ============================================================
 
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   email         TEXT NOT NULL,
@@ -149,11 +193,19 @@ CREATE TABLE profiles (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on profiles for column-level idempotency
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS face_enrolled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+
 -- ============================================================
 -- USER ROLES (RBAC — never trust client-supplied role)
 -- ============================================================
 
-CREATE TABLE user_roles (
+CREATE TABLE IF NOT EXISTS user_roles (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -163,12 +215,16 @@ CREATE TABLE user_roles (
   UNIQUE (user_id, tenant_id)
 );
 
+-- Back-fill columns on user_roles for column-level idempotency
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS assigned_by UUID REFERENCES auth.users(id);
+ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ DEFAULT NOW();
+
 -- Helper function — get the calling user's tenant_id (used in RLS policies)
 CREATE OR REPLACE FUNCTION get_my_tenant_id()
 RETURNS UUID
 LANGUAGE SQL STABLE SECURITY DEFINER
 AS $$
-  SELECT tenant_id FROM user_roles WHERE user_id = auth.uid() LIMIT 1;
+  SELECT tenant_id FROM profiles WHERE id = auth.uid() LIMIT 1;
 $$;
 
 -- Helper function — get the calling user's role
@@ -216,7 +272,7 @@ $$;
 -- DEPARTMENTS
 -- ============================================================
 
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -226,11 +282,15 @@ CREATE TABLE departments (
   UNIQUE (tenant_id, name)
 );
 
+-- Back-fill columns on departments for column-level idempotency
+ALTER TABLE public.departments ADD COLUMN IF NOT EXISTS head_id UUID REFERENCES auth.users(id);
+ALTER TABLE public.departments ADD COLUMN IF NOT EXISTS description TEXT;
+
 -- ============================================================
 -- DESIGNATIONS / JOB TITLES
 -- ============================================================
 
-CREATE TABLE designations (
+CREATE TABLE IF NOT EXISTS designations (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
@@ -239,11 +299,14 @@ CREATE TABLE designations (
   UNIQUE (tenant_id, name)
 );
 
+-- Back-fill columns on designations for column-level idempotency
+ALTER TABLE public.designations ADD COLUMN IF NOT EXISTS level INT NOT NULL DEFAULT 1;
+
 -- ============================================================
 -- EMPLOYEES (extends profiles)
 -- ============================================================
 
-CREATE TABLE employees (
+CREATE TABLE IF NOT EXISTS employees (
   id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_code   TEXT NOT NULL,
@@ -256,6 +319,7 @@ CREATE TABLE employees (
   employment_type TEXT NOT NULL DEFAULT 'FULL_TIME',  -- FULL_TIME, PART_TIME, CONTRACT
   work_location   TEXT,
   shift_id        UUID,                               -- FK added after shifts table
+  status          TEXT NOT NULL DEFAULT 'ACTIVE',     -- ACTIVE, INACTIVE, TERMINATED, ON_LEAVE
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (tenant_id, employee_code)
@@ -265,7 +329,7 @@ CREATE TABLE employees (
 -- SHIFTS
 -- ============================================================
 
-CREATE TABLE shifts (
+CREATE TABLE IF NOT EXISTS shifts (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
@@ -276,15 +340,25 @@ CREATE TABLE shifts (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Back-fill FK from employees to shifts
-ALTER TABLE employees ADD CONSTRAINT fk_employee_shift
-  FOREIGN KEY (shift_id) REFERENCES shifts(id);
+-- Back-fill columns & FK on employees for column-level idempotency
+ALTER TABLE public.shifts ADD COLUMN IF NOT EXISTS break_minutes INT NOT NULL DEFAULT 60;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS shift_id UUID REFERENCES shifts(id);
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS employment_type TEXT NOT NULL DEFAULT 'FULL_TIME';
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS work_location TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS join_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS gender TEXT;
+DO $$ BEGIN
+  UPDATE public.employees SET join_date = CURRENT_DATE WHERE join_date IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- ============================================================
 -- GEOFENCES (valid clock-in zones per tenant)
 -- ============================================================
 
-CREATE TABLE geofences (
+CREATE TABLE IF NOT EXISTS geofences (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -295,11 +369,24 @@ CREATE TABLE geofences (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on geofences for column-level idempotency
+ALTER TABLE public.geofences ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE public.geofences ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
+ALTER TABLE public.geofences ADD COLUMN IF NOT EXISTS radius_m INT DEFAULT 100;
+DO $$ BEGIN
+  UPDATE public.geofences 
+  SET lat = COALESCE(lat, latitude), 
+      lng = COALESCE(lng, longitude), 
+      radius_m = COALESCE(radius_m, radius_meters) 
+  WHERE lat IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- ============================================================
 -- ATTENDANCE RECORDS
 -- ============================================================
 
-CREATE TABLE attendance_records (
+CREATE TABLE IF NOT EXISTS attendance_records (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id     UUID NOT NULL REFERENCES auth.users(id),
@@ -330,11 +417,15 @@ CREATE TABLE attendance_records (
   UNIQUE (tenant_id, employee_id, date)
 );
 
+-- Back-fill columns on attendance_records for column-level idempotency
+ALTER TABLE public.attendance_records ADD COLUMN IF NOT EXISTS work_minutes INT DEFAULT 0;
+ALTER TABLE public.attendance_records ADD COLUMN IF NOT EXISTS break_minutes INT DEFAULT 0;
+
 -- ============================================================
 -- ATTENDANCE CORRECTIONS
 -- ============================================================
 
-CREATE TABLE attendance_corrections (
+CREATE TABLE IF NOT EXISTS attendance_corrections (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   attendance_id   UUID REFERENCES attendance_records(id),
@@ -353,7 +444,7 @@ CREATE TABLE attendance_corrections (
 -- BREAKS (within an attendance record)
 -- ============================================================
 
-CREATE TABLE breaks (
+CREATE TABLE IF NOT EXISTS breaks (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   attendance_id   UUID NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE,
@@ -363,11 +454,24 @@ CREATE TABLE breaks (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on breaks for column-level idempotency
+ALTER TABLE public.breaks ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE public.breaks ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.breaks ADD COLUMN IF NOT EXISTS end_at TIMESTAMPTZ;
+ALTER TABLE public.breaks ADD COLUMN IF NOT EXISTS duration_minutes INT;
+DO $$ BEGIN
+  UPDATE public.breaks b 
+  SET tenant_id = a.tenant_id 
+  FROM public.attendance_records a 
+  WHERE b.attendance_id = a.id AND b.tenant_id IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- ============================================================
 -- LEAVE TYPES
 -- ============================================================
 
-CREATE TABLE leave_types (
+CREATE TABLE IF NOT EXISTS leave_types (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id        UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name             TEXT NOT NULL,
@@ -386,7 +490,7 @@ CREATE TABLE leave_types (
 -- LEAVE BALANCES
 -- ============================================================
 
-CREATE TABLE leave_balances (
+CREATE TABLE IF NOT EXISTS leave_balances (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id   UUID NOT NULL REFERENCES auth.users(id),
@@ -405,7 +509,7 @@ CREATE TABLE leave_balances (
 -- LEAVE APPLICATIONS
 -- ============================================================
 
-CREATE TABLE leaves (
+CREATE TABLE IF NOT EXISTS leaves (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id     UUID NOT NULL REFERENCES auth.users(id),
@@ -433,7 +537,7 @@ CREATE TABLE leaves (
 -- HOLIDAY CALENDAR
 -- ============================================================
 
-CREATE TABLE holidays (
+CREATE TABLE IF NOT EXISTS holidays (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -447,7 +551,7 @@ CREATE TABLE holidays (
 -- PERFORMANCE REVIEW CYCLES
 -- ============================================================
 
-CREATE TABLE performance_cycles (
+CREATE TABLE IF NOT EXISTS performance_cycles (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name          TEXT NOT NULL,
@@ -465,7 +569,7 @@ CREATE TABLE performance_cycles (
 -- GOALS / KPIs
 -- ============================================================
 
-CREATE TABLE goals (
+CREATE TABLE IF NOT EXISTS goals (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   cycle_id      UUID NOT NULL REFERENCES performance_cycles(id),
@@ -487,7 +591,7 @@ CREATE TABLE goals (
 -- SELF REVIEWS
 -- ============================================================
 
-CREATE TABLE self_reviews (
+CREATE TABLE IF NOT EXISTS self_reviews (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   cycle_id      UUID NOT NULL REFERENCES performance_cycles(id),
@@ -506,7 +610,7 @@ CREATE TABLE self_reviews (
 -- MANAGER REVIEWS
 -- ============================================================
 
-CREATE TABLE manager_reviews (
+CREATE TABLE IF NOT EXISTS manager_reviews (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   cycle_id        UUID NOT NULL REFERENCES performance_cycles(id),
@@ -534,7 +638,7 @@ CREATE TABLE manager_reviews (
 -- RECOGNITION CATEGORIES
 -- ============================================================
 
-CREATE TABLE recognition_categories (
+CREATE TABLE IF NOT EXISTS recognition_categories (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -549,7 +653,7 @@ CREATE TABLE recognition_categories (
 -- RECOGNITION EVENTS (peer-to-peer recognition)
 -- ============================================================
 
-CREATE TABLE recognition_events (
+CREATE TABLE IF NOT EXISTS recognition_events (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   giver_id      UUID NOT NULL REFERENCES auth.users(id),
@@ -565,7 +669,7 @@ CREATE TABLE recognition_events (
 -- RECOGNITION BADGES
 -- ============================================================
 
-CREATE TABLE recognition_badges (
+CREATE TABLE IF NOT EXISTS recognition_badges (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id   UUID NOT NULL REFERENCES auth.users(id),
@@ -577,7 +681,7 @@ CREATE TABLE recognition_badges (
 );
 
 -- Leaderboard: materialized view refreshed on every recognition_events insert
-CREATE MATERIALIZED VIEW recognition_leaderboard AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS recognition_leaderboard AS
 SELECT
   e.tenant_id,
   e.receiver_id AS employee_id,
@@ -590,13 +694,13 @@ FROM recognition_events e
 JOIN profiles p ON p.id = e.receiver_id
 GROUP BY e.tenant_id, e.receiver_id, p.full_name, p.avatar_url;
 
-CREATE UNIQUE INDEX ON recognition_leaderboard (tenant_id, employee_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_recognition_leaderboard_tenant_emp ON recognition_leaderboard (tenant_id, employee_id);
 
 -- ============================================================
 -- NOTIFICATIONS
 -- ============================================================
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   user_id     UUID NOT NULL REFERENCES auth.users(id),
@@ -610,11 +714,17 @@ CREATE TABLE notifications (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on notifications for column-level idempotency
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS deep_link TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS data JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
+
 -- ============================================================
 -- PUSH TOKENS (Web Push subscriptions)
 -- ============================================================
 
-CREATE TABLE push_tokens (
+CREATE TABLE IF NOT EXISTS push_tokens (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -630,7 +740,7 @@ CREATE TABLE push_tokens (
 -- NOTIFICATION PREFERENCES
 -- ============================================================
 
-CREATE TABLE notification_preferences (
+CREATE TABLE IF NOT EXISTS notification_preferences (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -652,7 +762,7 @@ CREATE TABLE notification_preferences (
 -- CASES / HELPDESK
 -- ============================================================
 
-CREATE TABLE cases (
+CREATE TABLE IF NOT EXISTS cases (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   case_number   SERIAL,                          -- Human-readable within tenant
@@ -672,7 +782,7 @@ CREATE TABLE cases (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE case_messages (
+CREATE TABLE IF NOT EXISTS case_messages (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   case_id     UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -682,7 +792,7 @@ CREATE TABLE case_messages (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE case_attachments (
+CREATE TABLE IF NOT EXISTS case_attachments (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   case_id     UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -699,7 +809,7 @@ CREATE TABLE case_attachments (
 -- ANNOUNCEMENTS / PROMOTIONS
 -- ============================================================
 
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   title         TEXT NOT NULL,
@@ -716,7 +826,17 @@ CREATE TABLE announcements (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE announcement_dismissals (
+-- Back-fill columns on announcements for column-level idempotency
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS cta_label TEXT;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS cta_url TEXT;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS banner_image_url TEXT;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_roles user_role[] NOT NULL DEFAULT '{EMPLOYEE,MANAGER,HR,ADMIN}'::user_role[];
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id);
+
+CREATE TABLE IF NOT EXISTS announcement_dismissals (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
   user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -724,11 +844,18 @@ CREATE TABLE announcement_dismissals (
   UNIQUE (announcement_id, user_id)
 );
 
+-- Back-fill columns on announcement_dismissals for column-level idempotency
+ALTER TABLE public.announcement_dismissals ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ DEFAULT NOW();
+DO $$ BEGIN
+  UPDATE public.announcement_dismissals SET dismissed_at = created_at WHERE dismissed_at IS NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- ============================================================
 -- SKILL EMBEDDINGS (pgvector — replaces Milvus)
 -- ============================================================
 
-CREATE TABLE skill_embeddings (
+CREATE TABLE IF NOT EXISTS skill_embeddings (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id   UUID NOT NULL REFERENCES auth.users(id),
@@ -739,9 +866,19 @@ CREATE TABLE skill_embeddings (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Back-fill columns on skill_embeddings for column-level idempotency
+ALTER TABLE public.skill_embeddings ADD COLUMN IF NOT EXISTS employee_id UUID REFERENCES auth.users(id);
+ALTER TABLE public.skill_embeddings ADD COLUMN IF NOT EXISTS skill_text TEXT;
+ALTER TABLE public.skill_embeddings ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'profile';
+ALTER TABLE public.skill_embeddings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+DO $$ BEGIN
+  UPDATE public.skill_embeddings SET skill_text = content WHERE skill_text IS NULL AND content IS NOT NULL;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- Approximate nearest-neighbor index (IVFFlat for speed at scale)
 DO $$ BEGIN
-  CREATE INDEX idx_skill_embeddings_vec ON skill_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+  CREATE INDEX IF NOT EXISTS idx_skill_embeddings_vec ON skill_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'ivfflat index skipped (vector extension not loaded)';
 END $$;
@@ -750,7 +887,7 @@ END $$;
 -- ATTRITION RISK SCORES
 -- ============================================================
 
-CREATE TABLE attrition_risk_scores (
+CREATE TABLE IF NOT EXISTS attrition_risk_scores (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   employee_id   UUID NOT NULL REFERENCES auth.users(id),
@@ -765,7 +902,7 @@ CREATE TABLE attrition_risk_scores (
 -- AUDIT LOG
 -- ============================================================
 
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID REFERENCES tenants(id),
   actor_id    UUID REFERENCES auth.users(id),
@@ -783,7 +920,7 @@ CREATE TABLE audit_log (
 -- ACTIVE SESSIONS (device/session management)
 -- ============================================================
 
-CREATE TABLE active_sessions (
+CREATE TABLE IF NOT EXISTS active_sessions (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -807,7 +944,7 @@ CREATE TABLE active_sessions (
 -- ONBOARDING STATE
 -- ============================================================
 
-CREATE TABLE onboarding_state (
+CREATE TABLE IF NOT EXISTS onboarding_state (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id           UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -824,7 +961,7 @@ CREATE TABLE onboarding_state (
 -- Server copy for audit / deduplication on sync
 -- ============================================================
 
-CREATE TABLE offline_sync_log (
+CREATE TABLE IF NOT EXISTS offline_sync_log (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   user_id       UUID NOT NULL REFERENCES auth.users(id),
@@ -843,24 +980,24 @@ CREATE TABLE offline_sync_log (
 -- INDEXES (performance critical)
 -- ============================================================
 
-CREATE INDEX idx_profiles_tenant ON profiles(tenant_id);
-CREATE INDEX idx_user_roles_user ON user_roles(user_id);
-CREATE INDEX idx_user_roles_tenant ON user_roles(tenant_id);
-CREATE INDEX idx_employees_tenant ON employees(tenant_id);
-CREATE INDEX idx_employees_manager ON employees(manager_id);
-CREATE INDEX idx_employees_dept ON employees(department_id);
-CREATE INDEX idx_attendance_employee_date ON attendance_records(employee_id, date DESC);
-CREATE INDEX idx_attendance_tenant_date ON attendance_records(tenant_id, date DESC);
-CREATE INDEX idx_leaves_employee ON leaves(employee_id, status);
-CREATE INDEX idx_leaves_reviewer ON leaves(reviewed_by);
-CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
-CREATE INDEX idx_cases_tenant_status ON cases(tenant_id, status, created_at DESC);
-CREATE INDEX idx_cases_reporter ON cases(reporter_id);
-CREATE INDEX idx_cases_assignee ON cases(assignee_id);
-CREATE INDEX idx_recognition_receiver ON recognition_events(tenant_id, receiver_id);
-CREATE INDEX idx_recognition_giver ON recognition_events(giver_id);
-CREATE INDEX idx_audit_log_tenant ON audit_log(tenant_id, created_at DESC);
-CREATE INDEX idx_announcements_active ON announcements(tenant_id, is_active, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_profiles_tenant ON profiles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_tenant ON user_roles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_employees_tenant ON employees(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_employees_manager ON employees(manager_id);
+CREATE INDEX IF NOT EXISTS idx_employees_dept ON employees(department_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_employee_date ON attendance_records(employee_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_attendance_tenant_date ON attendance_records(tenant_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_leaves_employee ON leaves(employee_id, status);
+CREATE INDEX IF NOT EXISTS idx_leaves_reviewer ON leaves(reviewed_by);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cases_tenant_status ON cases(tenant_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cases_reporter ON cases(reporter_id);
+CREATE INDEX IF NOT EXISTS idx_cases_assignee ON cases(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_recognition_receiver ON recognition_events(tenant_id, receiver_id);
+CREATE INDEX IF NOT EXISTS idx_recognition_giver ON recognition_events(giver_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_tenant ON audit_log(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(tenant_id, is_active, starts_at, ends_at);
 
 -- ============================================================
 -- UPDATED_AT TRIGGERS
@@ -871,18 +1008,31 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_tenants_updated ON tenants;
 CREATE TRIGGER trg_tenants_updated BEFORE UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_profiles_updated ON profiles;
 CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_employees_updated ON employees;
 CREATE TRIGGER trg_employees_updated BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_attendance_updated ON attendance_records;
 CREATE TRIGGER trg_attendance_updated BEFORE UPDATE ON attendance_records FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_leaves_updated ON leaves;
 CREATE TRIGGER trg_leaves_updated BEFORE UPDATE ON leaves FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_leave_balances_updated ON leave_balances;
 CREATE TRIGGER trg_leave_balances_updated BEFORE UPDATE ON leave_balances FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_goals_updated ON goals;
 CREATE TRIGGER trg_goals_updated BEFORE UPDATE ON goals FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_self_reviews_updated ON self_reviews;
 CREATE TRIGGER trg_self_reviews_updated BEFORE UPDATE ON self_reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_manager_reviews_updated ON manager_reviews;
 CREATE TRIGGER trg_manager_reviews_updated BEFORE UPDATE ON manager_reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_perf_cycles_updated ON performance_cycles;
 CREATE TRIGGER trg_perf_cycles_updated BEFORE UPDATE ON performance_cycles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_cases_updated ON cases;
 CREATE TRIGGER trg_cases_updated BEFORE UPDATE ON cases FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_announcements_updated ON announcements;
 CREATE TRIGGER trg_announcements_updated BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS trg_onboarding_updated ON onboarding_state;
 CREATE TRIGGER trg_onboarding_updated BEFORE UPDATE ON onboarding_state FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Refresh leaderboard on every new recognition
@@ -894,6 +1044,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_refresh_leaderboard ON recognition_events;
 CREATE TRIGGER trg_refresh_leaderboard
   AFTER INSERT ON recognition_events
   FOR EACH STATEMENT EXECUTE FUNCTION refresh_leaderboard();
