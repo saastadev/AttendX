@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { InterviewService } from '@/lib/hiring/interview-service'
 
 export async function GET(
@@ -18,6 +18,16 @@ export async function GET(
     const caller = await ServerIdentity.getAuthoritativeCaller([
       'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
     ], request)
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const interviews = mockHiringStore.listInterviews(caller.tenantId)
+      const found = interviews.find((i: any) => i.id === id)
+      if (found) {
+        return NextResponse.json({ success: true, data: found })
+      }
+      return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
+    }
 
     const serviceClient = getSupabaseServiceClient()
     const { data: interview, error } = await serviceClient
@@ -56,6 +66,17 @@ export async function PATCH(
     const body = await request.json()
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const interview = mockHiringStore.interviews.find(i => i.id === id)
+      if (interview) {
+        if (body.status) interview.status = body.status
+        if (body.notes) interview.notes = body.notes
+        return NextResponse.json({ success: true, data: interview })
+      }
+      return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
+    }
 
     const serviceClient = getSupabaseServiceClient()
     const updated = await InterviewService.updateStatus(

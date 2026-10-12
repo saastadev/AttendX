@@ -111,6 +111,13 @@ export class HiringStateMachine {
   }
 
   /**
+   * Helper to check if a stage is terminal (cannot transition out)
+   */
+  static isTerminal(stage: string): boolean {
+    return this.getStageMeta(stage as HiringStage).isTerminal
+  }
+
+  /**
    * Maps each stage to its primary display status and pipeline column
    */
   static getStageMeta(stage: HiringStage): {

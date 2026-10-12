@@ -5,9 +5,8 @@
 // ============================================================
 
 import { NextResponse } from 'next/server'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { OfferService } from '@/lib/hiring/offer-service'
-import { mockHiringStore } from '@/lib/hiring/mock-store'
 
 export async function GET(
   request: Request,
@@ -16,80 +15,86 @@ export async function GET(
   try {
     const { token } = await params
 
-    try {
-      const serviceClient = getSupabaseServiceClient()
-      const result = await OfferService.validatePortalToken(serviceClient, token)
-      if (result.valid && result.offer) {
-        return NextResponse.json({
-          valid: true,
-          offer: {
-            id: result.offer.id,
-            offer_number: result.offer.offer_number,
-            designation: result.offer.designation,
-            work_location: result.offer.work_location,
-            work_mode: result.offer.work_mode,
-            joining_date: result.offer.joining_date,
-            probation_months: result.offer.probation_months,
-            fixed_salary: result.offer.fixed_salary,
-            variable_salary: result.offer.variable_salary,
-            bonus: result.offer.bonus,
-            total_ctc: result.offer.total_ctc,
-            benefits: result.offer.benefits,
-            terms_and_conditions: result.offer.terms_and_conditions,
-            status: result.offer.status,
-          },
-          candidate: {
-            id: result.candidate?.id,
-            full_name: result.candidate?.full_name,
-            email: result.candidate?.email,
-          },
-          requisition: {
-            title: result.requisition?.title,
-            department: result.requisition?.department,
-          },
-          expires_at: result.tokenRecord?.expires_at,
-        })
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockData = mockHiringStore.getOfferByToken(token)
+      if (!mockData || !mockData.offer) {
+        return NextResponse.json({ error: 'Invalid or expired offer link' }, { status: 404 })
       }
-    } catch {
-      // offline fallback
+      return NextResponse.json({
+        valid: true,
+        offer: {
+          id: mockData.offer.id,
+          offer_number: mockData.offer.offer_number || 'OFF-2026-001',
+          designation: mockData.offer.designation,
+          work_location: mockData.offer.work_location || 'Bengaluru, India',
+          work_mode: mockData.offer.work_mode || 'HYBRID',
+          joining_date: mockData.offer.joining_date,
+          probation_months: mockData.offer.probation_months || 3,
+          fixed_salary: mockData.offer.fixed_salary,
+          variable_salary: mockData.offer.variable_salary,
+          bonus: mockData.offer.bonus,
+          total_ctc: mockData.offer.total_ctc,
+          benefits: mockData.offer.benefits || ['Health Insurance', 'PF', 'Stock Options'],
+          terms_and_conditions: mockData.offer.terms_and_conditions || 'Standard employment agreement.',
+          status: mockData.offer.status,
+        },
+        candidate: {
+          id: mockData.candidate?.id,
+          full_name: `${mockData.candidate?.first_name || ''} ${mockData.candidate?.last_name || ''}`.trim() || 'Candidate',
+          email: mockData.candidate?.email,
+        },
+        requisition: {
+          title: mockData.requisition?.title,
+          department: mockData.requisition?.department || 'Engineering',
+        },
+        expires_at: mockData.offer.expires_at || new Date(Date.now() + 7 * 86400000).toISOString(),
+      })
     }
 
-    const mockResult = mockHiringStore.getOfferByToken(token)
-    if (!mockResult || !mockResult.offer) {
-      return NextResponse.json({ error: 'Invalid or expired offer link' }, { status: 404 })
+    const serviceClient = getSupabaseServiceClient()
+    const result = await OfferService.validatePortalToken(serviceClient, token)
+
+    if (!result.valid || !result.offer) {
+      return NextResponse.json({ error: result.error || 'Invalid or expired offer link' }, { status: 404 })
     }
+
+    const candidateFullName = result.candidate
+      ? `${result.candidate.first_name || ''} ${result.candidate.last_name || ''}`.trim()
+      : 'Candidate'
 
     return NextResponse.json({
       valid: true,
       offer: {
-        id: mockResult.offer.id,
-        offer_number: `OFF-${mockResult.offer.id}`,
-        designation: mockResult.requisition?.title || 'Senior Engineer',
-        work_location: mockResult.requisition?.location || 'Bengaluru',
-        work_mode: 'HYBRID',
-        joining_date: mockResult.offer.joining_date,
-        probation_months: 3,
-        fixed_salary: mockResult.offer.fixed_salary,
-        variable_salary: mockResult.offer.variable_salary,
-        bonus: mockResult.offer.bonus,
-        total_ctc: mockResult.offer.total_ctc,
-        benefits: 'Comprehensive Medical Insurance, Learning Allowance, Annual Wellness Stipend',
-        terms_and_conditions: mockResult.offer.terms_and_conditions,
-        status: mockResult.offer.status,
+        id: result.offer.id,
+        offer_number: result.offer.offer_number,
+        designation: result.offer.designation,
+        work_location: result.offer.work_location,
+        work_mode: result.offer.work_mode,
+        joining_date: result.offer.joining_date,
+        probation_months: result.offer.probation_months,
+        fixed_salary: result.offer.fixed_salary,
+        variable_salary: result.offer.variable_salary,
+        bonus: result.offer.bonus,
+        total_ctc: result.offer.total_ctc,
+        benefits: result.offer.benefits,
+        terms_and_conditions: result.offer.terms_and_conditions,
+        status: result.offer.status,
       },
       candidate: {
-        id: 'c-01',
-        full_name: `${mockResult.candidate?.first_name} ${mockResult.candidate?.last_name}`,
-        email: mockResult.candidate?.email,
+        id: result.candidate?.id,
+        full_name: candidateFullName,
+        email: result.candidate?.email,
       },
       requisition: {
-        title: mockResult.requisition?.title,
-        department: 'Engineering',
+        title: result.requisition?.title,
+        department: result.requisition?.department,
       },
-      expires_at: mockResult.offer.expires_at,
+      expires_at: result.tokenRecord?.expires_at,
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Error loading offer details' }, { status: 500 })
+    const status = err.status || 500
+    return NextResponse.json({ error: err.message || 'Error loading offer details' }, { status })
   }
 }
 
@@ -100,7 +105,9 @@ export async function POST(
   try {
     const { token } = await params
     const body = await request.json()
-    const { action, comments, candidate_name } = body
+    const action = body.action || body.decision
+    const comments = body.comments || body.decline_reason
+    const candidateName = body.candidate_name || body.e_ack_name || 'Candidate'
 
     if (!['ACCEPT', 'DECLINE'].includes(action)) {
       return NextResponse.json(
@@ -112,25 +119,23 @@ export async function POST(
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-OfferPortal'
 
-    try {
-      const serviceClient = getSupabaseServiceClient()
-      const result = await OfferService.respondToOffer(serviceClient, {
-        token,
-        decision: action,
-        decline_reason: comments,
-        e_ack_name: candidate_name || 'Candidate',
-        ip_address: ip,
-        user_agent: userAgent,
-      })
-      return NextResponse.json(result)
-    } catch {
-      const offer = mockHiringStore.respondOffer(token, action, candidate_name)
-      return NextResponse.json({
-        success: true,
-        message: action === 'ACCEPT' ? 'Offer accepted successfully!' : 'Offer declined.',
-        offer,
-      })
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.respondOffer(token, action, candidateName)
+      return NextResponse.json(mockResult)
     }
+
+    const serviceClient = getSupabaseServiceClient()
+    const result = await OfferService.respondToOffer(serviceClient, {
+      token,
+      decision: action,
+      decline_reason: comments,
+      e_ack_name: candidateName,
+      ip_address: ip,
+      user_agent: userAgent,
+    })
+
+    return NextResponse.json(result)
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json(

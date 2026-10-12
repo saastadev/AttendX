@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { OfferService } from '@/lib/hiring/offer-service'
 import type { UserRole } from '@/types/database'
 
@@ -22,6 +22,12 @@ export async function POST(
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
     const portalBaseUrl = new URL(request.url).origin
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.releaseOffer(caller.tenantId, id, portalBaseUrl)
+      return NextResponse.json(mockResult)
+    }
 
     const serviceClient = getSupabaseServiceClient()
     const result = await OfferService.releaseOffer(

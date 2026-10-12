@@ -5,10 +5,10 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { MeetingProviderFactory, IcsCalendarGenerator } from './meeting-provider'
-import { EmailProviderFactory, TwilioWhatsAppSmsProvider } from './email-provider'
-import { HiringAuditLogger } from './audit-logger'
-import type { Interview, InterviewRoundType, InterviewPlatform, InterviewStatus } from '../../types/hiring'
+import { MeetingProviderFactory, IcsCalendarGenerator } from './meeting-provider.ts'
+import { EmailProviderFactory, TwilioWhatsAppSmsProvider } from './email-provider.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
+import type { Interview, InterviewRoundType, InterviewPlatform, InterviewStatus } from '../../types/hiring.ts'
 
 export interface ScheduleInterviewInput {
   application_id: string

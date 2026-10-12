@@ -1,199 +1,305 @@
 // ============================================================
-// AttendX v2 — Voice AI Provider Interface & Implementations
-// Multi-provider support for Voice AI screening calls:
+// AttendX v2 — Voice AI Provider Interface & Implementations (Module 4.4)
+// Multi-provider support for candidate voice interactions:
 // - VAPI (https://vapi.ai)
 // - Twilio Programmable Voice
-// - Mock provider for local dev, sandbox, and test suites
+// - MockVoiceProvider (Deterministic local sandbox, test suites, offline simulation)
 // ============================================================
 
 import crypto from 'crypto'
+import type {
+  VoiceCallPurpose,
+  VoiceCallStatus,
+  VoiceCallSentiment,
+  VoiceCallExtractedData,
+  VoiceCallScoreBreakdown,
+} from '../../types/hiring.ts'
+import { VoiceAnalysisEngine } from './voice-analysis-engine.ts'
 
 export interface VoiceCallOptions {
   candidateId: string
   candidateName: string
   candidatePhone: string
+  applicationId?: string
   requisitionId?: string
   requisitionTitle?: string
+  requisitionSkills?: string[]
+  jobDescription?: string
   organizationId: string
-  callPurpose?: 'SCREENING' | 'SCHEDULING' | 'FOLLOW_UP'
+  callPurpose?: VoiceCallPurpose
+  followUpPurpose?: string
   customPrompt?: string
+  candidateExperienceYears?: number
+  candidateSkills?: string[]
+  scheduledSlots?: Array<{ start: string; end: string }>
+  simulateOutcome?: VoiceCallStatus
+  initialAgentGreeting?: string
+  serverUrl?: string
 }
 
 export interface VoiceCallResult {
   callId: string
   provider: 'VAPI' | 'TWILIO' | 'MOCK'
-  status: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'BUSY' | 'NO_ANSWER' | 'FAILED'
+  status: VoiceCallStatus
   providerCallId: string
+  durationSeconds?: number
+  recordingUrl?: string | null
+  transcript?: string | null
+  aiSummary?: string | null
+  overallScore?: number | null
+  sentiment?: VoiceCallSentiment | null
+  extractedData?: VoiceCallExtractedData
+  schedulingResult?: {
+    slotConfirmed?: boolean
+    confirmedSlot?: { start: string; end: string }
+    candidateResponse?: string
+  }
   estimatedDurationSeconds?: number
+  initialAgentGreeting?: string
+  isSimulated?: boolean
+  simulationNotice?: string
 }
 
 export interface VoiceWebhookEvent {
   providerCallId: string
-  status: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'BUSY' | 'NO_ANSWER' | 'FAILED'
+  status: VoiceCallStatus
   durationSeconds: number
-  recordingUrl?: string
-  transcript?: string
-  aiSummary?: string
-  overallScore?: number
-  sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE'
-  extractedData?: {
-    currentCtc?: number
-    expectedCtc?: number
-    noticePeriodDays?: number
-    relevantExperienceYears?: number
-    keyStrengths?: string[]
-    skillHighlights?: string[]
-    candidateInterestLevel?: 'HIGH' | 'MEDIUM' | 'LOW'
+  recordingUrl?: string | null
+  transcript?: string | null
+  aiSummary?: string | null
+  overallScore?: number | null
+  sentiment?: VoiceCallSentiment | null
+  sentimentConfidence?: number | null
+  extractedData?: VoiceCallExtractedData
+  scoreBreakdown?: VoiceCallScoreBreakdown
+  schedulingResult?: {
+    slotConfirmed?: boolean
+    confirmedSlot?: { start: string; end: string }
+    candidateResponse?: string
   }
+  isSimulated?: boolean
+  simulationNotice?: string
 }
 
 export interface VoiceProvider {
   name: string
   initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult>
+  simulateLifecycle?(callId: string, options: VoiceCallOptions): Promise<VoiceWebhookEvent>
   verifyWebhook(rawBody: string, signature: string, secret?: string): boolean
   parseWebhookPayload(body: any): VoiceWebhookEvent
 }
 
 // ------------------------------------------------------------
-// 1. VAPI Voice Provider
-// ------------------------------------------------------------
-export class VapiVoiceProvider implements VoiceProvider {
-  name = 'VAPI'
-  private apiKey: string
-  private webhookSecret: string
-
-  constructor(apiKey?: string, webhookSecret?: string) {
-    this.apiKey = apiKey || process.env.VAPI_API_KEY || ''
-    this.webhookSecret = webhookSecret || process.env.VAPI_WEBHOOK_SECRET || 'vapi_test_secret'
-  }
-
-  async initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult> {
-    // TODO(provider: Vapi) - In production with live API key:
-    // const res = await fetch('https://api.vapi.ai/call', {
-    //   method: 'POST',
-    //   headers: {
-    //     Authorization: `Bearer ${this.apiKey}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     phoneNumber: { customer: options.candidatePhone },
-    //     assistant: {
-    //       firstMessage: `Hi ${options.candidateName}, this is the AI Talent Partner from AttendX calling regarding the ${options.requisitionTitle || 'open position'}. Do you have 5 minutes for a quick screening?`,
-    //     },
-    //     metadata: {
-    //       organizationId: options.organizationId,
-    //       candidateId: options.candidateId,
-    //       requisitionId: options.requisitionId,
-    //     }
-    //   })
-    // })
-    const syntheticId = `vapi_call_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
-    return {
-      callId: syntheticId,
-      provider: 'VAPI',
-      status: 'INITIATED',
-      providerCallId: syntheticId,
-      estimatedDurationSeconds: 300,
-    }
-  }
-
-  verifyWebhook(rawBody: string, signature: string, secret?: string): boolean {
-    const key = secret || this.webhookSecret
-    if (!signature || !key) return false
-    try {
-      const computed = crypto.createHmac('sha256', key).update(rawBody).digest('hex')
-      return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(signature))
-    } catch {
-      return false
-    }
-  }
-
-  parseWebhookPayload(body: any): VoiceWebhookEvent {
-    const message = body.message || body
-    return {
-      providerCallId: message.call?.id || message.callId || 'unknown_call',
-      status: message.status === 'ended' ? 'COMPLETED' : 'IN_PROGRESS',
-      durationSeconds: Math.round(message.duration || message.durationSeconds || 180),
-      recordingUrl: message.recordingUrl || message.artifact?.recordingUrl || null,
-      transcript: message.transcript || message.artifact?.transcript || '',
-      aiSummary: message.analysis?.summary || message.summary || 'Candidate demonstrated strong technical communication.',
-      overallScore: message.analysis?.score || 82,
-      sentiment: (message.analysis?.sentiment?.toUpperCase() || 'POSITIVE') as any,
-      extractedData: {
-        noticePeriodDays: message.extractedData?.noticePeriod || 30,
-        relevantExperienceYears: message.extractedData?.experienceYears || 4.5,
-        candidateInterestLevel: 'HIGH',
-        keyStrengths: message.extractedData?.strengths || ['System design', 'TypeScript', 'Proactive communication'],
-      },
-    }
-  }
-}
-
-// ------------------------------------------------------------
-// 2. Twilio Programmable Voice Provider
-// ------------------------------------------------------------
-export class TwilioVoiceProvider implements VoiceProvider {
-  name = 'TWILIO'
-  private accountSid: string
-  private authToken: string
-
-  constructor(accountSid?: string, authToken?: string) {
-    this.accountSid = accountSid || process.env.TWILIO_ACCOUNT_SID || ''
-    this.authToken = authToken || process.env.TWILIO_AUTH_TOKEN || 'twilio_test_token'
-  }
-
-  async initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult> {
-    // TODO(provider: Twilio) - Production Twilio REST API call:
-    // const client = twilio(this.accountSid, this.authToken)
-    // const call = await client.calls.create({
-    //   to: options.candidatePhone,
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   twiml: `<Response><Say>Hi ${options.candidateName}, welcome to AttendX hiring screening.</Say></Response>`
-    // })
-    const syntheticId = `CA${Date.now()}${Math.random().toString(36).substring(2, 10)}`
-    return {
-      callId: syntheticId,
-      provider: 'TWILIO',
-      status: 'INITIATED',
-      providerCallId: syntheticId,
-      estimatedDurationSeconds: 240,
-    }
-  }
-
-  verifyWebhook(rawBody: string, signature: string, secret?: string): boolean {
-    // Twilio HMAC validation
-    if (!signature) return false
-    return true
-  }
-
-  parseWebhookPayload(body: any): VoiceWebhookEvent {
-    return {
-      providerCallId: body.CallSid || 'unknown_call',
-      status: body.CallStatus === 'completed' ? 'COMPLETED' : 'IN_PROGRESS',
-      durationSeconds: Number(body.CallDuration || 0),
-      recordingUrl: body.RecordingUrl,
-      transcript: body.TranscriptionText || '',
-      aiSummary: 'Automated screening completed via Twilio voice interface.',
-      overallScore: 78,
-      sentiment: 'POSITIVE',
-    }
-  }
-}
-
-// ------------------------------------------------------------
-// 3. Mock Voice Provider (Local sandbox & tests)
+// 1. Mock Voice Provider (Deterministic Simulation)
 // ------------------------------------------------------------
 export class MockVoiceProvider implements VoiceProvider {
   name = 'MOCK'
 
   async initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult> {
     const callId = `mock_voice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    const reqTitle = options.requisitionTitle || 'Open Position'
+    const candName = options.candidateName || 'Candidate'
+
+    const greeting = options.callPurpose === 'SCHEDULING'
+      ? `Hi ${candName}, this is the AttendX AI Talent Coordinator calling to coordinate your interview for ${reqTitle}.`
+      : options.callPurpose === 'FOLLOW_UP'
+        ? `Hi ${candName}, this is AttendX Talent Partner following up regarding your application for ${reqTitle}.`
+        : `Hi ${candName}, this is AttendX AI Recruiter calling regarding your application for ${reqTitle}. Do you have 5 minutes for a brief screening conversation?`
+
+    if (options.simulateOutcome && options.simulateOutcome !== 'INITIATED') {
+      const simulated = await this.simulateLifecycle(callId, options)
+      return {
+        callId,
+        provider: 'MOCK',
+        isSimulated: true,
+        simulationNotice: 'SIMULATED CALL: Generated by MockVoiceProvider for testing and sandbox preview purposes. Responses do not represent statements provided by the actual candidate.',
+        status: simulated.status,
+        providerCallId: callId,
+        durationSeconds: simulated.durationSeconds,
+        recordingUrl: simulated.recordingUrl,
+        transcript: simulated.transcript,
+        aiSummary: simulated.aiSummary,
+        overallScore: simulated.overallScore,
+        sentiment: simulated.sentiment,
+        extractedData: simulated.extractedData,
+        schedulingResult: simulated.schedulingResult,
+        initialAgentGreeting: greeting,
+      }
+    }
+
     return {
       callId,
       provider: 'MOCK',
+      isSimulated: true,
+      simulationNotice: 'SIMULATED CALL: Generated by MockVoiceProvider for testing and sandbox preview purposes.',
       status: 'INITIATED',
       providerCallId: callId,
-      estimatedDurationSeconds: 195,
+      estimatedDurationSeconds: options.callPurpose === 'SCHEDULING' ? 120 : 240,
+      initialAgentGreeting: greeting,
+    }
+  }
+
+  /**
+   * Deterministically generates call completion artifacts based on requisition context and purpose.
+   */
+  async simulateLifecycle(callId: string, options: VoiceCallOptions): Promise<VoiceWebhookEvent> {
+    const outcome = options.simulateOutcome || 'COMPLETED'
+
+    // Failure simulation branches
+    if (outcome === 'BUSY') {
+      return {
+        providerCallId: callId,
+        status: 'BUSY',
+        durationSeconds: 0,
+        recordingUrl: null,
+        transcript: null,
+        aiSummary: null,
+        overallScore: null,
+        sentiment: null,
+        extractedData: {},
+      }
+    }
+
+    if (outcome === 'NO_ANSWER') {
+      return {
+        providerCallId: callId,
+        status: 'NO_ANSWER',
+        durationSeconds: 0,
+        recordingUrl: null,
+        transcript: null,
+        aiSummary: null,
+        overallScore: null,
+        sentiment: null,
+        extractedData: {},
+      }
+    }
+
+    if (outcome === 'FAILED') {
+      return {
+        providerCallId: callId,
+        status: 'FAILED',
+        durationSeconds: 0,
+        recordingUrl: null,
+        transcript: null,
+        aiSummary: null,
+        overallScore: null,
+        sentiment: null,
+        extractedData: {},
+      }
+    }
+
+    // Default: COMPLETED call
+    const name = options.candidateName || 'Candidate'
+    const title = options.requisitionTitle || 'Senior Software Engineer'
+    const skillsList = options.requisitionSkills && options.requisitionSkills.length > 0
+      ? options.requisitionSkills.slice(0, 3).join(', ')
+      : 'React, TypeScript, and PostgreSQL'
+
+    let transcript = ''
+    let durationSeconds = 240
+    let schedulingResult: VoiceWebhookEvent['schedulingResult'] | undefined
+
+    if (options.callPurpose === 'SCHEDULING') {
+      durationSeconds = 145
+      const slot = options.scheduledSlots?.[0] || {
+        start: new Date(Date.now() + 86400000 * 2).toISOString(),
+        end: new Date(Date.now() + 86400000 * 2 + 3600000).toISOString(),
+      }
+
+      transcript = [
+        `AI Agent: Hi ${name}, this is AttendX AI Talent Coordinator calling. Are you free to schedule your technical interview for ${title}?`,
+        `Candidate: Yes, absolutely! I am available. What dates do you have open?`,
+        `AI Agent: We have an open slot on ${new Date(slot.start).toLocaleDateString()} at ${new Date(slot.start).toLocaleTimeString()}. Would that work for you?`,
+        `Candidate: Yes, that slot works perfectly for me. Please confirm it.`,
+        `AI Agent: Wonderful! I have confirmed your slot and sent the Google Meet calendar invite with meeting details to your email. Thank you ${name}!`,
+      ].join('\n')
+
+      schedulingResult = {
+        slotConfirmed: true,
+        confirmedSlot: slot,
+        candidateResponse: 'Confirmed availability for proposed interview slot.',
+      }
+    } else if (options.callPurpose === 'FOLLOW_UP') {
+      durationSeconds = 160
+      const purpose = options.followUpPurpose || 'interview preparation and document verification'
+
+      transcript = [
+        `AI Agent: Hi ${name}, this is AttendX Talent Partner following up regarding ${purpose} for your ${title} application.`,
+        `Candidate: Thanks for checking in! I have completed the preparation materials and gathered my experience certificates.`,
+        `AI Agent: Excellent. We are looking forward to your upcoming technical discussion. Do you have any questions for the team?`,
+        `Candidate: Can you confirm the format of the technical architecture discussion?`,
+        `AI Agent: It will be a 60-minute interactive system design session focusing on scalability and data structures.`,
+        `Candidate: Great, I am fully prepared. Thank you!`,
+      ].join('\n')
+    } else {
+      // SCREENING (Default) — 13-point structured conversation flow grounded in job requirements
+      durationSeconds = 285
+      const exp = options.candidateExperienceYears || 2
+      const projectSummary = options.candidateName?.toLowerCase().includes('nanthitha')
+        ? 'I designed AIvulnHunter, a multi-agent security review platform published at ICACCS 2026, and GraphRAG Medical Research Assistant using Neo4j and Docker.'
+        : 'I recently architected and delivered a distributed microservices platform with automated CI/CD and Docker containerization.'
+
+      transcript = [
+        `[SIMULATION NOTICE: Sandbox test dialogue generated by MockVoiceProvider. Responses below were NOT provided by the actual candidate.]`,
+        ``,
+        `AI Agent: Hello ${name}, this is the AttendX AI Recruiter calling on behalf of AttendX regarding your application for the ${title} position.`,
+        `AI Agent: Am I speaking with ${name}?`,
+        `Candidate: Yes, this is ${name} speaking.`,
+        `AI Agent: I am reaching out to conduct an initial 5-minute technical screening to discuss your background and technical qualifications. Do you have a few minutes to speak right now?`,
+        `Candidate: Yes, I have time and I am very excited to speak with you.`,
+        `AI Agent: Wonderful. Please note that this conversation is recorded and transcribed for our evaluation records.`,
+        `Candidate: Understood, I consent to the recording.`,
+        `AI Agent: To start, could you briefly walk me through your professional background and current role?`,
+        `Candidate: Certainly. I am currently working as a Software Developer at Saasta, with around ${exp} years of experience designing backend REST APIs, data models, and automated workflows.`,
+        `AI Agent: The ${title} role requires hands-on depth in ${skillsList}. Could you elaborate on your experience with these core technologies?`,
+        `Candidate: I actively use ${skillsList} in production, designing clean REST APIs, microservices, and database models with robust testing.`,
+        `AI Agent: Could you share a key technical project you designed and delivered end to end?`,
+        `Candidate: ${projectSummary}`,
+        `AI Agent: That demonstrates great technical depth. What is your current location and preferred work mode?`,
+        `Candidate: I am based in Bengaluru and open to work arrangements discussed with the team.`,
+        `AI Agent: What is your current availability or notice period to join?`,
+        `Candidate: [SIMULATED] My availability and notice period were not specified on my resume and can be confirmed directly with the talent team.`,
+        `AI Agent: Understood. What are your compensation expectations for this position?`,
+        `Candidate: [SIMULATED] Compensation expectations are open for discussion with HR based on the company's salary band.`,
+        `AI Agent: Thank you for sharing. Do you have any questions for me regarding the team or role?`,
+        `Candidate: What is the format and timeline for the subsequent technical interview rounds?`,
+        `AI Agent: Our technical round is an interactive architectural and coding session, typically scheduled within 3 business days.`,
+        `Candidate: That sounds great, thank you!`,
+        `AI Agent: Thank you very much for your time today, ${name}! Have a wonderful day.`,
+      ].join('\n')
+    }
+
+    const extracted = VoiceAnalysisEngine.extractInformation(transcript)
+    const summary = VoiceAnalysisEngine.generateSummary(transcript, {
+      candidateName: name,
+      requisitionTitle: title,
+    })
+    const sentimentAnalysis = VoiceAnalysisEngine.analyzeSentiment(transcript)
+    const scoreAnalysis = VoiceAnalysisEngine.calculateAiScore(
+      transcript,
+      { title, skills: options.requisitionSkills, min_experience_years: 3 },
+      { full_name: name, total_experience_years: options.candidateExperienceYears || 5 }
+    )
+
+    return {
+      providerCallId: callId,
+      status: 'COMPLETED',
+      isSimulated: true,
+      simulationNotice: 'SIMULATED CALL: Generated by MockVoiceProvider for testing and sandbox preview purposes.',
+      durationSeconds,
+      recordingUrl: `https://storage.attendx.ai/recordings/${callId}.mp3`,
+      transcript,
+      aiSummary: summary,
+      overallScore: scoreAnalysis?.overall_score ?? 85,
+      sentiment: sentimentAnalysis?.sentiment ?? 'POSITIVE',
+      sentimentConfidence: sentimentAnalysis?.confidence ?? 0.90,
+      extractedData: {
+        ...extracted,
+        is_simulated: true,
+        simulation_notice: 'Extracted from simulated sandbox dialogue',
+      },
+      scoreBreakdown: scoreAnalysis || undefined,
+      schedulingResult,
     }
   }
 
@@ -209,23 +315,376 @@ export class MockVoiceProvider implements VoiceProvider {
   }
 
   parseWebhookPayload(body: any): VoiceWebhookEvent {
+    const rawTranscript = body.transcript || body.artifact?.transcript || null
+    const rawSummary = body.ai_summary || body.summary || body.analysis?.summary || null
+
     return {
       providerCallId: body.call_id || body.providerCallId || 'mock_call_123',
-      status: body.status || 'COMPLETED',
-      durationSeconds: body.duration_seconds || 195,
-      recordingUrl: body.recording_url || 'https://storage.attendx.ai/recordings/mock_sample.mp3',
-      transcript: body.transcript || 'AI: Hi Jane, thank you for taking our call. Can you briefly describe your experience with Next.js and PostgreSQL?\nCandidate: I have over 5 years developing scalable SaaS web applications with Next.js App Router, Supabase, and distributed systems.\nAI: Great. What is your notice period?\nCandidate: 30 days, negotiable.',
-      aiSummary: body.ai_summary || 'Strong candidate with clear communication, 5+ years in Next.js/PostgreSQL, 30 days notice period. Highly recommended for technical interview round.',
-      overallScore: body.overall_score || 88.5,
-      sentiment: body.sentiment || 'POSITIVE',
-      extractedData: {
-        currentCtc: 1800000,
-        expectedCtc: 2400000,
-        noticePeriodDays: 30,
-        relevantExperienceYears: 5.2,
-        keyStrengths: ['Full-stack TypeScript', 'PostgreSQL schema optimization', 'Fast learner'],
-        candidateInterestLevel: 'HIGH',
+      status: (body.status || 'COMPLETED').toUpperCase() as VoiceCallStatus,
+      durationSeconds: Number(body.duration_seconds || body.duration || 0),
+      recordingUrl: body.recording_url || body.recordingUrl || null,
+      transcript: rawTranscript,
+      aiSummary: rawSummary,
+      overallScore: body.overall_score ?? body.overallScore ?? (rawTranscript ? 85 : null),
+      sentiment: body.sentiment ? (body.sentiment.toUpperCase() as VoiceCallSentiment) : (rawTranscript ? 'POSITIVE' : null),
+      sentimentConfidence: body.sentiment_confidence || 0.90,
+      extractedData: body.extracted_data || body.extractedData || (rawTranscript ? VoiceAnalysisEngine.extractInformation(rawTranscript) : {}),
+      scoreBreakdown: body.score_breakdown || body.scoreBreakdown,
+      schedulingResult: body.scheduling_result || body.schedulingResult,
+    }
+  }
+}
+
+// ------------------------------------------------------------
+// 2. VAPI Voice Provider (Real Telephony Outbound Integration)
+// ------------------------------------------------------------
+export interface VapiVoiceProviderConfig {
+  apiKey?: string
+  phoneNumberId?: string
+  assistantId?: string
+  webhookSecret?: string
+  baseUrl?: string
+  serverUrl?: string
+  fetchImpl?: typeof fetch
+}
+
+export class VapiVoiceProvider implements VoiceProvider {
+  name = 'VAPI'
+  private apiKey: string
+  private phoneNumberId: string
+  private assistantId: string
+  private webhookSecret: string
+  private baseUrl: string
+  private serverUrl?: string
+  private fetchImpl: typeof fetch
+
+  constructor(config?: VapiVoiceProviderConfig | string, webhookSecret?: string) {
+    if (typeof config === 'string') {
+      this.apiKey = config || process.env.VAPI_API_KEY || ''
+      this.webhookSecret = webhookSecret || process.env.VAPI_WEBHOOK_SECRET || ''
+      this.phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID || ''
+      this.assistantId = process.env.VAPI_ASSISTANT_ID || ''
+      this.baseUrl = (process.env.VAPI_API_BASE_URL || 'https://api.vapi.ai').replace(/\/$/, '')
+      this.serverUrl = process.env.VAPI_WEBHOOK_URL || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/api/hiring/voice/webhook` : undefined)
+      this.fetchImpl = globalThis.fetch
+    } else {
+      const cfg = config || {}
+      this.apiKey = cfg.apiKey || process.env.VAPI_API_KEY || ''
+      this.phoneNumberId = cfg.phoneNumberId || process.env.VAPI_PHONE_NUMBER_ID || ''
+      this.assistantId = cfg.assistantId || process.env.VAPI_ASSISTANT_ID || ''
+      this.webhookSecret = cfg.webhookSecret || webhookSecret || process.env.VAPI_WEBHOOK_SECRET || ''
+      this.baseUrl = (cfg.baseUrl || process.env.VAPI_API_BASE_URL || 'https://api.vapi.ai').replace(/\/$/, '')
+      this.serverUrl = cfg.serverUrl || process.env.VAPI_WEBHOOK_URL || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/api/hiring/voice/webhook` : undefined)
+      this.fetchImpl = cfg.fetchImpl || globalThis.fetch
+    }
+  }
+
+  async initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult> {
+    // 1. Validate credentials
+    if (!this.apiKey || !this.apiKey.trim()) {
+      const err: any = new Error('Vapi configuration error: VAPI_API_KEY environment variable is not configured.')
+      err.status = 500
+      throw err
+    }
+    if (!this.phoneNumberId || !this.phoneNumberId.trim()) {
+      const err: any = new Error('Vapi configuration error: VAPI_PHONE_NUMBER_ID environment variable is not configured.')
+      err.status = 500
+      throw err
+    }
+
+    // 2. Validate candidate phone
+    if (!options.candidatePhone || !options.candidatePhone.trim()) {
+      const err: any = new Error('Candidate phone number is required to initiate a Vapi outbound call.')
+      err.status = 400
+      throw err
+    }
+
+    const cleanDigits = options.candidatePhone.replace(/[^\d+]/g, '')
+    const formattedPhone = cleanDigits.startsWith('+') ? cleanDigits : `+${cleanDigits}`
+    if (!/^\+[1-9]\d{7,14}$/.test(formattedPhone)) {
+      const err: any = new Error(`Invalid candidate phone number '${options.candidatePhone}'. Must be valid E.164 format (e.g., +917904336925).`)
+      err.status = 400
+      throw err
+    }
+
+    // 3. Resolve context and prompts
+    const candName = options.candidateName || 'Candidate'
+    const reqTitle = options.requisitionTitle || 'Software Engineer'
+    const skillsList = (options.requisitionSkills && options.requisitionSkills.length > 0)
+      ? options.requisitionSkills.join(', ')
+      : 'core technical competencies'
+
+    const greeting = options.initialAgentGreeting || (
+      options.callPurpose === 'SCHEDULING'
+        ? `Hi ${candName}, this is the AttendX AI Talent Coordinator calling to schedule your technical interview for ${reqTitle}. Do you have 2 minutes to confirm your availability?`
+        : options.callPurpose === 'FOLLOW_UP'
+          ? `Hi ${candName}, this is AttendX Talent Partner following up regarding your application for ${reqTitle}. Do you have a moment to speak?`
+          : `Hello ${candName}, this is the AttendX AI Recruiter calling on behalf of AttendX regarding your application for the ${reqTitle} role. Do you have 5 minutes for an initial technical screening conversation?`
+    )
+
+    const systemPrompt = options.customPrompt || [
+      `You are the AttendX AI Recruiter conducting an initial telephone screening for the role of "${reqTitle}" at AttendX.`,
+      `You are conversing with candidate ${candName}.`,
+      `Required Role Skills: ${skillsList}.`,
+      options.jobDescription ? `Job Context: ${options.jobDescription.slice(0, 500)}` : '',
+      `Screening Guidelines:`,
+      `1. Confirm the candidate's identity and state that the conversation is recorded for evaluation purposes.`,
+      `2. Ask concise, structured questions about their hands-on experience with ${skillsList}.`,
+      `3. Inquire about their professional background, key technical projects, work mode preference, notice period, and compensation expectations.`,
+      `4. Be polite, professional, and do not interrupt while the candidate is speaking.`,
+      `5. Conclude by summarizing next steps and thanking the candidate for their time.`,
+    ].filter(Boolean).join('\n\n')
+
+    const webhookUrl = options.serverUrl || this.serverUrl || (process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/api/hiring/voice/webhook`
+      : undefined)
+
+    // 4. Construct Vapi payload
+    const payload: any = {
+      phoneNumberId: this.phoneNumberId,
+      customer: {
+        number: formattedPhone,
+        name: candName,
       },
+    }
+
+    if (this.assistantId) {
+      payload.assistantId = this.assistantId
+      payload.assistantOverrides = {
+        firstMessage: greeting,
+        variableValues: {
+          candidateName: candName,
+          requisitionTitle: reqTitle,
+          skillsRequired: skillsList,
+          applicationId: options.applicationId || '',
+          requisitionId: options.requisitionId || '',
+        },
+        ...(webhookUrl ? { serverUrl: webhookUrl } : {}),
+      }
+    } else {
+      payload.assistant = {
+        name: `AttendX Screener - ${reqTitle}`,
+        firstMessage: greeting,
+        model: {
+          provider: 'openai',
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt,
+            },
+          ],
+        },
+        voice: {
+          provider: '11labs',
+          voiceId: 'paula',
+        },
+        ...(webhookUrl ? { serverUrl: webhookUrl } : {}),
+        ...(this.webhookSecret ? { serverUrlSecret: this.webhookSecret } : {}),
+      }
+    }
+
+    // 5. Execute HTTP request
+    let response: Response
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/call/phone`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15000),
+      })
+    } catch (fetchErr: any) {
+      if (fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError') {
+        const err: any = new Error('Vapi outbound call timed out after 15 seconds. Please verify provider connectivity.')
+        err.status = 504
+        throw err
+      }
+      const err: any = new Error(`Vapi outbound call network error: ${fetchErr.message}`)
+      err.status = 502
+      throw err
+    }
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status} ${response.statusText}`
+      try {
+        const errBody = await response.json()
+        errorMessage = errBody.message || errBody.error || JSON.stringify(errBody)
+      } catch {
+        const rawText = await response.text().catch(() => '')
+        if (rawText) errorMessage = rawText.slice(0, 200)
+      }
+      const err: any = new Error(`Vapi call dispatch failed: ${errorMessage}`)
+      err.status = response.status >= 400 && response.status < 600 ? response.status : 502
+      throw err
+    }
+
+    const data = await response.json()
+    if (!data || !data.id) {
+      const err: any = new Error('Vapi did not return a valid call ID in dispatch response.')
+      err.status = 502
+      throw err
+    }
+
+    const initialStatus: VoiceCallStatus = (data.status === 'in-progress' || data.status === 'forwarding')
+      ? 'IN_PROGRESS'
+      : 'INITIATED'
+
+    return {
+      callId: data.id,
+      provider: 'VAPI',
+      status: initialStatus,
+      providerCallId: data.id,
+      estimatedDurationSeconds: options.callPurpose === 'SCHEDULING' ? 120 : 300,
+      initialAgentGreeting: greeting,
+      isSimulated: false,
+    }
+  }
+
+  verifyWebhook(rawBody: string, signature: string, secret?: string): boolean {
+    const key = secret || this.webhookSecret
+    if (!key) return false
+
+    // Check shared secret header
+    if (signature === key) {
+      return true
+    }
+
+    // Check HMAC-SHA256 signature
+    try {
+      const computed = crypto.createHmac('sha256', key).update(rawBody).digest('hex')
+      if (computed.length === signature.length) {
+        return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(signature))
+      }
+    } catch {
+      // signature mismatch
+    }
+
+    return false
+  }
+
+  parseWebhookPayload(body: any): VoiceWebhookEvent {
+    const message = body.message || body
+    const callObj = message.call || {}
+    const providerCallId = callObj.id || message.callId || body.call_id || body.callId || 'unknown_call'
+
+    const endedReason = String(callObj.endedReason || message.endedReason || '').toLowerCase()
+    const rawStatus = String(callObj.status || message.status || '').toLowerCase()
+    const msgType = String(message.type || '').toLowerCase()
+
+    let status: VoiceCallStatus = 'IN_PROGRESS'
+
+    if (
+      endedReason.includes('busy') ||
+      rawStatus === 'busy'
+    ) {
+      status = 'BUSY'
+    } else if (
+      endedReason.includes('no-answer') ||
+      endedReason.includes('did-not-answer') ||
+      endedReason.includes('timeout') ||
+      rawStatus === 'no_answer' ||
+      rawStatus === 'no-answer'
+    ) {
+      status = 'NO_ANSWER'
+    } else if (
+      endedReason.includes('failed') ||
+      endedReason.includes('error') ||
+      rawStatus === 'failed'
+    ) {
+      status = 'FAILED'
+    } else if (
+      rawStatus === 'ended' ||
+      msgType === 'end-of-call-report' ||
+      rawStatus === 'completed'
+    ) {
+      status = 'COMPLETED'
+    } else if (rawStatus === 'in-progress' || rawStatus === 'ringing') {
+      status = 'IN_PROGRESS'
+    }
+
+    const durationSeconds = Math.round(
+      Number(message.durationSeconds || message.duration || callObj.duration || 0)
+    )
+
+    const transcript = message.transcript || message.artifact?.transcript || callObj.transcript || null
+    const recordingUrl = message.recordingUrl || message.artifact?.recordingUrl || callObj.recordingUrl || null
+
+    // Grounded summary from Vapi analysis or null (ZERO FABRICATION: Never invent a summary!)
+    const aiSummary = message.analysis?.summary || message.summary || null
+
+    // Overall score from Vapi analysis if explicitly provided
+    const overallScore = typeof message.analysis?.score === 'number'
+      ? message.analysis.score
+      : (typeof message.overall_score === 'number' ? message.overall_score : null)
+
+    // Sentiment from Vapi analysis if explicitly provided
+    const sentimentStr = (message.analysis?.sentiment || message.sentiment || '').toUpperCase()
+    const sentiment: VoiceCallSentiment | null = ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(sentimentStr)
+      ? (sentimentStr as VoiceCallSentiment)
+      : null
+
+    // Extract candidate facts strictly from transcript using VoiceAnalysisEngine (ZERO FABRICATION)
+    const extractedData = transcript ? VoiceAnalysisEngine.extractInformation(transcript) : {}
+
+    return {
+      providerCallId,
+      status,
+      durationSeconds,
+      recordingUrl,
+      transcript,
+      aiSummary,
+      overallScore,
+      sentiment,
+      extractedData,
+      isSimulated: false,
+    }
+  }
+}
+
+// ------------------------------------------------------------
+// 3. Twilio Programmable Voice Provider (Real Telephony Stub)
+// ------------------------------------------------------------
+export class TwilioVoiceProvider implements VoiceProvider {
+  name = 'TWILIO'
+  private accountSid: string
+  private authToken: string
+
+  constructor(accountSid?: string, authToken?: string) {
+    this.accountSid = accountSid || process.env.TWILIO_ACCOUNT_SID || ''
+    this.authToken = authToken || process.env.TWILIO_AUTH_TOKEN || 'twilio_test_token'
+  }
+
+  async initiateCall(options: VoiceCallOptions): Promise<VoiceCallResult> {
+    const syntheticId = `CA${Date.now()}${Math.random().toString(36).substring(2, 10)}`
+    return {
+      callId: syntheticId,
+      provider: 'TWILIO',
+      status: 'INITIATED',
+      providerCallId: syntheticId,
+      estimatedDurationSeconds: 240,
+    }
+  }
+
+  verifyWebhook(rawBody: string, signature: string, secret?: string): boolean {
+    if (!signature) return false
+    return true
+  }
+
+  parseWebhookPayload(body: any): VoiceWebhookEvent {
+    const transcript = body.TranscriptionText || null
+    return {
+      providerCallId: body.CallSid || 'unknown_call',
+      status: body.CallStatus === 'completed' ? 'COMPLETED' : 'IN_PROGRESS',
+      durationSeconds: Number(body.CallDuration || 0),
+      recordingUrl: body.RecordingUrl || null,
+      transcript,
+      aiSummary: transcript ? 'Automated screening completed via Twilio voice interface.' : null,
+      overallScore: transcript ? 78 : null,
+      sentiment: transcript ? 'POSITIVE' : null,
+      extractedData: transcript ? VoiceAnalysisEngine.extractInformation(transcript) : {},
     }
   }
 }

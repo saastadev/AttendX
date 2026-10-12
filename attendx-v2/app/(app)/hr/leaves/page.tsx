@@ -73,14 +73,30 @@ export default function HRLeavesPage() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: 'APPROVED' | 'REJECTED' }) => {
-      const { error: err } = await supabase
-        .from('leaves')
-        .update({ status: action, reviewed_by: user?.id, reviewed_at: new Date().toISOString() })
-        .eq('id', id)
-      if (err) throw err
+      const { data: sessData } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (sessData?.session?.access_token) {
+        headers['Authorization'] = `Bearer ${sessData.session.access_token}`
+      }
+
+      const res = await fetch(`/api/manager/approvals/${id}`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ type: 'LEAVE', action }),
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to ${action.toLowerCase()} leave request`)
+      }
+
+      return res.json()
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['hr-leaves'] })
+      qc.invalidateQueries({ queryKey: ['leave-balances'] })
+      qc.invalidateQueries({ queryKey: ['manager-approvals'] })
       success(`Leave ${vars.action === 'APPROVED' ? 'approved' : 'rejected'} successfully`)
     },
     onError: (err: any) => error('Action failed', err.message),

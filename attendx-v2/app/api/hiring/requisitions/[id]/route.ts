@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { RequisitionService } from '@/lib/hiring/requisition-service'
 
 export async function GET(
@@ -20,9 +20,20 @@ export async function GET(
       'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
     ], request)
 
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const requisition = mockHiringStore.getRequisitionById(caller.tenantId, id)
+      if (requisition) {
+        return NextResponse.json({ success: true, data: requisition })
+      }
+      return NextResponse.json({ error: 'Requisition not found' }, { status: 404 })
+    }
+
     const serviceClient = getSupabaseServiceClient()
     const requisition = await RequisitionService.getById(serviceClient, caller.tenantId, id)
-
+    if (!requisition) {
+      return NextResponse.json({ error: 'Requisition not found' }, { status: 404 })
+    }
     return NextResponse.json({ success: true, data: requisition })
   } catch (err: any) {
     const status = err.status || 500

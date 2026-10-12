@@ -5,9 +5,9 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringStateMachine } from './state-machine'
-import { HiringAuditLogger } from './audit-logger'
-import { PiiEncryption } from './encryption'
+import { HiringStateMachine } from './state-machine.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
+import { PiiEncryption } from './encryption.ts'
 import type { JobApplication, HiringStage, ApplicationDecision } from '../../types/hiring'
 
 export interface CreateApplicationInput {
@@ -107,9 +107,12 @@ export class ApplicationService {
       throw new Error(`Failed to list applications: ${error.message}`)
     }
 
-    // Role-based masking of sensitive candidate data
+    // Role-based masking of sensitive candidate data and presentation formatting
     const sanitized = (data || []).map((app: any) => {
       if (app.candidate) {
+        app.candidate.full_name = `${app.candidate.first_name || ''} ${app.candidate.last_name || ''}`.trim()
+        app.candidate.experience_years = Number(app.candidate.total_experience_years) || 0
+        app.candidate.resume_text = app.candidate.raw_resume_text || null
         app.candidate.current_ctc = PiiEncryption.filterCtcForRole(app.candidate.current_ctc, userRole)
         app.candidate.expected_ctc = PiiEncryption.filterCtcForRole(app.candidate.expected_ctc, userRole)
       }
@@ -151,6 +154,9 @@ export class ApplicationService {
     }
 
     if (data.candidate) {
+      data.candidate.full_name = `${data.candidate.first_name || ''} ${data.candidate.last_name || ''}`.trim()
+      data.candidate.experience_years = Number(data.candidate.total_experience_years) || 0
+      data.candidate.resume_text = data.candidate.raw_resume_text || null
       data.candidate.current_ctc = PiiEncryption.filterCtcForRole(data.candidate.current_ctc, userRole)
       data.candidate.expected_ctc = PiiEncryption.filterCtcForRole(data.candidate.expected_ctc, userRole)
     }

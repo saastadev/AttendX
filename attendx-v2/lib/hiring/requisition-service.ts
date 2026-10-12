@@ -139,6 +139,47 @@ export class RequisitionService {
     input: CreateRequisitionInput,
     context?: { ip?: string; userAgent?: string }
   ): Promise<JobRequisition> {
+    // Validate inputs
+    if (!input.title?.trim()) {
+      const err = new Error('Requisition title is required.') as any
+      err.status = 400
+      throw err
+    }
+    if (!input.requisition_code?.trim()) {
+      const err = new Error('Requisition code is required.') as any
+      err.status = 400
+      throw err
+    }
+    if (input.openings_count !== undefined && input.openings_count < 1) {
+      const err = new Error('Openings count must be at least 1.') as any
+      err.status = 400
+      throw err
+    }
+    if (
+      input.min_experience_years !== undefined &&
+      input.max_experience_years !== undefined &&
+      input.min_experience_years !== null &&
+      input.max_experience_years !== null
+    ) {
+      if (Number(input.min_experience_years) > Number(input.max_experience_years)) {
+        const err = new Error('Minimum experience years cannot exceed maximum experience years.') as any
+        err.status = 400
+        throw err
+      }
+    }
+    if (
+      input.min_salary !== undefined &&
+      input.max_salary !== undefined &&
+      input.min_salary !== null &&
+      input.max_salary !== null
+    ) {
+      if (Number(input.min_salary) > Number(input.max_salary)) {
+        const err = new Error('Minimum compensation cannot exceed maximum compensation.') as any
+        err.status = 400
+        throw err
+      }
+    }
+
     // 1. Insert requisition
     const { data: requisition, error } = await client
       .from('job_requisitions')
@@ -178,12 +219,26 @@ export class RequisitionService {
 
     // 2. Insert skills if specified
     if (input.skills && input.skills.length > 0) {
+      for (const s of input.skills) {
+        if (!s.skill_name?.trim()) {
+          const err = new Error('Skill name cannot be empty.') as any
+          err.status = 400
+          throw err
+        }
+        const weight = s.weight !== undefined ? Number(s.weight) : 1
+        if (weight < 1 || weight > 10) {
+          const err = new Error(`Skill weight for '${s.skill_name}' must be between 1 and 10.`) as any
+          err.status = 400
+          throw err
+        }
+      }
+
       const skillsToInsert = input.skills.map(s => ({
         organization_id: organizationId,
         requisition_id: requisition.id,
         skill_name: s.skill_name.trim(),
         is_required: s.is_required !== false,
-        weight: s.weight || 1,
+        weight: Math.min(10, Math.max(1, Number(s.weight) || 1)),
         min_experience_years: s.min_experience_years || 0,
       }))
       await client.from('job_requisition_skills').insert(skillsToInsert)
@@ -216,6 +271,45 @@ export class RequisitionService {
     context?: { ip?: string; userAgent?: string }
   ): Promise<JobRequisition> {
     const existing = await this.getById(client, organizationId, id)
+
+    // Validate status transition
+    if (input.status !== undefined && input.status !== existing.status) {
+      const allowedTransitions: Record<string, string[]> = {
+        DRAFT: ['OPEN', 'CLOSED'],
+        OPEN: ['ON_HOLD', 'CLOSED'],
+        ON_HOLD: ['OPEN', 'CLOSED'],
+        CLOSED: [],
+      }
+      const allowed = allowedTransitions[existing.status] || []
+      if (!allowed.includes(input.status)) {
+        const err = new Error(
+          `Invalid requisition status transition from '${existing.status}' to '${input.status}'. Allowed destinations: [${allowed.join(', ')}]`
+        ) as any
+        err.status = 409
+        throw err
+      }
+    }
+
+    // Validate range constraints if provided
+    const effectiveMinExp = input.min_experience_years !== undefined ? input.min_experience_years : existing.min_experience_years
+    const effectiveMaxExp = input.max_experience_years !== undefined ? input.max_experience_years : existing.max_experience_years
+    if (effectiveMinExp !== null && effectiveMaxExp !== null && effectiveMinExp !== undefined && effectiveMaxExp !== undefined) {
+      if (Number(effectiveMinExp) > Number(effectiveMaxExp)) {
+        const err = new Error('Minimum experience years cannot exceed maximum experience years.') as any
+        err.status = 400
+        throw err
+      }
+    }
+
+    const effectiveMinSalary = input.min_salary !== undefined ? input.min_salary : existing.min_salary
+    const effectiveMaxSalary = input.max_salary !== undefined ? input.max_salary : existing.max_salary
+    if (effectiveMinSalary !== null && effectiveMaxSalary !== null && effectiveMinSalary !== undefined && effectiveMaxSalary !== undefined) {
+      if (Number(effectiveMinSalary) > Number(effectiveMaxSalary)) {
+        const err = new Error('Minimum compensation cannot exceed maximum compensation.') as any
+        err.status = 400
+        throw err
+      }
+    }
 
     const updatePayload: Record<string, any> = {}
     if (input.title !== undefined) updatePayload.title = input.title.trim()

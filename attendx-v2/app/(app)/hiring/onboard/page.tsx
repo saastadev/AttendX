@@ -916,6 +916,45 @@ export default function OnboardPage() {
               This will transition <b>{detailedProcess.candidate?.full_name}</b> to <code>ONBOARDED</code> stage and provision an employee record in AttendX.
             </p>
 
+            {detailedProcess?.readiness && !detailedProcess.readiness.ready && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                marginBottom: 14,
+                fontSize: '0.8rem',
+                color: '#DC2626',
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertCircle size={15} /> Joining Readiness Requirements Pending
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {detailedProcess.readiness.reasons.map((r: string, idx: number) => (
+                    <li key={idx}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {detailedProcess?.readiness?.ready && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                marginBottom: 14,
+                fontSize: '0.8rem',
+                color: '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+              }}>
+                <CheckCircle2 size={15} /> All required documents verified & checklist tasks completed
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>

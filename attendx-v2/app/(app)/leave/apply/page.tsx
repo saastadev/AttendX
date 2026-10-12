@@ -100,9 +100,8 @@ export default function LeaveApplyPage() {
       })
 
       if (!res.ok) {
-        // Fallback directly to Supabase client
-        const { error: err } = await supabase.from('leaves').insert(payload)
-        if (err) throw err
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to submit leave application')
       }
 
       return { offline: false }
