@@ -55,15 +55,9 @@ const SIDEBAR_NAV: NavGroup[] = [
     ],
   },
   {
-    section: 'Team',
-    items: [
-      { href: '/manager/team',      icon: Users,  label: 'My Team',   id: 'snav-team',      minRole: 'MANAGER' },
-      { href: '/manager/approvals', icon: Shield, label: 'Approvals', id: 'snav-approvals', minRole: 'MANAGER' },
-    ],
-  },
-  {
     section: 'HR & Admin',
     items: [
+      { href: '/hiring',       icon: Briefcase, label: 'Hiring',   id: 'snav-hiring',    minRole: 'HR' },
       { href: '/hr/directory', icon: Users,    label: 'Directory', id: 'snav-directory', minRole: 'HR' },
       { href: '/hr/insights',  icon: BarChart2, label: 'Insights',  id: 'snav-insights',  minRole: 'HR' },
       { href: '/hr/sentiment', icon: Heart,     label: 'Sentiment', id: 'snav-sentiment', minRole: 'HR' },
@@ -73,15 +67,10 @@ const SIDEBAR_NAV: NavGroup[] = [
     ],
   },
   {
-    section: 'Hiring',
+    section: 'Team',
     items: [
-      { href: '/hiring',              icon: UserPlus,  label: 'Overview',     id: 'snav-hiring-hub',  minRole: 'MANAGER' },
-      { href: '/hiring/applications', icon: Briefcase, label: 'Applications', id: 'snav-hiring-apps', minRole: 'MANAGER' },
-      { href: '/hiring/sourcing',     icon: Search,    label: 'AI Sourcing',  id: 'snav-hiring-src',  minRole: 'HR' },
-      { href: '/hiring/outreach',     icon: MessageSquareMore, label: 'Outreach', id: 'snav-hiring-reach', minRole: 'HR' },
-      { href: '/hiring/interview-status', icon: Clock, label: 'Interviews',   id: 'snav-hiring-int',  minRole: 'MANAGER' },
-      { href: '/hiring/onboard',      icon: Shield,    label: 'Onboarding',   id: 'snav-hiring-onb',  minRole: 'HR' },
-      { href: '/hiring/analytics',    icon: BarChart2, label: 'Analytics',    id: 'snav-hiring-stat', minRole: 'HR' },
+      { href: '/manager/team',      icon: Users,  label: 'My Team',   id: 'snav-team',      minRole: 'MANAGER' },
+      { href: '/manager/approvals', icon: Shield, label: 'Approvals', id: 'snav-approvals', minRole: 'MANAGER' },
     ],
   },
   {
@@ -527,14 +516,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav sections */}
-          {SIDEBAR_NAV.map((group, gi) => (
-            <div key={gi} role="group" aria-label={group.section ?? 'Main navigation'}>
-              {group.section && (
-                <div className="neu-sidebar-section-label">{group.section}</div>
-              )}
-              {group.items
-                .filter(item => canSee(userRole, item.minRole))
-                .map(item => {
+          {SIDEBAR_NAV.map((group, gi) => {
+            const visibleItems = group.items.filter(item => canSee(userRole, item.minRole))
+            if (visibleItems.length === 0) return null
+            return (
+              <div key={gi} role="group" aria-label={group.section ?? 'Main navigation'}>
+                {group.section && (
+                  <div className="neu-sidebar-section-label">{group.section}</div>
+                )}
+                {visibleItems.map(item => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                   return (
                     <SidebarItem
@@ -545,8 +535,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
                   )
                 })}
-            </div>
-          ))}
+              </div>
+            )
+          })}
 
           {/* Bottom: user + offline status */}
           <div style={{ marginTop: 'auto', padding: 'var(--space-3) var(--space-3) 0' }}>

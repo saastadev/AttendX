@@ -416,6 +416,28 @@ p { color: var(--text-secondary); }
   background: var(--accent);
 }
 
+/* Responsive compact sidebar for common laptop and desktop heights */
+@media (max-height: 900px) {
+  .neu-sidebar-logo {
+    padding: var(--space-3) var(--space-5) var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+  .neu-sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .neu-sidebar-section-label {
+    padding: var(--space-2) var(--space-5) 2px;
+    font-size: 0.6875rem;
+  }
+  .neu-sidebar-item {
+    padding: 7px var(--space-5);
+    margin: 1px var(--space-3);
+    min-height: 36px;
+    font-size: var(--text-xs);
+  }
+}
+
 /* ---- Main Content Area ---- */
 .neu-content-area {
   flex: 1;
