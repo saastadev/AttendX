@@ -174,7 +174,35 @@ export class ApplicationService {
     input: CreateApplicationInput,
     context?: { ip?: string; userAgent?: string }
   ): Promise<JobApplication> {
-    // 1. Check if application already exists for this candidate & requisition
+    // 1. Verify candidate belongs to caller's organization
+    const { data: candidate } = await client
+      .from('candidates')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('id', input.candidate_id)
+      .maybeSingle()
+
+    if (!candidate) {
+      const notFoundErr = new Error(`Candidate '${input.candidate_id}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    // 2. Verify requisition belongs to caller's organization
+    const { data: requisition } = await client
+      .from('job_requisitions')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('id', input.requisition_id)
+      .maybeSingle()
+
+    if (!requisition) {
+      const notFoundErr = new Error(`Job requisition '${input.requisition_id}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    // 3. Check if application already exists for this candidate & requisition
     const { data: existing } = await client
       .from('job_applications')
       .select('id, application_code, stage')

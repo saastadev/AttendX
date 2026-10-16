@@ -5,8 +5,8 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringAuditLogger } from './audit-logger'
-import type { JobRequisition, RequisitionStatus, RequisitionPriority, EmploymentType, DocumentMode } from '../../types/hiring'
+import { HiringAuditLogger } from './audit-logger.ts'
+import type { JobRequisition, RequisitionStatus, RequisitionPriority, EmploymentType, WorkMode, DocumentMode } from '../../types/hiring.ts'
 
 export interface CreateRequisitionInput {
   requisition_code: string
@@ -20,6 +20,9 @@ export interface CreateRequisitionInput {
   openings_count?: number
   location?: string | null
   employment_type?: EmploymentType
+  work_mode?: WorkMode
+  opening_date?: string
+  target_close_date?: string | null
   min_experience_years?: number | null
   max_experience_years?: number | null
   min_salary?: number | null
@@ -179,6 +182,18 @@ export class RequisitionService {
         throw err
       }
     }
+    if (input.work_mode && !['REMOTE', 'ONSITE', 'HYBRID'].includes(input.work_mode)) {
+      const err = new Error(`Invalid work_mode '${input.work_mode}'. Allowed values: REMOTE, ONSITE, HYBRID`) as any
+      err.status = 400
+      throw err
+    }
+    if (input.opening_date && input.target_close_date) {
+      if (new Date(input.target_close_date) < new Date(input.opening_date)) {
+        const err = new Error('Target close date cannot be earlier than opening date.') as any
+        err.status = 400
+        throw err
+      }
+    }
 
     // 1. Insert requisition
     const { data: requisition, error } = await client
@@ -196,6 +211,9 @@ export class RequisitionService {
         openings_count: input.openings_count || 1,
         location: input.location || null,
         employment_type: input.employment_type || 'FULL_TIME',
+        work_mode: input.work_mode || 'HYBRID',
+        opening_date: input.opening_date || new Date().toISOString().split('T')[0],
+        target_close_date: input.target_close_date || null,
         min_experience_years: input.min_experience_years || 0,
         max_experience_years: input.max_experience_years || 0,
         min_salary: input.min_salary || null,
@@ -311,6 +329,21 @@ export class RequisitionService {
       }
     }
 
+    if (input.work_mode !== undefined && !['REMOTE', 'ONSITE', 'HYBRID'].includes(input.work_mode)) {
+      const err = new Error(`Invalid work_mode '${input.work_mode}'. Allowed values: REMOTE, ONSITE, HYBRID`) as any
+      err.status = 400
+      throw err
+    }
+    const effectiveOpen = input.opening_date !== undefined ? input.opening_date : existing.opening_date
+    const effectiveClose = input.target_close_date !== undefined ? input.target_close_date : existing.target_close_date
+    if (effectiveOpen && effectiveClose) {
+      if (new Date(effectiveClose) < new Date(effectiveOpen)) {
+        const err = new Error('Target close date cannot be earlier than opening date.') as any
+        err.status = 400
+        throw err
+      }
+    }
+
     const updatePayload: Record<string, any> = {}
     if (input.title !== undefined) updatePayload.title = input.title.trim()
     if (input.status !== undefined) updatePayload.status = input.status
@@ -319,6 +352,9 @@ export class RequisitionService {
     if (input.filled_count !== undefined) updatePayload.filled_count = input.filled_count
     if (input.location !== undefined) updatePayload.location = input.location
     if (input.employment_type !== undefined) updatePayload.employment_type = input.employment_type
+    if (input.work_mode !== undefined) updatePayload.work_mode = input.work_mode
+    if (input.opening_date !== undefined) updatePayload.opening_date = input.opening_date
+    if (input.target_close_date !== undefined) updatePayload.target_close_date = input.target_close_date
     if (input.department_id !== undefined) updatePayload.department_id = input.department_id
     if (input.designation_id !== undefined) updatePayload.designation_id = input.designation_id
     if (input.hiring_manager_id !== undefined) updatePayload.hiring_manager_id = input.hiring_manager_id
@@ -391,6 +427,9 @@ export class RequisitionService {
         openings_count: original.openings_count,
         location: original.location,
         employment_type: original.employment_type,
+        work_mode: original.work_mode,
+        opening_date: new Date().toISOString().split('T')[0],
+        target_close_date: original.target_close_date,
         min_experience_years: original.min_experience_years,
         max_experience_years: original.max_experience_years,
         min_salary: original.min_salary,
@@ -421,6 +460,20 @@ export class RequisitionService {
     isRequired: boolean = true,
     minExperienceYears: number = 0
   ) {
+    // 1. Verify requisition belongs to caller's organization
+    const { data: req } = await client
+      .from('job_requisitions')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('id', requisitionId)
+      .maybeSingle()
+
+    if (!req) {
+      const notFoundErr = new Error(`Job requisition '${requisitionId}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
     const { data, error } = await client
       .from('job_requisition_skills')
       .insert({

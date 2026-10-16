@@ -19,6 +19,23 @@ export async function POST(
       'SUPERADMIN', 'ADMIN', 'HR'
     ], request)
 
+    const serviceClient = getSupabaseServiceClient()
+
+    // Verify candidate exists and belongs to caller's tenant before any write
+    const { data: candidate } = await serviceClient
+      .from('candidates')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', caller.tenantId)
+      .maybeSingle()
+
+    if (!candidate) {
+      return NextResponse.json(
+        { error: `Candidate '${id}' not found` },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { resume_text, file_name, file_url, file_size, mime_type } = body
 
@@ -29,7 +46,6 @@ export async function POST(
       )
     }
 
-    const serviceClient = getSupabaseServiceClient()
     const rawText = resume_text || `Resume file uploaded: ${file_name || 'candidate_resume.pdf'}`
     const parsed = CandidateService.parseResume(rawText)
 

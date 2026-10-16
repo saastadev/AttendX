@@ -5,10 +5,10 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { EmailProviderFactory } from './email-provider'
-import { HiringAuditLogger } from './audit-logger'
+import { EmailProviderFactory } from './email-provider.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
 
-import { TemplateEngine } from './template-engine'
+import { TemplateEngine } from './template-engine.ts'
 
 export interface CreateCampaignInput {
   name: string
@@ -60,17 +60,37 @@ export class OutreachService {
       .single()
 
     if (!candidate) {
-      throw new Error(`Candidate '${params.candidateId}' not found.`)
+      const notFound = new Error(`Candidate '${params.candidateId}' not found.`) as any
+      notFound.status = 404
+      throw notFound
     }
 
     if (candidate.consent_status === 'WITHDRAWN') {
-      throw new Error(`Candidate has withdrawn consent for outreach communications.`)
+      const consentErr = new Error(`Candidate has withdrawn consent for outreach communications.`) as any
+      consentErr.status = 400
+      throw consentErr
+    }
+
+    // 2. If campaign is specified, verify campaign belongs to caller's organization before dispatching
+    if (params.campaignId) {
+      const { data: campaign } = await client
+        .from('outreach_campaigns')
+        .select('id')
+        .eq('id', params.campaignId)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+
+      if (!campaign) {
+        const notFound = new Error(`Outreach campaign '${params.campaignId}' not found.`) as any
+        notFound.status = 404
+        throw notFound
+      }
     }
 
     let subject = params.customSubject || 'Exciting Opportunity with AttendX'
     let body = params.customBody || ''
 
-    // 2. Load template if specified
+    // 3. Load template if specified
     if (params.templateId) {
       const { data: template } = await client
         .from('outreach_templates')
@@ -103,7 +123,7 @@ export class OutreachService {
       throw new Error(`Candidate does not have a valid ${channel} contact address.`)
     }
 
-    // 3. Dispatch through provider
+    // 4. Dispatch through provider
     const emailProvider = EmailProviderFactory.getProvider()
     const dispatchResult = await emailProvider.sendEmail({
       to: recipient,
@@ -111,7 +131,7 @@ export class OutreachService {
       text: body,
     })
 
-    // 4. Record outreach_messages
+    // 5. Record outreach_messages
     const { data: messageRecord, error } = await client
       .from('outreach_messages')
       .insert({
@@ -122,7 +142,7 @@ export class OutreachService {
         recipient,
         subject,
         body,
-        status: dispatchResult.status || 'SENT',
+        status: dispatchResult.status === 'SIMULATED' ? 'SENT' : (dispatchResult.status || 'SENT'),
         sent_at: new Date().toISOString(),
         delivered_at: dispatchResult.status === 'DELIVERED' ? new Date().toISOString() : null,
       })
@@ -133,13 +153,14 @@ export class OutreachService {
       throw new Error(`Failed to log outreach message: ${error.message}`)
     }
 
-    // 5. Update campaign totals if campaign linked
+    // 6. Update campaign totals if campaign linked (strictly scoped by organization_id)
     if (params.campaignId) {
       const { data: camp } = await client
         .from('outreach_campaigns')
         .select('total_sent, total_delivered')
         .eq('id', params.campaignId)
-        .single()
+        .eq('organization_id', organizationId)
+        .maybeSingle()
 
       if (camp) {
         await client
@@ -149,6 +170,7 @@ export class OutreachService {
             total_delivered: (camp.total_delivered || 0) + 1,
           })
           .eq('id', params.campaignId)
+          .eq('organization_id', organizationId)
       }
     }
 
