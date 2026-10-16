@@ -245,8 +245,8 @@ function createPgSupabaseAdapter(pgClient) {
               let sql = `
                 SELECT 
                   jo.*,
-                  json_build_object('id', c.id, 'first_name', c.first_name, 'last_name', c.last_name, 'email', c.email, 'phone', c.phone) as candidate,
-                  json_build_object('id', a.id, 'stage', a.stage, 'application_code', a.application_code) as application
+                  json_build_object('id', c.id, 'first_name', c.first_name, 'last_name', c.last_name, 'email', c.email, 'phone', c.phone, 'organization_id', c.organization_id) as candidate,
+                  json_build_object('id', a.id, 'stage', a.stage, 'application_code', a.application_code, 'organization_id', a.organization_id) as application
                 FROM job_offers jo
                 LEFT JOIN candidates c ON jo.candidate_id = c.id
                 LEFT JOIN job_applications a ON jo.application_id = a.id
@@ -744,24 +744,50 @@ async function run() {
     `, [T_ACME, offerId, onbId])
     assert(auditLogs.rows.length >= 2, `Audit logs captured for offer and onboarding actions (found ${auditLogs.rows.length})`)
 
-    // Verify Multi-Tenant Boundary: Querying from Globex tenant MUST return 0 rows
-    const globexLeakedApps = await client.query(`
-      SELECT count(*)::int as count FROM job_applications 
-      WHERE organization_id = $1 AND id = $2;
-    `, [T_GLOBEX, appId])
-    assert(globexLeakedApps.rows[0].count === 0, 'Zero application records leaked to foreign tenant T_GLOBEX')
+    // Verify Multi-Tenant Boundary: Genuine PostgreSQL RLS Enforcement (QA-01 Remediated)
+    // Switch to authentic non-superuser role 'authenticated' as Bianca HR (Globex tenant)
+    // and verify that Acme records are completely invisible WITHOUT filtering by organization_id in the query.
+    await client.query('BEGIN')
+    try {
+      await client.query('SET LOCAL ROLE authenticated')
+      await client.query(`SELECT set_config('request.jwt.claim.sub', 'b0000003-0000-0000-0000-000000000003', true)`)
+      await client.query(`SELECT set_config('request.jwt.claim.role', 'authenticated', true)`)
+      await client.query(`SELECT set_config('request.jwt.claim.tenant_id', $1, true)`, [T_GLOBEX])
 
-    const globexLeakedOffers = await client.query(`
-      SELECT count(*)::int as count FROM job_offers 
-      WHERE organization_id = $1 AND id = $2;
-    `, [T_GLOBEX, offerId])
-    assert(globexLeakedOffers.rows[0].count === 0, 'Zero offer records leaked to foreign tenant T_GLOBEX')
+      // 1. Cross-Tenant Read: Bianca queries by application ID without any organization_id filter.
+      // If RLS is enforced, public.get_my_tenant_id() returns T_GLOBEX and this returns 0 rows.
+      // If RLS were disabled or bypassed, this query would find the row and return 1.
+      const crossTenantApp = await client.query(`SELECT count(*)::int as count FROM job_applications WHERE id = $1;`, [appId])
+      assert(crossTenantApp.rows[0].count === 0, 'RLS Multi-Tenancy: Globex HR querying Acme application ID sees exactly 0 rows')
 
-    const globexLeakedOnb = await client.query(`
-      SELECT count(*)::int as count FROM onboarding_processes 
-      WHERE organization_id = $1 AND id = $2;
-    `, [T_GLOBEX, onbId])
-    assert(globexLeakedOnb.rows[0].count === 0, 'Zero onboarding processes leaked to foreign tenant T_GLOBEX')
+      const crossTenantOffer = await client.query(`SELECT count(*)::int as count FROM job_offers WHERE id = $1;`, [offerId])
+      assert(crossTenantOffer.rows[0].count === 0, 'RLS Multi-Tenancy: Globex HR querying Acme offer ID sees exactly 0 rows')
+
+      const crossTenantOnb = await client.query(`SELECT count(*)::int as count FROM onboarding_processes WHERE id = $1;`, [onbId])
+      assert(crossTenantOnb.rows[0].count === 0, 'RLS Multi-Tenancy: Globex HR querying Acme onboarding process sees exactly 0 rows')
+
+      // 2. Positive Control: Bianca CAN query permitted tables within her own tenant
+      const globexRequisitions = await client.query(`SELECT count(*)::int as count FROM job_requisitions;`)
+      assert(Number(globexRequisitions.rows[0].count) >= 0, 'RLS Positive Control: Globex HR successfully queries own tenant scope')
+
+      // 3. Cross-Tenant Write Guard: Bianca attempts to insert an application into Acme tenant
+      await client.query('SAVEPOINT sp_write')
+      let writeBlocked = false
+      try {
+        await client.query(`
+          INSERT INTO job_applications (id, organization_id, application_code, candidate_id, requisition_id, stage)
+          VALUES ($1, $2, $3, $4, $5, 'APPLIED');
+        `, [crypto.randomUUID(), T_ACME, `APP-CROSS-${crypto.randomUUID().slice(0, 8)}`, candId, reqId])
+      } catch (err) {
+        writeBlocked = true
+        assert(err.code === '42501', `Expected 42501 RLS policy violation on cross-tenant write, got ${err.code}`)
+      } finally {
+        await client.query('ROLLBACK TO SAVEPOINT sp_write')
+      }
+      assert(writeBlocked, 'RLS WITH CHECK Guard: Globex HR cannot insert records scoped to Acme tenant')
+    } finally {
+      await client.query('ROLLBACK')
+    }
 
     console.log('\n======================================================================')
     console.log(`FULL GOLDEN PATH VERIFICATION COMPLETED SUCCESSFULLY!`)

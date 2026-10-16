@@ -511,8 +511,8 @@ test('MODULE 4 — AI-POWERED HIRING & TALENT ACQUISITION SUITE', async (t) => {
     const candId = 'cand-e2e-001'
 
     const mockClient = createMockClient({
-      candidates: [{ id: candId, first_name: 'Anita', last_name: 'Desai', email: 'anita.d@example.com' }],
-      job_applications: [{ id: appId, candidate_id: candId, stage: 'OFFER_RELEASED', application_code: 'APP-E2E-001' }],
+      candidates: [{ id: candId, organization_id: orgId, first_name: 'Anita', last_name: 'Desai', email: 'anita.d@example.com' }],
+      job_applications: [{ id: appId, organization_id: orgId, candidate_id: candId, stage: 'OFFER_RELEASED', application_code: 'APP-E2E-001' }],
     })
 
     const offer = await OfferService.createOffer(mockClient, orgId, 'recruiter-1', {
