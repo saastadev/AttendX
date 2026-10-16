@@ -12,7 +12,7 @@ import { AssessmentService } from '@/lib/hiring/assessment-service'
 export async function GET(request: Request) {
   try {
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE', 'CANDIDATE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const { searchParams } = new URL(request.url)

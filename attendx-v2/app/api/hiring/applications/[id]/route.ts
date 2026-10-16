@@ -16,7 +16,7 @@ export async function GET(
   try {
     const { id } = await params
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const serviceClient = getSupabaseServiceClient()

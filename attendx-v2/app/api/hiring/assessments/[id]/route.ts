@@ -16,14 +16,11 @@ export async function GET(
   try {
     const { id } = await params
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE', 'CANDIDATE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const { searchParams } = new URL(request.url)
-    const isCandidateRequested =
-      searchParams.get('candidate') === 'true' ||
-      caller.role === 'CANDIDATE' ||
-      caller.role === 'EMPLOYEE'
+    const isCandidateRequested = searchParams.get('candidate') === 'true'
 
     const serviceClient = getSupabaseServiceClient()
 

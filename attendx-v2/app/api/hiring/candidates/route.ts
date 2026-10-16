@@ -12,7 +12,7 @@ import { CandidateService } from '@/lib/hiring/candidate-service'
 export async function GET(request: Request) {
   try {
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const { searchParams } = new URL(request.url)

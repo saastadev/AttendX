@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const { searchParams } = new URL(request.url)
