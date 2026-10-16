@@ -16,7 +16,7 @@ export async function GET(
   try {
     const { id } = await params
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     if (isDevMockSupabase()) {
@@ -60,7 +60,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
     const body = await request.json()

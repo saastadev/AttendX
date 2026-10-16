@@ -63,6 +63,7 @@ class MockRbacSecurityDatabase {
       '/admin': ['SUPERADMIN', 'ADMIN'],
       '/hr': ['SUPERADMIN', 'ADMIN', 'HR'],
       '/manager': ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'],
+      '/hiring': ['SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'],
     }
 
     const matched = Object.entries(ROLE_ROUTES).find(([prefix]) => targetPath.startsWith(prefix))
@@ -230,6 +231,23 @@ test('RBAC Defense-in-Depth Matrix Suite (Spec 14 / Scope D)', async (t) => {
     // 3. Next API call evaluates against live DB state
     const postRevoke = db.executeApi('admin-diana', 'tenant-a', '/api/admin/attendance/records', 'DELETE')
     assert.equal(postRevoke.status, 403)
+  })
+
+  await t.test('RBAC-11: Hiring frontend route protection -> Employee denied, HR/Manager/Admin allowed', () => {
+    // 1. Employee attempting to access /hiring is redirected to /unauthorized
+    const empRoot = db.evaluateProxyRoute('emp-alice', '/hiring')
+    assert.equal(empRoot.status, 307)
+    assert.equal(empRoot.redirect, '/unauthorized')
+
+    // 2. Employee attempting child hiring route is redirected to /unauthorized
+    const empChild = db.evaluateProxyRoute('emp-alice', '/hiring/analytics')
+    assert.equal(empChild.status, 307)
+    assert.equal(empChild.redirect, '/unauthorized')
+
+    // 3. HR, Manager, Admin allowed access (200)
+    assert.equal(db.evaluateProxyRoute('hr-bob', '/hiring').status, 200)
+    assert.equal(db.evaluateProxyRoute('mgr-charlie', '/hiring').status, 200)
+    assert.equal(db.evaluateProxyRoute('admin-diana', '/hiring').status, 200)
   })
 
   await t.test('RBAC-ENGINE: Multi-role hierarchy deterministic resolution', () => {

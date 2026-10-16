@@ -78,6 +78,40 @@ export class OfferService {
     callerId: string,
     input: CreateOfferInput
   ) {
+    // 1. Verify application belongs to caller's organization
+    const { data: application } = await client
+      .from('job_applications')
+      .select('id, candidate_id, organization_id')
+      .eq('id', input.application_id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (!application) {
+      const notFoundErr = new Error(`Job application '${input.application_id}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    if (application.candidate_id !== input.candidate_id) {
+      const mismatchErr = new Error(`Candidate '${input.candidate_id}' does not match application candidate.`) as any
+      mismatchErr.status = 400
+      throw mismatchErr
+    }
+
+    // 2. Verify candidate belongs to caller's organization
+    const { data: candidate } = await client
+      .from('candidates')
+      .select('id, organization_id')
+      .eq('id', input.candidate_id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (!candidate) {
+      const notFoundErr = new Error(`Candidate '${input.candidate_id}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
     const fixed = Number(input.fixed_salary) || 0
     const variable = Number(input.variable_salary) || 0
     const bonus = Number(input.bonus) || 0
@@ -141,12 +175,22 @@ export class OfferService {
   ) {
     const { data: offer, error: fetchErr } = await client
       .from('job_offers')
-      .select('*, candidate:candidates!candidate_id(id, first_name, last_name, email, phone), application:job_applications!application_id(id, stage, application_code)')
+      .select('*, candidate:candidates!candidate_id(id, first_name, last_name, email, phone, organization_id), application:job_applications!application_id(id, stage, application_code, organization_id)')
       .eq('id', offerId)
       .eq('organization_id', organizationId)
       .single()
 
-    if (fetchErr || !offer) throw new Error('Offer not found')
+    if (fetchErr || !offer) {
+      const notFoundErr = new Error('Offer not found') as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    if (!offer.application || offer.application.organization_id !== organizationId || !offer.candidate || offer.candidate.organization_id !== organizationId) {
+      const forbiddenErr = new Error('Associated application or candidate does not belong to organization.') as any
+      forbiddenErr.status = 404
+      throw forbiddenErr
+    }
 
     // 1. Generate single-use 7-day portal token
     const { rawToken, tokenHash } = this.generatePortalToken()
@@ -174,6 +218,7 @@ export class OfferService {
         sent_at: new Date().toISOString(),
       })
       .eq('id', offerId)
+      .eq('organization_id', organizationId)
 
     // 3. Transition application state: SELECTED -> OFFER_RELEASED
     const currentStage = offer.application.stage
@@ -183,6 +228,7 @@ export class OfferService {
       .from('job_applications')
       .update({ stage: nextStage })
       .eq('id', offer.application_id)
+      .eq('organization_id', organizationId)
 
     // Funnel event
     await HiringAuditLogger.logFunnelEvent(client, {
@@ -333,6 +379,7 @@ export class OfferService {
           e_ack_ip: input.ip_address || '127.0.0.1',
         })
         .eq('id', offer.id)
+        .eq('organization_id', orgId)
 
       // 3. Transition state machine: OFFER_RELEASED -> OFFER_FINAL_ACCEPTED
       const nextStage = HiringStateMachine.transition(application.stage, 'OFFER_FINAL_ACCEPTED', 'EMPLOYEE')
@@ -340,6 +387,7 @@ export class OfferService {
         .from('job_applications')
         .update({ stage: nextStage })
         .eq('id', application.id)
+        .eq('organization_id', orgId)
 
       await HiringAuditLogger.logFunnelEvent(client, {
         organization_id: orgId,
@@ -443,12 +491,14 @@ export class OfferService {
           decline_reason: input.decline_reason || 'Candidate declined offer terms.',
         })
         .eq('id', offer.id)
+        .eq('organization_id', orgId)
 
       const nextStage = HiringStateMachine.transition(application.stage, 'OFFER_FINAL_DECLINED', 'EMPLOYEE')
       await client
         .from('job_applications')
         .update({ stage: nextStage })
         .eq('id', application.id)
+        .eq('organization_id', orgId)
 
       await HiringAuditLogger.logFunnelEvent(client, {
         organization_id: orgId,

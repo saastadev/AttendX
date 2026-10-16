@@ -11,9 +11,17 @@ import path from 'node:path'
 import { RbacGuard } from '../lib/auth/rbac-guard.ts'
 
 test('Hiring Navigation Visibility & RBAC Suite', async (t) => {
-  const appShellPath = path.resolve('components/layout/AppShell.tsx')
-  const proxyPath = path.resolve('proxy.ts')
-  const hiringPagePath = path.resolve('app/(app)/hiring/page.tsx')
+  const resolveFile = (subpath) => {
+    const rootPath = path.resolve(subpath)
+    if (fs.existsSync(rootPath)) return rootPath
+    const v2Path = path.resolve('attendx-v2', subpath)
+    if (fs.existsSync(v2Path)) return v2Path
+    return rootPath
+  }
+
+  const appShellPath = resolveFile('components/layout/AppShell.tsx')
+  const proxyPath = resolveFile('proxy.ts')
+  const hiringPagePath = resolveFile('app/(app)/hiring/page.tsx')
 
   const appShellContent = fs.readFileSync(appShellPath, 'utf8')
   const proxyContent = fs.readFileSync(proxyPath, 'utf8')

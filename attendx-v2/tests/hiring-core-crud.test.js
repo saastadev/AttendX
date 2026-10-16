@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ResumeParser } from '../lib/hiring/resume-parser.ts'
 import { HiringStateMachine } from '../lib/hiring/state-machine.ts'
+import { RequisitionService } from '../lib/hiring/requisition-service.ts'
 
 test('Hiring Module — Core CRUD & Business Logic Suite', async (t) => {
   await t.test('CRUD-01: Resume parser extracts key technical skills accurately', () => {
@@ -67,5 +68,42 @@ test('Hiring Module — Core CRUD & Business Logic Suite', async (t) => {
     const rejectedMeta = HiringStateMachine.getStageMeta('REJECTED')
     assert.equal(rejectedMeta.label, 'Rejected')
     assert.equal(rejectedMeta.isTerminal, true)
+  })
+
+  await t.test('CRUD-04: RequisitionService rejects invalid work_mode with 400', async () => {
+    const dummyClient = {}
+    await assert.rejects(
+      async () => {
+        await RequisitionService.create(dummyClient, 'org-1', 'user-1', {
+          requisition_code: 'REQ-WM-FAIL',
+          title: 'Staff Architect',
+          work_mode: 'ANYWHERE',
+        })
+      },
+      (err) => {
+        assert.equal(err.status, 400)
+        assert.ok(err.message.includes("Invalid work_mode 'ANYWHERE'"))
+        return true
+      }
+    )
+  })
+
+  await t.test('CRUD-05: RequisitionService rejects target_close_date earlier than opening_date with 400', async () => {
+    const dummyClient = {}
+    await assert.rejects(
+      async () => {
+        await RequisitionService.create(dummyClient, 'org-1', 'user-1', {
+          requisition_code: 'REQ-DATE-FAIL',
+          title: 'Staff Architect',
+          opening_date: '2026-10-25',
+          target_close_date: '2026-10-10',
+        })
+      },
+      (err) => {
+        assert.equal(err.status, 400)
+        assert.ok(err.message.includes('Target close date cannot be earlier than opening date'))
+        return true
+      }
+    )
   })
 })

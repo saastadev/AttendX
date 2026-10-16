@@ -264,7 +264,7 @@ INSERT INTO public.sourcing_searches (
   min_experience, max_experience, location, status, total_results_count
 ) VALUES
   (
-    's1000000-0000-0000-0000-000000000001',
+    'd1000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'a1000000-0000-0000-0000-000000000001',
     'Senior React & TypeScript Engineers',
@@ -281,7 +281,7 @@ INSERT INTO public.sourced_candidates (
 ) VALUES
   (
     '11111111-0000-0000-0000-000000000001',
-    's1000000-0000-0000-0000-000000000001',
+    'd1000000-0000-0000-0000-000000000001',
     'a1000000-0000-0000-0000-000000000001',
     'LINKEDIN',
     'Deepak Verma',
@@ -299,7 +299,7 @@ INSERT INTO public.sourced_candidates (
   ),
   (
     '11111111-0000-0000-0000-000000000001',
-    's1000000-0000-0000-0000-000000000001',
+    'd1000000-0000-0000-0000-000000000001',
     'a1000000-0000-0000-0000-000000000001',
     'GITHUB',
     'Tarun Saxena',
@@ -323,7 +323,7 @@ INSERT INTO public.outreach_templates (
   id, organization_id, name, channel, subject, body_template, variables
 ) VALUES
   (
-    't1000000-0000-0000-0000-000000000001',
+    'd2000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'Initial Engineering Outreach',
     'EMAIL',
@@ -338,7 +338,7 @@ INSERT INTO public.outreach_campaigns (
   total_targeted, total_sent, total_delivered, total_opened, total_replied
 ) VALUES
   (
-    'm1000000-0000-0000-0000-000000000001',
+    'd3000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'a1000000-0000-0000-0000-000000000001',
     'Senior Full-Stack Talent Outreach',
@@ -385,7 +385,7 @@ INSERT INTO public.interviews (
   interviewer_ids, status, notes, ai_summary, decision, decided_by, decided_at
 ) VALUES
   (
-    'i1000000-0000-0000-0000-000000000001',
+    'e1000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'b1000000-0000-0000-0000-000000000006',
     'c1000000-0000-0000-0000-000000000005',
@@ -406,7 +406,7 @@ INSERT INTO public.interviews (
     NOW() - INTERVAL '2 days'
   ),
   (
-    'i1000000-0000-0000-0000-000000000002',
+    'e1000000-0000-0000-0000-000000000002',
     '11111111-0000-0000-0000-000000000001',
     'b1000000-0000-0000-0000-000000000006',
     'c1000000-0000-0000-0000-000000000005',
@@ -431,7 +431,7 @@ INSERT INTO public.candidate_evaluations (
 ) VALUES
   (
     '11111111-0000-0000-0000-000000000001',
-    'i1000000-0000-0000-0000-000000000001',
+    'e1000000-0000-0000-0000-000000000001',
     'b1000000-0000-0000-0000-000000000006',
     'c1000000-0000-0000-0000-000000000005',
     '11111111-1111-1111-1111-444444444444',
@@ -471,7 +471,7 @@ INSERT INTO public.job_offers (
   status, approval_status
 ) VALUES
   (
-    'o1000000-0000-0000-0000-000000000001',
+    'e2000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'b1000000-0000-0000-0000-000000000010',
     'c1000000-0000-0000-0000-000000000001',
@@ -501,11 +501,11 @@ INSERT INTO public.onboarding_processes (
   status, completion_percentage, target_completion_date
 ) VALUES
   (
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     '11111111-0000-0000-0000-000000000001',
     'b1000000-0000-0000-0000-000000000010',
     'c1000000-0000-0000-0000-000000000001',
-    'o1000000-0000-0000-0000-000000000001',
+    'e2000000-0000-0000-0000-000000000001',
     'DOCUMENTS_PENDING',
     60.00,
     CURRENT_DATE + INTERVAL '25 days'
@@ -518,7 +518,7 @@ INSERT INTO public.onboarding_documents (
 ) VALUES
   (
     '11111111-0000-0000-0000-000000000001',
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     'ID_PROOF',
     'Aadhaar / National ID Card',
     'https://storage.attendx.io/docs/aarav_id.pdf',
@@ -530,7 +530,7 @@ INSERT INTO public.onboarding_documents (
   ),
   (
     '11111111-0000-0000-0000-000000000001',
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     'EDUCATION_CERTIFICATE',
     'Degree Certificate (B.Tech Computer Science)',
     'https://storage.attendx.io/docs/aarav_degree.pdf',
@@ -542,7 +542,7 @@ INSERT INTO public.onboarding_documents (
   ),
   (
     '11111111-0000-0000-0000-000000000001',
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     'PREVIOUS_EMPLOYMENT',
     'Relieving Letter & Service Certificate',
     'https://storage.attendx.io/docs/aarav_relieving.pdf',
@@ -552,7 +552,7 @@ INSERT INTO public.onboarding_documents (
   ),
   (
     '11111111-0000-0000-0000-000000000001',
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     'SALARY_SLIP',
     'Last 3 Months Salary Slips',
     NULL,
@@ -562,7 +562,7 @@ INSERT INTO public.onboarding_documents (
   ),
   (
     '11111111-0000-0000-0000-000000000001',
-    'p1000000-0000-0000-0000-000000000001',
+    'e3000000-0000-0000-0000-000000000001',
     'BANK_DETAILS',
     'Cancelled Cheque / Bank Passbook',
     'https://storage.attendx.io/docs/aarav_bank.pdf',
@@ -576,9 +576,9 @@ INSERT INTO public.onboarding_documents (
 INSERT INTO public.onboarding_tasks (
   organization_id, onboarding_id, task_name, description, category, status, due_date
 ) VALUES
-  ('11111111-0000-0000-0000-000000000001', 'p1000000-0000-0000-0000-000000000001', 'Provision Corporate Laptop (MacBook Pro M3)', 'Configure dev tools, VPN, and device security profiles', 'IT', 'IN_PROGRESS', CURRENT_DATE + INTERVAL '10 days'),
-  ('11111111-0000-0000-0000-000000000001', 'p1000000-0000-0000-0000-000000000001', 'Create Google Workspace & GitHub accounts', 'Grant repository write access and add to engineering groups', 'IT', 'PENDING', CURRENT_DATE + INTERVAL '15 days'),
-  ('11111111-0000-0000-0000-000000000001', 'p1000000-0000-0000-0000-000000000001', 'Schedule First-Day Orientation & Buddy intro', 'Assign engineering onboarding mentor', 'HR', 'PENDING', CURRENT_DATE + INTERVAL '20 days');
+  ('11111111-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'Provision Corporate Laptop (MacBook Pro M3)', 'Configure dev tools, VPN, and device security profiles', 'IT', 'IN_PROGRESS', CURRENT_DATE + INTERVAL '10 days'),
+  ('11111111-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'Create Google Workspace & GitHub accounts', 'Grant repository write access and add to engineering groups', 'IT', 'PENDING', CURRENT_DATE + INTERVAL '15 days'),
+  ('11111111-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'Schedule First-Day Orientation & Buddy intro', 'Assign engineering onboarding mentor', 'HR', 'PENDING', CURRENT_DATE + INTERVAL '20 days');
 
 -- ------------------------------------------------------------
 -- 15. HIRING ANALYTICS SNAPSHOTS & RECOMMENDATIONS

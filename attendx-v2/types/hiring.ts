@@ -25,6 +25,7 @@ export type HiringStage =
 export type RequisitionStatus = 'DRAFT' | 'OPEN' | 'ON_HOLD' | 'CLOSED'
 export type RequisitionPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type EmploymentType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP'
+export type WorkMode = 'REMOTE' | 'ONSITE' | 'HYBRID'
 export type DocumentMode = 'NATIVE' | 'GOOGLE_FORM'
 
 export interface JobRequisition {
@@ -42,6 +43,9 @@ export interface JobRequisition {
   filled_count: number
   location?: string | null
   employment_type: EmploymentType
+  work_mode?: WorkMode
+  opening_date?: string
+  target_close_date?: string | null
   min_experience_years?: number | null
   max_experience_years?: number | null
   min_salary?: number | null

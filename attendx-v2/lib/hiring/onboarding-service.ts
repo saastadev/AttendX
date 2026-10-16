@@ -73,16 +73,30 @@ export class OnboardingService {
   /**
    * Recalculates and updates the completion percentage of an onboarding process.
    */
-  static async recalculateProgress(client: SupabaseClient, onboardingId: string): Promise<number> {
-    const { data: docs } = await client
+  static async recalculateProgress(client: SupabaseClient, onboardingId: string, organizationId?: string): Promise<number> {
+    let docsQuery = client
       .from('onboarding_documents')
       .select('status, is_required')
       .eq('onboarding_id', onboardingId)
 
-    const { data: tasks } = await client
+    if (organizationId) {
+      docsQuery = docsQuery.eq('organization_id', organizationId)
+    }
+
+    const { data: docs, error: dErr } = await docsQuery
+    if (dErr) throw dErr
+
+    let tasksQuery = client
       .from('onboarding_tasks')
       .select('status, is_required')
       .eq('onboarding_id', onboardingId)
+
+    if (organizationId) {
+      tasksQuery = tasksQuery.eq('organization_id', organizationId)
+    }
+
+    const { data: tasks, error: tErr } = await tasksQuery
+    if (tErr) throw tErr
 
     const docList = docs || []
     const taskList = tasks || []
@@ -95,10 +109,17 @@ export class OnboardingService {
 
     const percentage = Math.round(((verifiedDocs + completedTasks) / totalItems) * 100)
 
-    await client
+    let updateQuery = client
       .from('onboarding_processes')
       .update({ completion_percentage: percentage })
       .eq('id', onboardingId)
+
+    if (organizationId) {
+      updateQuery = updateQuery.eq('organization_id', organizationId)
+    }
+
+    const { error: uErr } = await updateQuery
+    if (uErr) throw uErr
 
     return percentage
   }
@@ -170,14 +191,37 @@ export class OnboardingService {
     organizationId: string,
     input: SubmitDocumentInput
   ) {
-    // Check if placeholder exists for this document type
-    const { data: existing } = await client
+    // 1. Authoritative ownership verification: ensure onboarding process exists in caller's tenant
+    const { data: process, error: pErr } = await client
+      .from('onboarding_processes')
+      .select('id')
+      .eq('id', input.onboarding_id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (pErr) {
+      throw new Error(`Failed to verify onboarding process: ${pErr.message}`)
+    }
+
+    if (!process) {
+      const notFoundErr = new Error(`Onboarding process '${input.onboarding_id}' not found`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    // 2. Check if placeholder exists for this document type within caller's tenant
+    const { data: existing, error: findErr } = await client
       .from('onboarding_documents')
       .select('id')
+      .eq('organization_id', organizationId)
       .eq('onboarding_id', input.onboarding_id)
       .eq('document_type', input.document_type)
       .limit(1)
       .maybeSingle()
+
+    if (findErr) {
+      throw new Error(`Failed to check existing document: ${findErr.message}`)
+    }
 
     let docResult
     if (existing) {
@@ -192,6 +236,7 @@ export class OnboardingService {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
+        .eq('organization_id', organizationId)
         .select()
         .single()
       if (error) throw error
@@ -216,7 +261,7 @@ export class OnboardingService {
       docResult = data
     }
 
-    await this.recalculateProgress(client, input.onboarding_id)
+    await this.recalculateProgress(client, input.onboarding_id, organizationId)
     return docResult
   }
 
@@ -255,13 +300,14 @@ export class OnboardingService {
     if (error) throw error
 
     // Recalculate progress
-    await this.recalculateProgress(client, doc.onboarding_id)
+    await this.recalculateProgress(client, doc.onboarding_id, organizationId)
 
     // Check if all required documents are now verified
     const { data: allDocs } = await client
       .from('onboarding_documents')
       .select('status, is_required')
       .eq('onboarding_id', doc.onboarding_id)
+      .eq('organization_id', organizationId)
 
     const allRequiredVerified = (allDocs || [])
       .filter(d => d.is_required)
@@ -272,12 +318,14 @@ export class OnboardingService {
         .from('onboarding_processes')
         .update({ status: 'DOCUMENTS_VERIFIED' })
         .eq('id', doc.onboarding_id)
+        .eq('organization_id', organizationId)
 
       // Transition application stage to DOCUMENTS_VERIFIED if not already
       const { data: app } = await client
         .from('job_applications')
         .select('stage')
         .eq('id', doc.onboarding.application_id)
+        .eq('organization_id', organizationId)
         .single()
 
       if (app && app.stage !== 'DOCUMENTS_VERIFIED') {
@@ -286,6 +334,7 @@ export class OnboardingService {
           .from('job_applications')
           .update({ stage: nextStage })
           .eq('id', doc.onboarding.application_id)
+          .eq('organization_id', organizationId)
 
         await HiringAuditLogger.logFunnelEvent(client, {
           organization_id: organizationId,
@@ -330,7 +379,7 @@ export class OnboardingService {
 
     if (error) throw error
 
-    await this.recalculateProgress(client, task.onboarding_id)
+    await this.recalculateProgress(client, task.onboarding_id, organizationId)
     return task
   }
 

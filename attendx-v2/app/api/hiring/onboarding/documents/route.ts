@@ -13,7 +13,7 @@ import { OnboardingService } from '@/lib/hiring/onboarding-service'
 export async function POST(request: Request) {
   try {
     const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'EMPLOYEE'
+      'SUPERADMIN', 'ADMIN', 'HR'
     ], request)
 
     const body = await request.json()

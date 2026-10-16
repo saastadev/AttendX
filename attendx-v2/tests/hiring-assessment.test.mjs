@@ -24,6 +24,7 @@ function createMockSupabase(initialStore = {}) {
     assessments: [],
     candidate_assessments: [],
     job_applications: [],
+    candidates: [],
     hiring_audit_logs: [],
     ...initialStore,
   }
@@ -269,6 +270,20 @@ test('Scenario 4: Assignment & Session Start with Active Countdown Timer', async
         time_limit_minutes: 45,
         passing_score: 60,
         questions: SAMPLE_QUESTIONS,
+      },
+    ],
+    candidates: [
+      {
+        id: CANDIDATE_ID,
+        organization_id: TENANT_A,
+        first_name: 'Alice',
+      },
+    ],
+    job_applications: [
+      {
+        id: APP_ID,
+        organization_id: TENANT_A,
+        candidate_id: CANDIDATE_ID,
       },
     ],
   })

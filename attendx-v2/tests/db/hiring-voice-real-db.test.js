@@ -245,6 +245,9 @@ test('MODULE 4.4 — REAL DATABASE VOICE AI & RLS VERIFICATION', async (t) => {
 
   // 7. Audit log insertion
   await t.test('7. Audit Logging: hiring_audit_logs accepts VOICE_CALL_INITIATED record', async () => {
+    const userRow = await client.query(`SELECT id FROM auth.users WHERE email = 'hr@acme-tech.com' LIMIT 1;`).catch(() => ({ rows: [] }))
+    const validUserId = userRow.rows[0]?.id || null
+
     const auditRes = await client.query(`
       INSERT INTO public.hiring_audit_logs (
         organization_id, user_id, action, entity_type, entity_id, new_values
@@ -252,7 +255,7 @@ test('MODULE 4.4 — REAL DATABASE VOICE AI & RLS VERIFICATION', async (t) => {
       RETURNING id, action
     `, [
       T_ACME,
-      U.anitaHR,
+      validUserId,
       'VOICE_CALL_INITIATED',
       'ai_voice_calls',
       testVoiceCallId,

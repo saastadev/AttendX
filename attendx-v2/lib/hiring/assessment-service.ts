@@ -172,7 +172,43 @@ export class AssessmentService {
     // 1. Verify assessment exists in tenant
     const assessment = await this.getAssessment(client, organizationId, params.assessmentId)
 
-    // 2. Insert candidate_assessments record
+    // 2. Verify candidate belongs to caller's organization
+    const { data: candidate } = await client
+      .from('candidates')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('id', params.candidateId)
+      .maybeSingle()
+
+    if (!candidate) {
+      const notFound = new Error(`Candidate '${params.candidateId}' not found.`) as any
+      notFound.status = 404
+      throw notFound
+    }
+
+    // 3. Verify optional application belongs to caller's organization and candidate
+    if (params.applicationId) {
+      const { data: application } = await client
+        .from('job_applications')
+        .select('id, candidate_id')
+        .eq('organization_id', organizationId)
+        .eq('id', params.applicationId)
+        .maybeSingle()
+
+      if (!application) {
+        const notFound = new Error(`Job application '${params.applicationId}' not found.`) as any
+        notFound.status = 404
+        throw notFound
+      }
+
+      if (application.candidate_id !== params.candidateId) {
+        const mismatchErr = new Error(`Candidate '${params.candidateId}' does not match application candidate.`) as any
+        mismatchErr.status = 400
+        throw mismatchErr
+      }
+    }
+
+    // 4. Insert candidate_assessments record
     const { data, error } = await client
       .from('candidate_assessments')
       .insert({

@@ -4,7 +4,7 @@
 // Never trusts client-supplied headers, query params, or body claims
 // ============================================================
 
-import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { allowDemoAuthentication, isDevMockSupabase } from '../supabase/config.ts'
 
 export interface AuthoritativeCaller {
   userId: string
@@ -25,58 +25,63 @@ export class ServerIdentity {
     let isDemo = false
     let demoCaller: AuthoritativeCaller | null = null
 
-    // 0. Check demo session cookie for local dev / offline mode
-    let demoCookie: string | undefined
-    if (request) {
-      const cookieHeader = request.headers.get('cookie') || ''
-      const match = cookieHeader.match(/attendx-demo-session=([^;]+)/)
-      if (match) demoCookie = match[1]
-    }
-    if (!demoCookie) {
-      try {
-        const { cookies } = await import('next/headers')
-        const cookieStore = await cookies()
-        demoCookie = cookieStore.get('attendx-demo-session')?.value
-      } catch {
-        // Not in server component context or headers not available
-      }
-    }
+    // 0. Check demo session cookie ONLY when explicitly allowed:
+    // Strict requirement: BOTH process.env.NODE_ENV === 'development' AND isDevMockSupabase() must be true.
+    // In staging, test, and production, forged demo cookies are strictly ignored.
+    const allowDemo = allowDemoAuthentication()
 
-    if (demoCookie) {
-      try {
-        const decoded = decodeURIComponent(demoCookie)
-        const payload = JSON.parse(Buffer.from(decoded, 'base64').toString('utf-8'))
-        if (payload && payload.id && payload.role) {
-          isDemo = true
-          demoCaller = {
-            userId: payload.id,
-            tenantId: payload.tenant_id,
-            role: payload.role,
-            email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
-          }
+    if (allowDemo) {
+      let demoCookie: string | undefined
+      if (request) {
+        const cookieHeader = request.headers.get('cookie') || ''
+        const match = cookieHeader.match(/attendx-demo-session=([^;]+)/)
+        if (match) demoCookie = match[1]
+      }
+      if (!demoCookie) {
+        try {
+          const { cookies } = await import('next/headers')
+          const cookieStore = await cookies()
+          demoCookie = cookieStore.get('attendx-demo-session')?.value
+        } catch {
+          // Not in server component context or headers not available
         }
-      } catch {
-        // ignore malformed cookie
+      }
+
+      if (demoCookie) {
+        try {
+          const decoded = decodeURIComponent(demoCookie)
+          const payload = JSON.parse(Buffer.from(decoded, 'base64').toString('utf-8'))
+          if (payload && payload.id && payload.role && payload.tenant_id) {
+            isDemo = true
+            demoCaller = {
+              userId: payload.id,
+              tenantId: payload.tenant_id,
+              role: payload.role,
+              email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
+            }
+          }
+        } catch {
+          // ignore malformed cookie - fails closed
+        }
+      }
+
+      if (isDemo && demoCaller) {
+        if (!allowedRoles.includes(demoCaller.role)) {
+          const err = new Error(`Forbidden: Role '${demoCaller.role}' cannot execute this administrative action.`) as any
+          err.status = 403
+          throw err
+        }
+        return demoCaller
       }
     }
 
-    if (isDemo && demoCaller) {
-      if (!allowedRoles.includes(demoCaller.role)) {
-        const err = new Error(`Forbidden: Role '${demoCaller.role}' cannot execute this administrative action.`) as any
-        err.status = 403
-        throw err
-      }
-      return demoCaller
-    }
-
-    const { isDevMockSupabase } = await import('@/lib/supabase/server')
     if (isDevMockSupabase()) {
       const err = new Error('Unauthenticated: No active session found.') as any
       err.status = 401
       throw err
     }
 
-    const serviceClient = getSupabaseServiceClient()
+    const { getSupabaseServiceClient, getSupabaseServerClient } = await import('../supabase/server.ts')
 
     // 1. Try Bearer token from Request Authorization header
     if (request) {
@@ -85,6 +90,7 @@ export class ServerIdentity {
         const token = authHeader.slice(7).trim()
         if (token) {
           try {
+            const serviceClient = getSupabaseServiceClient()
             const { data, error } = await serviceClient.auth.getUser(token)
             if (data?.user && !error) {
               user = data.user
@@ -115,6 +121,7 @@ export class ServerIdentity {
       throw err
     }
 
+    const serviceClient = getSupabaseServiceClient()
     // 1. Authoritatively query user_roles
     const { data: roleRows, error: roleErr } = await serviceClient
       .from('user_roles')

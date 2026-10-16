@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, allowDemoAuthentication } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 const loginSchema = z.object({
@@ -30,7 +30,7 @@ const ROLE_ROUTE_PERMISSIONS: Record<string, string[]> = {
   ADMIN: ['/admin', '/hr', '/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
   HR: ['/hr', '/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
   MANAGER: ['/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-  EMPLOYEE: ['/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
+  EMPLOYEE: ['/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
 }
 
 const DEMO_USERS: Record<string, { id: string; role: string; full_name: string; tenant_id: string }> = {
@@ -136,8 +136,9 @@ export async function POST(request: NextRequest) {
     let roleRecords: Array<{ role: string; tenant_id: string }> = []
 
     if (authError || !user) {
-      const demoAccount = DEMO_USERS[cleanEmail]
-      if (demoAccount && password === 'Password123!') {
+      const allowDemo = allowDemoAuthentication()
+      const demoAccount = allowDemo ? DEMO_USERS[cleanEmail] : undefined
+      if (allowDemo && demoAccount && password === 'Password123!') {
         isDemoUser = true
         user = {
           id: demoAccount.id,

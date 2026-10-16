@@ -5,7 +5,7 @@
 // ============================================================
 
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient, getSupabaseServiceClient, allowDemoAuthentication } from '@/lib/supabase/server'
 import type { AvailableTenant, GetAvailableTenantsResponse } from '@/types/database'
 
 export async function GET(req: NextRequest) {
@@ -83,25 +83,28 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response)
   } catch (err: any) {
-    const demoTenants: AvailableTenant[] = [
-      {
-        tenant_id: '11111111-0000-0000-0000-000000000001',
-        tenant_name: 'Acme Corporation',
-        tenant_slug: 'acme',
-        role: 'HR',
-        is_current: true,
-      },
-      {
-        tenant_id: '22222222-0000-0000-0000-000000000002',
-        tenant_name: 'Stark Industries',
-        tenant_slug: 'stark',
-        role: 'HR',
-        is_current: false,
-      },
-    ]
-    return NextResponse.json({
-      tenants: demoTenants,
-      requires_selection: false,
-    })
+    if (allowDemoAuthentication()) {
+      const demoTenants: AvailableTenant[] = [
+        {
+          tenant_id: '11111111-0000-0000-0000-000000000001',
+          tenant_name: 'Acme Corporation',
+          tenant_slug: 'acme',
+          role: 'HR',
+          is_current: true,
+        },
+        {
+          tenant_id: '22222222-0000-0000-0000-000000000002',
+          tenant_name: 'Stark Industries',
+          tenant_slug: 'stark',
+          role: 'HR',
+          is_current: false,
+        },
+      ]
+      return NextResponse.json({
+        tenants: demoTenants,
+        requires_selection: false,
+      })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
