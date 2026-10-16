@@ -1,13 +1,53 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Mail, MessageSquare, Send, CheckCircle2, Clock,
-  Eye, RefreshCcw, Plus, Sparkles, Filter, ChevronRight
+  Eye, RefreshCcw, Plus, Sparkles, Filter, ChevronRight,
+  X, Copy, Check
 } from 'lucide-react'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { useToast } from '@/components/ui/Toast'
+
+const DEFAULT_OUTREACH_TEMPLATES = [
+  {
+    id: 'tmpl-1',
+    name: 'Executive Talent Introduction',
+    channel: 'EMAIL',
+    subject: 'Leadership Opportunity at {{company_name}} — {{role_title}}',
+    body_template: 'Hi {{candidate_name}},\n\nI came across your profile and was thoroughly impressed by your work in {{skills}}. We are actively expanding our team at {{company_name}} and are searching for a {{role_title}} to lead critical initiatives.\n\nWould you have 15 minutes this week for a brief introductory conversation?\n\nBest regards,\nAttendX Talent Team',
+    variables: ['candidate_name', 'company_name', 'role_title', 'skills'],
+    is_ai_customizable: true,
+  },
+  {
+    id: 'tmpl-2',
+    name: 'Technical Round Invitation',
+    channel: 'EMAIL',
+    subject: 'Next Steps: Technical Screening for {{role_title}} at {{company_name}}',
+    body_template: 'Hi {{candidate_name}},\n\nThank you for your interest in the {{role_title}} position at {{company_name}}! Following our initial review, we would love to invite you for a 45-minute technical discussion with our engineering panel.\n\nPlease select a convenient time using the calendar link below.\n\nWarm regards,\nEngineering Hiring Team',
+    variables: ['candidate_name', 'role_title', 'company_name'],
+    is_ai_customizable: true,
+  },
+  {
+    id: 'tmpl-3',
+    name: 'Immediate Screening Invitation',
+    channel: 'SMS',
+    subject: '',
+    body_template: 'Hi {{candidate_name}}, your profile caught our eye for {{role_title}} at {{company_name}}! When is a good time for a quick 10-min intro chat?',
+    variables: ['candidate_name', 'role_title', 'company_name'],
+    is_ai_customizable: false,
+  },
+  {
+    id: 'tmpl-4',
+    name: 'WhatsApp Fast-Track Outreach',
+    channel: 'WHATSAPP',
+    subject: '',
+    body_template: 'Hello {{candidate_name}}! We are hiring a {{role_title}} at {{company_name}}. We loved your background and would love to chat. Can we connect today?',
+    variables: ['candidate_name', 'role_title', 'company_name'],
+    is_ai_customizable: true,
+  },
+]
 
 export default function OutreachPage() {
   const { success, error: toastError } = useToast()
@@ -15,7 +55,18 @@ export default function OutreachPage() {
 
   const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'TEMPLATES' | 'MESSAGES'>('CAMPAIGNS')
   const [showNewCampaign, setShowNewCampaign] = useState(false)
+  const [showNewTemplate, setShowNewTemplate] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null)
+  const [copiedPreview, setCopiedPreview] = useState(false)
+
+  const [newTemplateForm, setNewTemplateForm] = useState({
+    name: '',
+    channel: 'EMAIL',
+    subject: '',
+    body_template: '',
+    variables: 'candidate_name, role_title, company_name, skills',
+  })
+  const [isSubmittingTemplate, setIsSubmittingTemplate] = useState(false)
 
   // Fetch campaigns
   const { data: campaignData, isLoading: campaignsLoading } = useQuery({
@@ -38,7 +89,14 @@ export default function OutreachPage() {
   })
 
   const campaigns = campaignData?.campaigns || []
-  const templates = templateData?.templates || []
+  const fetchedTemplates = templateData?.templates || []
+  const effectiveTemplates = fetchedTemplates.length > 0 ? fetchedTemplates : DEFAULT_OUTREACH_TEMPLATES
+
+  useEffect(() => {
+    if (!selectedTemplate && effectiveTemplates.length > 0) {
+      setSelectedTemplate(effectiveTemplates[0])
+    }
+  }, [selectedTemplate, effectiveTemplates])
 
   // Sample outreach messages for preview / response tracking
   const sampleMessages = [
@@ -99,6 +157,77 @@ export default function OutreachPage() {
       default:
         return { bg: 'var(--neu-bg-deep)', text: 'var(--text-tertiary)', label: 'Sent' }
     }
+  }
+
+  const handleCreateTemplate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTemplateForm.name.trim() || !newTemplateForm.body_template.trim()) {
+      toastError('Template name and body are required')
+      return
+    }
+
+    try {
+      setIsSubmittingTemplate(true)
+      const res = await fetch('/api/hiring/outreach/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTemplateForm.name.trim(),
+          channel: newTemplateForm.channel,
+          subject: newTemplateForm.subject.trim() || null,
+          body_template: newTemplateForm.body_template.trim(),
+          variables: newTemplateForm.variables
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean),
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create template')
+      }
+
+      success('Template created successfully!')
+      setShowNewTemplate(false)
+      setNewTemplateForm({
+        name: '',
+        channel: 'EMAIL',
+        subject: '',
+        body_template: '',
+        variables: 'candidate_name, role_title, company_name, skills',
+      })
+      await qc.invalidateQueries({ queryKey: ['hiring-outreach-templates'] })
+    } catch (err: any) {
+      toastError(err.message || 'Error creating template')
+    } finally {
+      setIsSubmittingTemplate(false)
+    }
+  }
+
+  const getInterpolatedBody = (body: string) => {
+    if (!body) return ''
+    return body
+      .replace(/\{\{candidate_name\}\}/g, 'Aarav Sharma')
+      .replace(/\{\{company_name\}\}/g, 'AcmeTech Solutions')
+      .replace(/\{\{role_title\}\}/g, 'Senior Frontend Engineer')
+      .replace(/\{\{skills\}\}/g, 'React, TypeScript, Next.js')
+  }
+
+  const getInterpolatedSubject = (subj?: string | null) => {
+    if (!subj) return 'Direct Message'
+    return subj
+      .replace(/\{\{candidate_name\}\}/g, 'Aarav Sharma')
+      .replace(/\{\{company_name\}\}/g, 'AcmeTech Solutions')
+      .replace(/\{\{role_title\}\}/g, 'Senior Frontend Engineer')
+      .replace(/\{\{skills\}\}/g, 'React, TypeScript, Next.js')
+  }
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedPreview(true)
+    setTimeout(() => setCopiedPreview(false), 2000)
+    success('Template copied to clipboard!')
   }
 
   return (
@@ -256,85 +385,171 @@ export default function OutreachPage() {
 
       {/* Tab 2: Templates */}
       {activeTab === 'TEMPLATES' && (
-        <div className="neu-responsive-split">
-          {/* Templates List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {templates.map((tpl: any) => (
-              <div
-                key={tpl.id}
-                onClick={() => setSelectedTemplate(tpl)}
-                className="card card-hover"
-                style={{
-                  padding: 18,
-                  borderRadius: 14,
-                  background: selectedTemplate?.id === tpl.id ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
-                  boxShadow: 'var(--elev-1)',
-                  cursor: 'pointer',
-                  border: selectedTemplate?.id === tpl.id ? '1px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {tpl.name}
-                  </h4>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                    {tpl.channel}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                  Subject: <i>{tpl.subject || 'SMS Direct Message'}</i>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(tpl.variables || []).map((v: string, i: number) => (
-                    <span key={i} style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', background: 'var(--neu-bg-deep)', padding: '2px 6px', borderRadius: 6, color: 'var(--accent)' }}>
-                      {`{{${v}}}`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Outreach Templates ({effectiveTemplates.length})
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                Standardized multi-channel messages with dynamic AI & candidate variable interpolation
+              </p>
+            </div>
+            <button
+              onClick={() => setShowNewTemplate(true)}
+              className="neu-button-primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 10,
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Plus size={16} />
+              + New Template
+            </button>
           </div>
 
-          {/* Template Preview */}
-          <div className="card" style={{
-            padding: 24,
-            borderRadius: 16,
-            background: 'var(--neu-base)',
-            boxShadow: 'var(--elev-1)',
-          }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
-              Template Live Preview
-            </h3>
-            {selectedTemplate ? (
-              <div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Subject</label>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
-                    {selectedTemplate.subject || 'Direct SMS'}
+          <div className="neu-responsive-split">
+            {/* Templates List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {effectiveTemplates.map((tpl: any) => {
+                const isSelected = selectedTemplate?.id === tpl.id
+                return (
+                  <div
+                    key={tpl.id}
+                    onClick={() => setSelectedTemplate(tpl)}
+                    className="card card-hover"
+                    style={{
+                      padding: 18,
+                      borderRadius: 14,
+                      background: isSelected ? 'var(--neu-bg-raised)' : 'var(--neu-base)',
+                      boxShadow: isSelected ? 'var(--elev-2)' : 'var(--elev-1)',
+                      cursor: 'pointer',
+                      border: isSelected ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.4)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {tpl.name}
+                      </h4>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 8,
+                        background: tpl.channel === 'EMAIL' ? 'rgba(59, 130, 246, 0.15)' : tpl.channel === 'WHATSAPP' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: tpl.channel === 'EMAIL' ? '#2563EB' : tpl.channel === 'WHATSAPP' ? '#10B981' : '#D97706',
+                      }}>
+                        {tpl.channel}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                      Subject: <i>{tpl.subject || '(Direct Message - No Subject)'}</i>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(tpl.variables || []).map((v: string, i: number) => (
+                        <span key={i} style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', background: 'var(--neu-bg-deep)', padding: '2px 6px', borderRadius: 6, color: 'var(--accent)' }}>
+                          {`{{${v}}}`}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )
+              })}
+            </div>
 
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Message Body</label>
-                  <div style={{
-                    background: 'var(--neu-bg-deep)',
-                    padding: 16,
-                    borderRadius: 12,
-                    fontSize: '0.85rem',
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.6,
-                    marginTop: 6,
-                    whiteSpace: 'pre-wrap',
-                  }}>
-                    {selectedTemplate.body_template}
+            {/* Template Preview */}
+            <div className="card" style={{
+              padding: 24,
+              borderRadius: 16,
+              background: 'var(--neu-base)',
+              boxShadow: 'var(--elev-1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Template Live Preview
+                </h3>
+                {selectedTemplate && (
+                  <button
+                    onClick={() => handleCopy(getInterpolatedBody(selectedTemplate.body_template))}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: 'var(--neu-bg-deep)',
+                      border: '1px solid rgba(128,128,180,0.2)',
+                      color: copiedPreview ? '#10B981' : 'var(--text-primary)',
+                    }}
+                  >
+                    {copiedPreview ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedPreview ? 'Copied' : 'Copy Sample'}
+                  </button>
+                )}
+              </div>
+
+              {selectedTemplate ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      Sample Subject (Interpolated)
+                    </label>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>
+                      {getInterpolatedSubject(selectedTemplate.subject)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      Sample Message Body (Interpolated)
+                    </label>
+                    <div style={{
+                      background: 'var(--neu-bg-deep)',
+                      padding: 16,
+                      borderRadius: 12,
+                      fontSize: '0.85rem',
+                      color: 'var(--text-primary)',
+                      lineHeight: 1.6,
+                      marginTop: 6,
+                      whiteSpace: 'pre-wrap',
+                      border: '1px solid rgba(128,128,180,0.15)',
+                    }}>
+                      {getInterpolatedBody(selectedTemplate.body_template)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      Raw Template Variables
+                    </label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                      {(selectedTemplate.variables || []).map((v: string, i: number) => (
+                        <span key={i} style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', background: 'var(--neu-bg-deep)', padding: '3px 8px', borderRadius: 6, color: 'var(--accent)' }}>
+                          {`{{${v}}}`}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                Select a template from the left to view body and interpolated variables.
-              </div>
-            )}
+              ) : (
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                  Select a template from the left to view body and interpolated variables.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -431,6 +646,191 @@ export default function OutreachPage() {
             })}
           </div>
         </>
+      )}
+
+      {/* Modal: New Template */}
+      {showNewTemplate && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div style={{
+            background: 'var(--neu-base)',
+            borderRadius: 20,
+            width: '100%',
+            maxWidth: 520,
+            boxShadow: 'var(--elev-3)',
+            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Create Outreach Template
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowNewTemplate(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTemplate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Template Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Engineering Leadership Outreach"
+                  value={newTemplateForm.name}
+                  onChange={(e) => setNewTemplateForm({ ...newTemplateForm, name: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(128,128,180,0.2)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Channel *
+                </label>
+                <select
+                  value={newTemplateForm.channel}
+                  onChange={(e) => setNewTemplateForm({ ...newTemplateForm, channel: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(128,128,180,0.2)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  <option value="EMAIL">Email</option>
+                  <option value="SMS">SMS</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                </select>
+              </div>
+
+              {newTemplateForm.channel === 'EMAIL' && (
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Email Subject
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Role Opportunity at {{company_name}}"
+                    value={newTemplateForm.subject}
+                    onChange={(e) => setNewTemplateForm({ ...newTemplateForm, subject: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(128,128,180,0.2)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Message Body Template *
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  placeholder="Hi {{candidate_name}}, we noticed your background..."
+                  value={newTemplateForm.body_template}
+                  onChange={(e) => setNewTemplateForm({ ...newTemplateForm, body_template: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(128,128,180,0.2)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Variables (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={newTemplateForm.variables}
+                  onChange={(e) => setNewTemplateForm({ ...newTemplateForm, variables: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(128,128,180,0.2)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNewTemplate(false)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 10,
+                    background: 'transparent',
+                    border: '1px solid rgba(128,128,180,0.2)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTemplate}
+                  className="neu-button-primary"
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 10,
+                    cursor: isSubmittingTemplate ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isSubmittingTemplate ? 'Saving...' : 'Save Template'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </PageWrapper>
   )
