@@ -6,6 +6,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { requireSupabaseConfig, requireServiceRoleKey } from '@/lib/env'
+import { isDevMockSupabase, allowDemoAuthentication, isPrivilegedSpyAllowed } from './config'
 
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies()
@@ -36,6 +37,24 @@ export async function getSupabaseServerClient() {
 // Service role client for Edge Function-equivalent server actions
 // Only used in Server Actions / Route Handlers, never exposed to client
 export function getSupabaseServiceClient(): SupabaseClient {
+  if (isPrivilegedSpyAllowed()) {
+    try {
+      const fs = require('node:fs')
+      const spyPath = process.env.ATTENDX_TEST_PRIVILEGED_SPY!.trim()
+      const stackLines = (new Error().stack || '')
+        .split('\n')
+        .slice(2, 4)
+        .map((line: string) => line.trim())
+        .join(' -> ')
+      fs.appendFileSync(
+        spyPath,
+        `ACQUIRED:${new Date().toISOString()} | CALLER:${stackLines}\n`
+      )
+    } catch {
+      // test observation best effort
+    }
+  }
+
   if (isDevMockSupabase()) {
     throw new Error('DEV_MOCK_SUPABASE_OFFLINE: Local development mode with mock store')
   }
@@ -53,12 +72,4 @@ export function getSupabaseServiceClient(): SupabaseClient {
   )
 }
 
-export function isDevMockSupabase(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return (
-    url.includes('attendx-dev.supabase.co') ||
-    url.includes('dummy') ||
-    process.env.ATTENDX_OFFLINE_MODE === 'true' ||
-    process.env.ATTENDX_MOCK_STORE === 'true'
-  )
-}
+export { isDevMockSupabase, allowDemoAuthentication, isPrivilegedSpyAllowed } from './config'
