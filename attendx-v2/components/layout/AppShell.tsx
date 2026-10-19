@@ -57,13 +57,24 @@ const SIDEBAR_NAV: NavGroup[] = [
   {
     section: 'HR & Admin',
     items: [
-      { href: '/hiring',       icon: Briefcase, label: 'Hiring',   id: 'snav-hiring',    minRole: 'HR' },
       { href: '/hr/directory', icon: Users,    label: 'Directory', id: 'snav-directory', minRole: 'HR' },
       { href: '/hr/insights',  icon: BarChart2, label: 'Insights',  id: 'snav-insights',  minRole: 'HR' },
       { href: '/hr/sentiment', icon: Heart,     label: 'Sentiment', id: 'snav-sentiment', minRole: 'HR' },
       { href: '/admin/users',  icon: Shield,   label: 'Users',     id: 'snav-users',     minRole: 'ADMIN' },
       { href: '/admin/attendance', icon: Camera, label: 'Selfies', id: 'snav-admin-attendance', minRole: 'ADMIN' },
       { href: '/admin/settings',icon: Settings, label: 'Settings',  id: 'snav-settings',  minRole: 'ADMIN' },
+    ],
+  },
+  {
+    section: 'Hiring',
+    items: [
+      { href: '/hiring',              icon: UserPlus,          label: 'Overview',     id: 'snav-hiring-hub',  minRole: 'MANAGER' },
+      { href: '/hiring/applications', icon: Briefcase,         label: 'Applications', id: 'snav-hiring-apps', minRole: 'MANAGER' },
+      { href: '/hiring/sourcing',     icon: Search,            label: 'AI Sourcing',  id: 'snav-hiring-src',  minRole: 'HR' },
+      { href: '/hiring/outreach',     icon: MessageSquareMore, label: 'Outreach',     id: 'snav-hiring-reach', minRole: 'HR' },
+      { href: '/hiring/interview-status', icon: Clock,         label: 'Interviews',   id: 'snav-hiring-int',  minRole: 'MANAGER' },
+      { href: '/hiring/onboard',      icon: Shield,            label: 'Onboarding',   id: 'snav-hiring-onb',  minRole: 'HR' },
+      { href: '/hiring/analytics',    icon: BarChart2,         label: 'Analytics',    id: 'snav-hiring-stat', minRole: 'HR' },
     ],
   },
   {
@@ -525,7 +536,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="neu-sidebar-section-label">{group.section}</div>
                 )}
                 {visibleItems.map(item => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                  const isHiringSubRoute = item.href === '/hiring' && pathname !== '/hiring' && (
+                    pathname.startsWith('/hiring/applications') ||
+                    pathname.startsWith('/hiring/sourcing') ||
+                    pathname.startsWith('/hiring/outreach') ||
+                    pathname.startsWith('/hiring/interview') ||
+                    pathname.startsWith('/hiring/onboard') ||
+                    pathname.startsWith('/hiring/analytics')
+                  )
+                  const isActive = !isHiringSubRoute && (
+                    pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                  )
                   return (
                     <SidebarItem
                       key={item.href}
@@ -1010,7 +1031,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         )}
                         {visibleItems.map(item => {
                           const Icon = item.icon
-                          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                          const isHiringSubRoute = item.href === '/hiring' && pathname !== '/hiring' && (
+                            pathname.startsWith('/hiring/applications') ||
+                            pathname.startsWith('/hiring/sourcing') ||
+                            pathname.startsWith('/hiring/outreach') ||
+                            pathname.startsWith('/hiring/interview') ||
+                            pathname.startsWith('/hiring/onboard') ||
+                            pathname.startsWith('/hiring/analytics')
+                          )
+                          const isActive = !isHiringSubRoute && (
+                            pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+                          )
                           return (
                             <Link
                               key={item.href}

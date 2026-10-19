@@ -32,32 +32,45 @@ test('Hiring Navigation Visibility & RBAC Suite', async (t) => {
     assert.ok(pageContent.includes('HiringHubPage'), 'Hiring page component must be present')
   })
 
-  await t.test('NAV-02: AppShell defines Hiring under HR & Admin with minRole HR', () => {
-    // Check that HR & Admin section contains the /hiring item
-    const hrAdminSectionMatch = appShellContent.match(/section:\s*'HR & Admin',\s*items:\s*\[([\s\S]*?)\]/m)
-    assert.ok(hrAdminSectionMatch, 'Must find HR & Admin section in AppShell.tsx')
+  await t.test('NAV-02: AppShell defines dedicated Hiring section with all 7 sub-items', () => {
+    // Check that Hiring section contains all 7 submodules
+    const hiringSectionMatch = appShellContent.match(/section:\s*'Hiring',\s*items:\s*\[([\s\S]*?)\]/m)
+    assert.ok(hiringSectionMatch, 'Must find dedicated Hiring section in AppShell.tsx')
 
-    const hrAdminItems = hrAdminSectionMatch[1]
-    const hasHiringEntry = hrAdminItems.includes("href: '/hiring'")
-    assert.strictEqual(hasHiringEntry, true, "HR & Admin section must include href: '/hiring'")
+    const hiringItems = hiringSectionMatch[1]
+    const requiredItems = [
+      { href: '/hiring', label: 'Overview', id: 'snav-hiring-hub' },
+      { href: '/hiring/applications', label: 'Applications', id: 'snav-hiring-apps' },
+      { href: '/hiring/sourcing', label: 'AI Sourcing', id: 'snav-hiring-src' },
+      { href: '/hiring/outreach', label: 'Outreach', id: 'snav-hiring-reach' },
+      { href: '/hiring/interview-status', label: 'Interviews', id: 'snav-hiring-int' },
+      { href: '/hiring/onboard', label: 'Onboarding', id: 'snav-hiring-onb' },
+      { href: '/hiring/analytics', label: 'Analytics', id: 'snav-hiring-stat' },
+    ]
 
-    const hiringItemMatch = hrAdminItems.match(/\{\s*href:\s*'\/hiring'[^}]+\}/)
-    assert.ok(hiringItemMatch, 'Must match full /hiring item definition in HR & Admin')
-    const hiringDef = hiringItemMatch[0]
-
-    assert.ok(hiringDef.includes("label: 'Hiring'"), "Hiring navigation item must have label: 'Hiring'")
-    assert.ok(hiringDef.includes("minRole: 'HR'"), "Hiring navigation item must have minRole: 'HR'")
-    assert.ok(hiringDef.includes("icon: Briefcase"), "Hiring navigation item must have icon: Briefcase")
-    assert.ok(hiringDef.includes("id: 'snav-hiring'"), "Hiring navigation item must have id: 'snav-hiring'")
+    for (const req of requiredItems) {
+      assert.ok(hiringItems.includes(`href: '${req.href}'`), `Hiring section must include href: '${req.href}'`)
+      assert.ok(hiringItems.includes(`label: '${req.label}'`), `Hiring section must include label: '${req.label}'`)
+      assert.ok(hiringItems.includes(`id: '${req.id}'`), `Hiring section must include id: '${req.id}'`)
+    }
   })
 
-  await t.test('NAV-03: Zero duplicate /hiring links exist in AppShell navigation', () => {
-    const hiringHrefMatches = Array.from(appShellContent.matchAll(/href:\s*'\/hiring'/g))
-    assert.strictEqual(
-      hiringHrefMatches.length,
-      1,
-      `Expected exactly 1 '/hiring' link in AppShell.tsx, found ${hiringHrefMatches.length}`
-    )
+  await t.test('NAV-03: All 7 Hiring submodule pages exist and are non-empty', () => {
+    const submodules = [
+      'app/(app)/hiring/page.tsx',
+      'app/(app)/hiring/applications/page.tsx',
+      'app/(app)/hiring/sourcing/page.tsx',
+      'app/(app)/hiring/outreach/page.tsx',
+      'app/(app)/hiring/interview-status/page.tsx',
+      'app/(app)/hiring/onboard/page.tsx',
+      'app/(app)/hiring/analytics/page.tsx',
+    ]
+    for (const sub of submodules) {
+      const fullPath = resolveFile(sub)
+      assert.strictEqual(fs.existsSync(fullPath), true, `Page file ${sub} must exist`)
+      const content = fs.readFileSync(fullPath, 'utf8')
+      assert.ok(content.length > 50, `Page file ${sub} must not be empty`)
+    }
   })
 
   await t.test('NAV-04: Role visibility logic correctly partitions roles for minRole HR', () => {
