@@ -10,9 +10,7 @@ import { ApplicationService } from '@/lib/hiring/application-service'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const { application_ids, action, target_stage, reason } = body

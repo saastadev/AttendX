@@ -16,9 +16,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     if (isDevMockSupabase()) {
       const { mockHiringStore } = await import('@/lib/hiring/mock-store')
@@ -52,9 +50,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
@@ -83,9 +79,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const serviceClient = getSupabaseServiceClient()
     const { error } = await serviceClient

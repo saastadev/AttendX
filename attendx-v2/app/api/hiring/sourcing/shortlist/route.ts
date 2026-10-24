@@ -10,9 +10,7 @@ import { SourcingService } from '@/lib/hiring/sourcing-service'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.sourced_candidate_id || !body.requisition_id) {
@@ -27,6 +25,21 @@ export async function POST(request: Request) {
 
     if (isDevMockSupabase()) {
       const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const req = mockHiringStore.requisitions.find(
+        r => r.id === body.requisition_id && (r.organization_id === caller.tenantId || r.organization_id === '11111111-0000-0000-0000-000000000001' || !r.organization_id)
+      )
+      if (!req) {
+        return NextResponse.json(
+          { error: `Job requisition '${body.requisition_id}' not found.` },
+          { status: 404 }
+        )
+      }
+      if (req.status !== 'OPEN') {
+        return NextResponse.json(
+          { error: `Job requisition '${body.requisition_id}' is not eligible for candidate shortlisting (status: ${req.status}). Must be OPEN.` },
+          { status: 400 }
+        )
+      }
       const app = mockHiringStore.createApplication(caller.tenantId, {
         requisition_id: body.requisition_id,
         candidate_name: body.candidate_name || 'Shortlisted Sourced Candidate',

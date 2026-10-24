@@ -12,9 +12,7 @@ import type { UserRole } from '@/types/database'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const { onboarding_id, work_email, department_id, joining_date, job_title, role } = body

@@ -35,17 +35,17 @@ const ROLE_ROUTE_PERMISSIONS: Record<string, string[]> = {
 
 const DEMO_USERS: Record<string, { id: string; role: string; full_name: string; tenant_id: string }> = {
   'superadmin@acme-tech.com': { id: '11111111-1111-1111-1111-111111111111', role: 'SUPERADMIN', full_name: 'Alice Superadmin', tenant_id: '11111111-0000-0000-0000-000000000001' },
-  'admin@acme-tech.com': { id: '11111111-2222-2222-2222-222222222222', role: 'ADMIN', full_name: 'Bob Admin', tenant_id: '11111111-0000-0000-0000-000000000001' },
-  'hr@acme-tech.com': { id: '11111111-3333-3333-3333-333333333333', role: 'HR', full_name: 'Carol HR', tenant_id: '11111111-0000-0000-0000-000000000001' },
-  'manager@acme-tech.com': { id: '11111111-4444-4444-4444-444444444444', role: 'MANAGER', full_name: 'David Manager', tenant_id: '11111111-0000-0000-0000-000000000001' },
-  'employee@acme-tech.com': { id: '11111111-5555-5555-5555-555555555555', role: 'EMPLOYEE', full_name: 'Eve Employee', tenant_id: '11111111-0000-0000-0000-000000000001' },
+  'admin@acme-tech.com': { id: '11111111-1111-1111-1111-222222222222', role: 'ADMIN', full_name: 'Bob Admin', tenant_id: '11111111-0000-0000-0000-000000000001' },
+  'hr@acme-tech.com': { id: '11111111-1111-1111-1111-333333333333', role: 'HR', full_name: 'Carol HR', tenant_id: '11111111-0000-0000-0000-000000000001' },
+  'manager@acme-tech.com': { id: '11111111-1111-1111-1111-444444444444', role: 'MANAGER', full_name: 'David Manager', tenant_id: '11111111-0000-0000-0000-000000000001' },
+  'employee@acme-tech.com': { id: '11111111-1111-1111-1111-555555555555', role: 'EMPLOYEE', full_name: 'Eve Employee', tenant_id: '11111111-0000-0000-0000-000000000001' },
   'hitlergaripellam05@gmail.com': { id: '11111111-6666-6666-6666-666666666666', role: 'SUPERADMIN', full_name: 'Sridhar Admin', tenant_id: '11111111-0000-0000-0000-000000000001' },
   // Globex
-  'superadmin@globex-corp.com': { id: '22222222-1111-1111-1111-111111111111', role: 'SUPERADMIN', full_name: 'Gary Superadmin', tenant_id: '22222222-0000-0000-0000-000000000002' },
+  'superadmin@globex-corp.com': { id: '22222222-2222-2222-2222-111111111111', role: 'SUPERADMIN', full_name: 'Gary Superadmin', tenant_id: '22222222-0000-0000-0000-000000000002' },
   'admin@globex-corp.com': { id: '22222222-2222-2222-2222-222222222222', role: 'ADMIN', full_name: 'Grace Admin', tenant_id: '22222222-0000-0000-0000-000000000002' },
-  'hr@globex-corp.com': { id: '22222222-3333-3333-3333-333333333333', role: 'HR', full_name: 'Hannah HR', tenant_id: '22222222-0000-0000-0000-000000000002' },
-  'manager@globex-corp.com': { id: '22222222-4444-4444-4444-444444444444', role: 'MANAGER', full_name: 'Ian Manager', tenant_id: '22222222-0000-0000-0000-000000000002' },
-  'employee@globex-corp.com': { id: '22222222-5555-5555-5555-555555555555', role: 'EMPLOYEE', full_name: 'Ivy Employee', tenant_id: '22222222-0000-0000-0000-000000000002' },
+  'hr@globex-corp.com': { id: '22222222-2222-2222-2222-333333333333', role: 'HR', full_name: 'Hannah HR', tenant_id: '22222222-0000-0000-0000-000000000002' },
+  'manager@globex-corp.com': { id: '22222222-2222-2222-2222-444444444444', role: 'MANAGER', full_name: 'Ian Manager', tenant_id: '22222222-0000-0000-0000-000000000002' },
+  'employee@globex-corp.com': { id: '22222222-2222-2222-2222-555555555555', role: 'EMPLOYEE', full_name: 'Ivy Employee', tenant_id: '22222222-0000-0000-0000-000000000002' },
 }
 
 function resolveSafeDestination(primaryRole: string, requestedNext?: string): string {
@@ -119,15 +119,19 @@ export async function POST(request: NextRequest) {
     let authData: any = null
     let authError: any = null
 
-    try {
-      const res = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      })
-      authData = res.data
-      authError = res.error
-    } catch (e) {
-      authError = e
+    if (process.env.ATTENDX_USE_LOCAL_DB === 'true') {
+      authError = new Error('Local DB mode')
+    } else {
+      try {
+        const res = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        })
+        authData = res.data
+        authError = res.error
+      } catch (e) {
+        authError = e
+      }
     }
 
     let user = authData?.user
@@ -273,7 +277,7 @@ export async function POST(request: NextRequest) {
       destination,
       role: primaryRole,
       roles: sortedRoles,
-      tokens: authData.session ? {
+      tokens: authData?.session ? {
         access_token: authData.session.access_token,
         refresh_token: authData.session.refresh_token,
       } : undefined,

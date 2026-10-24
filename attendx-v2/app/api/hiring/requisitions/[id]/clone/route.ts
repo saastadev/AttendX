@@ -14,9 +14,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'

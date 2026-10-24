@@ -10,9 +10,7 @@ import { MatchScoreEngine } from '@/lib/hiring/match-score-engine'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const { candidate_id, requisition_id } = body

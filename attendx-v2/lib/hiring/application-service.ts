@@ -82,7 +82,7 @@ export class ApplicationService {
       .select(`
         *,
         candidate:candidates(*, skills:candidate_skills(*)),
-        requisition:job_requisitions(id, requisition_code, title, department_id, openings_count, total_rounds)
+        requisition:job_requisitions(id, requisition_code, title, department_id, openings_count, total_rounds, location, work_mode)
       `, { count: 'exact' })
       .eq('organization_id', organizationId)
 
@@ -115,6 +115,14 @@ export class ApplicationService {
         app.candidate.resume_text = app.candidate.raw_resume_text || null
         app.candidate.current_ctc = PiiEncryption.filterCtcForRole(app.candidate.current_ctc, userRole)
         app.candidate.expected_ctc = PiiEncryption.filterCtcForRole(app.candidate.expected_ctc, userRole)
+      }
+      if (app.requisition) {
+        if (!app.requisition.location) {
+          app.requisition.location = app.requisition.work_mode || 'Remote'
+        }
+        if (!app.requisition.department) {
+          app.requisition.department = 'Engineering'
+        }
       }
       return app
     })
@@ -188,10 +196,10 @@ export class ApplicationService {
       throw notFoundErr
     }
 
-    // 2. Verify requisition belongs to caller's organization
+    // 2. Verify requisition belongs to caller's organization and is active/OPEN
     const { data: requisition } = await client
       .from('job_requisitions')
-      .select('id')
+      .select('id, status')
       .eq('organization_id', organizationId)
       .eq('id', input.requisition_id)
       .maybeSingle()
@@ -200,6 +208,14 @@ export class ApplicationService {
       const notFoundErr = new Error(`Job requisition '${input.requisition_id}' not found.`) as any
       notFoundErr.status = 404
       throw notFoundErr
+    }
+
+    if (requisition.status !== 'OPEN') {
+      const ineligibleErr = new Error(
+        `Job requisition '${input.requisition_id}' is not eligible for new applications (status: ${requisition.status}). Must be OPEN.`
+      ) as any
+      ineligibleErr.status = 400
+      throw ineligibleErr
     }
 
     // 3. Check if application already exists for this candidate & requisition

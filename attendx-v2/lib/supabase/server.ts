@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { requireSupabaseConfig, requireServiceRoleKey } from '@/lib/env'
 import { isDevMockSupabase, allowDemoAuthentication, isPrivilegedSpyAllowed } from './config'
+import { getLocalPostgresAdapter } from './postgres-adapter'
 
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies()
@@ -53,6 +54,10 @@ export function getSupabaseServiceClient(): SupabaseClient {
     } catch {
       // test observation best effort
     }
+  }
+
+  if (process.env.ATTENDX_USE_LOCAL_DB === 'true' || process.env.DATABASE_URL?.includes('localhost:5432')) {
+    return getLocalPostgresAdapter() as any
   }
 
   if (isDevMockSupabase()) {

@@ -11,9 +11,7 @@ import { AnalyticsService } from '@/lib/hiring/analytics-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     if (isDevMockSupabase()) {
       const { mockHiringStore } = await import('@/lib/hiring/mock-store')

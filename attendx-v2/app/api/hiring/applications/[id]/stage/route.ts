@@ -17,9 +17,7 @@ async function handleStageTransition(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const target_stage = body.target_stage || body.to_stage || body.stage

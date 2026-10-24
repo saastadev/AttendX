@@ -19,6 +19,24 @@ export function isDevMockSupabase(): boolean {
  * Never permitted in test, staging, or production.
  */
 export function allowDemoAuthentication(): boolean {
+  // Absolute cloud production guards: never allow demo auth in production deployments
+  if (
+    process.env.VERCEL_ENV === 'production' ||
+    process.env.ATTENDX_ENV === 'production' ||
+    process.env.RENDER === 'true'
+  ) {
+    return false
+  }
+
+  // Absolute guard: never allow against production Supabase project
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  if (supabaseUrl.includes('xskgtrgiclzmwtyyhpjh')) {
+    return false
+  }
+
+  if (process.env.ATTENDX_USE_LOCAL_DB === 'true') {
+    return true
+  }
   return process.env.NODE_ENV === 'development' && isDevMockSupabase()
 }
 

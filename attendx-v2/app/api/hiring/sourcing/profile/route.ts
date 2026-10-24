@@ -10,9 +10,7 @@ import { SourcingService } from '@/lib/hiring/sourcing-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const sourcedCandidateId = searchParams.get('id') || searchParams.get('sourced_candidate_id') || undefined
