@@ -19,9 +19,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Recommendation ID is required' }, { status: 400 })
     }
 
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json().catch(() => ({}))
     const { status, review_notes } = body

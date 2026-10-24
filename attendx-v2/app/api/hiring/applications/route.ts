@@ -11,9 +11,7 @@ import { ApplicationService } from '@/lib/hiring/application-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const filters = {
@@ -49,6 +47,7 @@ export async function GET(request: Request) {
       limit: result.limit ?? 20,
     })
   } catch (err: any) {
+    console.error('[API /api/hiring/applications] Error listing applications:', err.message || err)
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
   }
@@ -56,9 +55,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.requisition_id || !body.candidate_id) {

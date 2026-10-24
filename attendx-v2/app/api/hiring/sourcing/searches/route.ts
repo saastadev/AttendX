@@ -11,9 +11,7 @@ import { SourcingService } from '@/lib/hiring/sourcing-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const requisitionId = searchParams.get('requisition_id') || undefined
@@ -32,11 +30,12 @@ export async function GET(request: Request) {
 
     const { data, error } = await query
     if (error) {
-      return NextResponse.json({ success: true, data: [], searches: [] })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, data: data || [], searches: data || [] })
   } catch (err: any) {
+    console.error('[API /api/hiring/sourcing/searches GET] Error:', err.message || err)
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
   }
@@ -44,9 +43,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const roleTitle = body.role_title || 'Software Engineer'
@@ -84,6 +81,7 @@ export async function POST(request: Request) {
       data: result,
     }, { status: 201 })
   } catch (err: any) {
+    console.error('[API /api/hiring/sourcing/searches POST] Error:', err.message || err)
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
   }

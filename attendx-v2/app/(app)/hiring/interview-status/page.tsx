@@ -21,11 +21,14 @@ export default function InterviewStatusPage() {
   const [showTranscript, setShowTranscript] = useState<boolean>(false)
 
   // Fetch applications in interview or shortlisted stages
-  const { data: appData, isLoading } = useQuery({
+  const { data: appData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hiring-interview-applications'],
     queryFn: async () => {
       const res = await fetch('/api/hiring/applications?limit=50')
-      if (!res.ok) return { applications: [] }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load interview applications')
+      }
       return res.json()
     }
   })
@@ -158,6 +161,13 @@ export default function InterviewStatusPage() {
 
           {isLoading ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading candidates…</div>
+          ) : isError ? (
+            <div className="card neu-interview-card" style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: 24 }}>
+              <AlertCircle size={24} color="var(--danger)" style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Failed to load candidates</div>
+              <p style={{ fontSize: '0.8rem', marginTop: 4, color: 'var(--danger)' }}>{(error as any)?.message || 'Database connection error'}</p>
+              <button onClick={() => refetch()} className="btn btn-primary" style={{ marginTop: 10, fontSize: '0.8rem', padding: '6px 12px' }}>Retry</button>
+            </div>
           ) : applications.length === 0 ? (
             <div className="card neu-interview-card" style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
               No candidates in interview stage currently.

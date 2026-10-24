@@ -11,9 +11,7 @@ import { OutreachService } from '@/lib/hiring/outreach-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const candidateId = searchParams.get('candidate_id') || undefined
@@ -48,9 +46,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.candidate_id) {

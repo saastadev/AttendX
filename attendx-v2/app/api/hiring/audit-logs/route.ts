@@ -9,9 +9,7 @@ import { getSupabaseServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const entityType = searchParams.get('entity_type') || undefined

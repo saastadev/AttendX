@@ -68,11 +68,11 @@ const SIDEBAR_NAV: NavGroup[] = [
   {
     section: 'Hiring',
     items: [
-      { href: '/hiring',              icon: UserPlus,          label: 'Overview',     id: 'snav-hiring-hub',  minRole: 'MANAGER' },
-      { href: '/hiring/applications', icon: Briefcase,         label: 'Applications', id: 'snav-hiring-apps', minRole: 'MANAGER' },
+      { href: '/hiring',              icon: UserPlus,          label: 'Overview',     id: 'snav-hiring-hub',  minRole: 'HR' },
+      { href: '/hiring/applications', icon: Briefcase,         label: 'Applications', id: 'snav-hiring-apps', minRole: 'HR' },
       { href: '/hiring/sourcing',     icon: Search,            label: 'AI Sourcing',  id: 'snav-hiring-src',  minRole: 'HR' },
       { href: '/hiring/outreach',     icon: MessageSquareMore, label: 'Outreach',     id: 'snav-hiring-reach', minRole: 'HR' },
-      { href: '/hiring/interview-status', icon: Clock,         label: 'Interviews',   id: 'snav-hiring-int',  minRole: 'MANAGER' },
+      { href: '/hiring/interview-status', icon: Clock,         label: 'Interviews',   id: 'snav-hiring-int',  minRole: 'HR' },
       { href: '/hiring/onboard',      icon: Shield,            label: 'Onboarding',   id: 'snav-hiring-onb',  minRole: 'HR' },
       { href: '/hiring/analytics',    icon: BarChart2,         label: 'Analytics',    id: 'snav-hiring-stat', minRole: 'HR' },
     ],
@@ -98,7 +98,10 @@ const SIDEBAR_NAV: NavGroup[] = [
 const ROLE_RANK: Record<UserRole, number> = {
   EMPLOYEE: 1, MANAGER: 2, HR: 3, ADMIN: 4, SUPERADMIN: 5,
 }
-function canSee(userRole: UserRole, minRole?: UserRole) {
+function canSee(userRole: UserRole, minRole?: UserRole, section?: string) {
+  if (section === 'Hiring') {
+    return userRole === 'HR'
+  }
   if (!minRole) return true
   return ROLE_RANK[userRole] >= ROLE_RANK[minRole]
 }
@@ -111,7 +114,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   const user = useAuthStore(s => s.user)
 
   const allItems = SIDEBAR_NAV.flatMap(g => g.items)
-    .filter(item => !item.minRole || canSee(user?.role ?? 'EMPLOYEE', item.minRole))
+    .filter(item => canSee(user?.role ?? 'EMPLOYEE', item.minRole, item.href.startsWith('/hiring') ? 'Hiring' : undefined))
 
   const filtered = query
     ? allItems.filter(i => i.label.toLowerCase().includes(query.toLowerCase()))
@@ -528,7 +531,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Nav sections */}
           {SIDEBAR_NAV.map((group, gi) => {
-            const visibleItems = group.items.filter(item => canSee(userRole, item.minRole))
+            const visibleItems = group.items.filter(item => canSee(userRole, item.minRole, group.section))
             if (visibleItems.length === 0) return null
             return (
               <div key={gi} role="group" aria-label={group.section ?? 'Main navigation'}>
@@ -1016,7 +1019,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* Drawer Navigation Sections (Full 24+ routes parity) */}
                 <div className="neu-drawer-scroll">
                   {SIDEBAR_NAV.map((group, gi) => {
-                    const visibleItems = group.items.filter(item => canSee(userRole, item.minRole))
+                    const visibleItems = group.items.filter(item => canSee(userRole, item.minRole, group.section))
                     if (visibleItems.length === 0) return null
                     return (
                       <div key={gi} role="group" aria-label={group.section ?? 'Navigation section'}>

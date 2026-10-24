@@ -14,9 +14,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const decision = body.decision

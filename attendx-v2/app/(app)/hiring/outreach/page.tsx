@@ -1,13 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Mail, MessageSquare, Send, CheckCircle2, Clock,
-  Eye, RefreshCcw, Plus, Sparkles, Filter, ChevronRight
+  Eye, RefreshCcw, Plus, Sparkles, Filter, ChevronRight, AlertCircle
 } from 'lucide-react'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { useToast } from '@/components/ui/Toast'
+
+interface OutreachMessageItem {
+  id: string
+  recipient: string
+  candidate_name: string
+  channel: string
+  subject: string | null
+  status: string
+  sent_at: string
+  opened_at?: string | null
+  replied_at?: string | null
+}
 
 export default function OutreachPage() {
   const { success, error: toastError } = useToast()
@@ -18,21 +30,37 @@ export default function OutreachPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null)
 
   // Fetch campaigns
-  const { data: campaignData, isLoading: campaignsLoading } = useQuery({
+  const { data: campaignData, isLoading: campaignsLoading, isError: campaignsError, refetch: refetchCampaigns } = useQuery({
     queryKey: ['hiring-outreach-campaigns'],
     queryFn: async () => {
       const res = await fetch('/api/hiring/outreach/campaigns')
-      if (!res.ok) return { campaigns: [] }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load campaigns')
+      }
       return res.json()
     }
   })
 
   // Fetch templates
-  const { data: templateData, isLoading: templatesLoading } = useQuery({
+  const { data: templateData, isLoading: templatesLoading, isError: templatesError, refetch: refetchTemplates } = useQuery({
     queryKey: ['hiring-outreach-templates'],
     queryFn: async () => {
       const res = await fetch('/api/hiring/outreach/templates')
-      if (!res.ok) return { templates: [] }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load templates')
+      }
+      return res.json()
+    }
+  })
+
+  // Fetch real persisted outreach messages (Decision 3)
+  const { data: messagesData, isLoading: messagesLoading, isError: messagesError, refetch: refetchMessages } = useQuery({
+    queryKey: ['hiring-outreach-messages'],
+    queryFn: async () => {
+      const res = await fetch('/api/hiring/outreach/messages')
+      if (!res.ok) throw new Error('Failed to load outreach messages')
       return res.json()
     }
   })
@@ -40,53 +68,25 @@ export default function OutreachPage() {
   const campaigns = campaignData?.campaigns || []
   const templates = templateData?.templates || []
 
-  // Sample outreach messages for preview / response tracking
-  const sampleMessages = [
-    {
-      id: 'msg-1',
-      recipient: 'siddharth.m@example.com',
-      candidate_name: 'Siddharth Mehta',
-      channel: 'EMAIL',
-      subject: 'Exploring Senior Backend Engineer role at AttendX',
-      status: 'REPLIED',
-      sent_at: '2026-09-28 14:32',
-      opened_at: '2026-09-28 15:10',
-      replied_at: '2026-09-28 16:45',
-    },
-    {
-      id: 'msg-2',
-      recipient: 'priya.s@example.com',
-      candidate_name: 'Priya Sharma',
-      channel: 'EMAIL',
-      subject: 'Frontend Architect opportunity at AttendX',
-      status: 'OPENED',
-      sent_at: '2026-09-28 11:15',
-      opened_at: '2026-09-28 12:04',
-      replied_at: null,
-    },
-    {
-      id: 'msg-3',
-      recipient: 'amit.verma@example.com',
-      candidate_name: 'Amit Verma',
-      channel: 'SMS',
-      subject: null,
-      status: 'DELIVERED',
-      sent_at: '2026-09-29 09:30',
-      opened_at: null,
-      replied_at: null,
-    },
-    {
-      id: 'msg-4',
-      recipient: 'kavita.r@example.com',
-      candidate_name: 'Kavita Reddy',
-      channel: 'EMAIL',
-      subject: 'Interview with Engineering Director at AttendX',
-      status: 'SENT',
-      sent_at: '2026-09-29 18:00',
-      opened_at: null,
-      replied_at: null,
-    },
-  ]
+  // Auto-select first template on load
+  useEffect(() => {
+    if (!selectedTemplate && templates.length > 0) {
+      setSelectedTemplate(templates[0])
+    }
+  }, [templates, selectedTemplate])
+
+  // Real outreach messages from database
+  const messagesList: OutreachMessageItem[] = (messagesData?.data || messagesData?.messages || []).map((msg: any) => ({
+    id: msg.id,
+    recipient: msg.recipient || msg.candidate?.email || 'N/A',
+    candidate_name: msg.candidate ? `${msg.candidate.first_name || ''} ${msg.candidate.last_name || ''}`.trim() : (msg.recipient || 'Candidate'),
+    channel: msg.channel || 'EMAIL',
+    subject: msg.subject || null,
+    status: msg.status || 'SENT',
+    sent_at: msg.sent_at ? new Date(msg.sent_at).toLocaleString() : (msg.created_at ? new Date(msg.created_at).toLocaleString() : 'N/A'),
+    opened_at: msg.opened_at,
+    replied_at: msg.replied_at,
+  }))
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -170,7 +170,18 @@ export default function OutreachPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
             gap: 20,
           }}>
-            {campaigns.length === 0 ? (
+            {campaignsLoading ? (
+              <div className="card" style={{ padding: 40, textAlign: 'center', gridColumn: '1 / -1', color: 'var(--text-tertiary)' }}>
+                Loading campaigns…
+              </div>
+            ) : campaignsError ? (
+              <div className="card" style={{ padding: 40, textAlign: 'center', gridColumn: '1 / -1', borderRadius: 16, background: 'var(--neu-base)', boxShadow: 'var(--elev-1)', color: 'var(--text-tertiary)' }}>
+                <AlertCircle size={36} color="var(--danger)" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Failed to load campaigns</div>
+                <p style={{ fontSize: '0.875rem', marginTop: 4, color: 'var(--danger)' }}>Could not retrieve campaigns from storage.</p>
+                <button onClick={() => refetchCampaigns()} className="btn btn-primary" style={{ marginTop: 14, fontSize: '0.85rem', padding: '8px 16px' }}>Retry</button>
+              </div>
+            ) : campaigns.length === 0 ? (
               <div className="card" style={{
                 padding: 40,
                 textAlign: 'center',
@@ -227,19 +238,19 @@ export default function OutreachPage() {
                     marginBottom: 16,
                   }}>
                     <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{camp.total_targeted || 14}</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{camp.total_targeted ?? 0}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>Targeted</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)' }}>{camp.total_sent || 14}</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)' }}>{camp.total_sent ?? 0}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>Sent</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#06B6D4' }}>{camp.total_opened || 9}</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#06B6D4' }}>{camp.total_opened ?? 0}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>Opened</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10B981' }}>{camp.total_replied || 4}</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10B981' }}>{camp.total_replied ?? 0}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>Replied</div>
                     </div>
                   </div>
@@ -259,7 +270,18 @@ export default function OutreachPage() {
         <div className="neu-responsive-split">
           {/* Templates List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {templates.map((tpl: any) => (
+            {templatesLoading ? (
+              <div className="card" style={{ padding: 30, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading templates…</div>
+            ) : templatesError ? (
+              <div className="card" style={{ padding: 30, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 14, background: 'var(--neu-base)', boxShadow: 'var(--elev-1)' }}>
+                <AlertCircle size={32} color="var(--danger)" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Failed to load templates</div>
+                <button onClick={() => refetchTemplates()} className="btn btn-primary" style={{ marginTop: 10, fontSize: '0.8rem', padding: '6px 12px' }}>Retry</button>
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="card" style={{ padding: 30, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 14, background: 'var(--neu-base)', boxShadow: 'var(--elev-1)' }}>No templates configured</div>
+            ) : (
+              templates.map((tpl: any) => (
               <div
                 key={tpl.id}
                 onClick={() => setSelectedTemplate(tpl)}
@@ -292,7 +314,7 @@ export default function OutreachPage() {
                   ))}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
 
           {/* Template Preview */}
@@ -348,88 +370,123 @@ export default function OutreachPage() {
             boxShadow: 'var(--elev-1)',
             overflow: 'hidden',
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ background: 'var(--neu-bg-deep)', borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Candidate</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Recipient / Channel</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Subject</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Sent At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sampleMessages.map((msg) => {
-                  const badge = getStatusBadge(msg.status)
-                  return (
-                    <tr key={msg.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {msg.candidate_name}
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-                        {msg.recipient} ({msg.channel})
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
-                        {msg.subject || 'Direct SMS Notification'}
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          padding: '3px 8px',
-                          borderRadius: 10,
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          background: badge.bg,
-                          color: badge.text,
-                        }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        {msg.sent_at}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            {messagesLoading ? (
+              <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                Loading outreach communications…
+              </div>
+            ) : messagesError ? (
+              <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                <AlertCircle size={36} color="var(--danger)" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Failed to load outreach messages
+                </div>
+                <p style={{ fontSize: '0.875rem', marginTop: 4, color: 'var(--danger)' }}>
+                  Could not retrieve logged communications from storage.
+                </p>
+                <button
+                  onClick={() => refetchMessages()}
+                  className="btn btn-primary"
+                  style={{ marginTop: 14, fontSize: '0.85rem', padding: '8px 16px' }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : messagesList.length === 0 ? (
+              <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                <MessageSquare size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  No outreach messages logged yet
+                </div>
+                <p style={{ fontSize: '0.875rem', marginTop: 4 }}>
+                  Messages dispatched to candidates will appear here with delivery and read receipts.
+                </p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--neu-bg-deep)', borderBottom: '1px solid rgba(128,128,180,0.15)', color: 'var(--text-tertiary)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>Candidate</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>Recipient / Channel</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>Subject</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>Status</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 700 }}>Sent At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {messagesList.map((msg) => {
+                    const badge = getStatusBadge(msg.status)
+                    return (
+                      <tr key={msg.id} style={{ borderBottom: '1px solid rgba(128,128,180,0.08)' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {msg.candidate_name}
+                        </td>
+                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                          {msg.recipient} ({msg.channel})
+                        </td>
+                        <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
+                          {msg.subject || 'Direct SMS Notification'}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: 10,
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            background: badge.bg,
+                            color: badge.text,
+                          }}>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                          {msg.sent_at}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* Mobile Cards View */}
-          <div className="neu-cards-mobile">
-            {sampleMessages.map((msg) => {
-              const badge = getStatusBadge(msg.status)
-              return (
-                <div key={msg.id} className="neu-mobile-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                        {msg.candidate_name}
+          {messagesList.length > 0 && (
+            <div className="neu-cards-mobile">
+              {messagesList.map((msg) => {
+                const badge = getStatusBadge(msg.status)
+                return (
+                  <div key={msg.id} className="neu-mobile-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                          {msg.candidate_name}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                          {msg.recipient} • {msg.channel}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                        {msg.recipient} • {msg.channel}
-                      </div>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: 10,
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        background: badge.bg,
+                        color: badge.text,
+                      }}>
+                        {badge.label}
+                      </span>
                     </div>
-                    <span style={{
-                      padding: '3px 8px',
-                      borderRadius: 10,
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      background: badge.bg,
-                      color: badge.text,
-                    }}>
-                      {badge.label}
-                    </span>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', borderTop: '1px solid rgba(128,128,180,0.08)', paddingTop: 8 }}>
+                      {msg.subject || 'Direct SMS Notification'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                      Sent: {msg.sent_at}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', borderTop: '1px solid rgba(128,128,180,0.08)', paddingTop: 8 }}>
-                    {msg.subject || 'Direct SMS Notification'}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                    Sent: {msg.sent_at}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
     </PageWrapper>
