@@ -42,8 +42,21 @@ export default function SourcingPage() {
   })
 
   const requisitions = reqData?.requisitions || []
+  const openRequisitions = requisitions.filter((r: any) => r.status === 'OPEN')
+  const selectedReqObj = requisitions.find((r: any) => r.id === selectedReqId)
+  const isSelectedReqEligible = Boolean(selectedReqObj && selectedReqObj.status === 'OPEN')
 
-  // Auto-select first active eligible requisition when loaded
+  // Sourcing history query (Decision 2)
+  const { data: searchesData, isLoading: isLoadingSearches, isError: isErrorSearches } = useQuery({
+    queryKey: ['hiring-sourcing-latest-search'],
+    queryFn: async () => {
+      const res = await fetch('/api/hiring/sourcing/searches?limit=1')
+      if (!res.ok) throw new Error('Failed to load sourcing history')
+      return res.json()
+    }
+  })
+
+  // Auto-select first active eligible requisition (Decision 1 & Defect 1 Fix)
   useEffect(() => {
     if (!selectedReqId && requisitions.length > 0) {
       const firstActive = requisitions.find((r: any) => r.status === 'OPEN')?.id || requisitions[0]?.id
@@ -105,6 +118,19 @@ export default function SourcingPage() {
       toastError(err.message || 'Sourcing search failed')
     }
   })
+
+  // Restore latest persisted search results on mount (Decision 2)
+  useEffect(() => {
+    const latestList = searchesData?.searches || searchesData?.data || []
+    if (latestList.length > 0 && searchResults.length === 0 && !searchMutation.isPending) {
+      const latest = latestList[0]
+      const candidates = latest?.candidates || latest?.sourced_candidates || []
+      if (candidates.length) {
+        setSearchResults(candidates)
+        setActiveSearchId(latest.id)
+      }
+    }
+  }, [searchesData, searchResults.length, searchMutation.isPending])
 
   // Mode 1: Publish Job Requisition to External Boards
   const publishMutation = useMutation({
@@ -184,6 +210,9 @@ export default function SourcingPage() {
         prev.map(c => c.id === variables.sourcedCandidateId ? { ...c, is_shortlisted: true } : c)
       )
       success('Candidate shortlisted into hiring pipeline!')
+      qc.invalidateQueries({ queryKey: ['hiring-applications-list'] })
+      qc.invalidateQueries({ queryKey: ['hiring-applications'] })
+      qc.invalidateQueries({ queryKey: ['hiring-sourcing-latest-search'] })
     },
     onError: (err: any) => {
       toastError(err.message || 'Failed to shortlist candidate')
@@ -291,7 +320,9 @@ export default function SourcingPage() {
           >
             <option value="">Select Target Requisition</option>
             {requisitions.map((r: any) => (
-              <option key={r.id} value={r.id}>{r.title} ({r.requisition_code || r.id.slice(0, 8)})</option>
+              <option key={r.id} value={r.id} disabled={r.status !== 'OPEN'}>
+                {r.title} ({r.requisition_code || r.id.slice(0, 8)}){r.status !== 'OPEN' ? ` [${r.status} - Ineligible]` : ''}
+              </option>
             ))}
           </select>
 
@@ -545,7 +576,21 @@ export default function SourcingPage() {
           )}
         </div>
 
-        {searchResults.length === 0 ? (
+        {isLoadingSearches ? (
+          <div className="card" style={{
+            padding: 48,
+            textAlign: 'center',
+            borderRadius: 18,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-1)',
+            color: 'var(--text-tertiary)',
+          }}>
+            <RefreshCw size={32} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Loading persisted sourcing results…
+            </div>
+          </div>
+        ) : searchResults.length === 0 ? (
           <div className="card" style={{
             padding: 48,
             textAlign: 'center',
@@ -556,10 +601,12 @@ export default function SourcingPage() {
           }}>
             <Search size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
             <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              No sourcing search executed yet
+              {isErrorSearches ? 'Unable to load previous sourcing searches' : 'No sourcing search executed yet'}
             </div>
             <p style={{ fontSize: '0.875rem', marginTop: 4 }}>
-              Select target requisition and click "Execute Recruiter Search" to find qualified candidates across LinkedIn and Indeed.
+              {isErrorSearches
+                ? 'Could not connect to sourcing storage. You can still select a requisition and execute a new search.'
+                : 'Select target requisition and click "Execute Recruiter Search" to find qualified candidates across LinkedIn and Indeed.'}
             </p>
           </div>
         ) : (
@@ -708,24 +755,39 @@ export default function SourcingPage() {
                     }}>
                       <CheckCircle2 size={16} /> Shortlisted to Pipeline
                     </span>
+                  ) : openRequisitions.length === 0 ? (
+                    <span style={{
+                      fontSize: '0.78rem',
+                      color: 'var(--text-tertiary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}>
+                      <AlertCircle size={14} /> No active OPEN requisitions available to shortlist into
+                    </span>
+                  ) : !isSelectedReqEligible ? (
+                    <span style={{
+                      fontSize: '0.78rem',
+                      color: 'var(--text-tertiary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}>
+                      <AlertCircle size={14} /> Select an active OPEN requisition to shortlist
+                    </span>
                   ) : (
                     <button
                       onClick={() => {
-                        const targetReq = selectedReqId || (requisitions[0]?.id)
-                        if (!targetReq) {
-                          toastError(
-                            requisitions.length === 0
-                              ? 'No job requisitions found. Please ensure a requisition is open.'
-                              : 'Please select a target requisition to shortlist candidate'
-                          )
+                        if (!isSelectedReqEligible || !selectedReqId) {
+                          toastError('Selected requisition is not active or eligible for shortlisting')
                           return
                         }
                         shortlistMutation.mutate({
                           sourcedCandidateId: cand.id,
-                          reqId: targetReq,
+                          reqId: selectedReqId,
                         })
                       }}
-                      disabled={shortlistMutation.isPending}
+                      disabled={shortlistMutation.isPending || !isSelectedReqEligible}
                       className="btn btn-primary"
                       style={{ fontSize: '0.78rem', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 4 }}
                     >

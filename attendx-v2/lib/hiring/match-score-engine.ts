@@ -54,23 +54,26 @@ export class MatchScoreEngine {
     const skillMatches: Array<{ skill: string; matched: boolean; weight: number }> = []
     const missingSkills: string[] = []
     const candidateSkillsLower = new Set(
-      (candidate.skills || []).map(s => s.skill_name.trim().toLowerCase())
+      (candidate.skills || []).map((s: any) =>
+        (typeof s === 'string' ? s : (s?.skill_name || '')).trim().toLowerCase()
+      ).filter(Boolean)
     )
 
     if (reqSkills.length > 0) {
       for (const rSkill of reqSkills) {
-        const weight = Math.max(rSkill.weight || 1, 1)
+        const skillName = typeof rSkill === 'string' ? rSkill : (rSkill?.skill_name || '')
+        const weight = Math.max((typeof rSkill === 'object' && rSkill?.weight) || 1, 1)
         totalWeight += weight
-        const isMatched = candidateSkillsLower.has(rSkill.skill_name.trim().toLowerCase())
+        const isMatched = candidateSkillsLower.has(skillName.trim().toLowerCase())
         skillMatches.push({
-          skill: rSkill.skill_name,
+          skill: skillName,
           matched: isMatched,
           weight,
         })
         if (isMatched) {
           matchedWeight += weight
-        } else if (rSkill.is_required) {
-          missingSkills.push(rSkill.skill_name)
+        } else if (typeof rSkill === 'object' && rSkill?.is_required) {
+          missingSkills.push(skillName)
         }
       }
     } else {

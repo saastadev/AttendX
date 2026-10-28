@@ -14,9 +14,7 @@ export async function GET(
 ) {
   try {
     const { id: callId } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     if (!callId) {
       return NextResponse.json({ error: 'Call ID is required' }, { status: 400 })

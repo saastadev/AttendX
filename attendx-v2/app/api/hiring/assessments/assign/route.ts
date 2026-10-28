@@ -10,9 +10,7 @@ import { AssessmentService } from '@/lib/hiring/assessment-service'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const assessmentId = body.assessment_id || body.assessmentId

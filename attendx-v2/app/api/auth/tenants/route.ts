@@ -26,16 +26,45 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (allowDemoAuthentication()) {
+      let demoCookie: string | undefined
+      const cookieHeader = req.headers.get('cookie') || ''
+      const match = cookieHeader.match(/attendx-demo-session=([^;]+)/)
+      if (match) demoCookie = match[1]
+      if (demoCookie) {
+        try {
+          const cleanCookie = decodeURIComponent(demoCookie.trim().replace(/^"|"$/g, ''))
+          const payload = JSON.parse(Buffer.from(cleanCookie, 'base64').toString('utf-8'))
+          if (payload?.id && payload?.role && payload?.tenant_id) {
+            user = {
+              id: payload.id,
+              email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
+              app_metadata: { role: payload.role, tenant_id: payload.tenant_id },
+              user_metadata: { full_name: payload.full_name || 'Demo User' },
+            } as any
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let queryUserId = user.id
+    if (user.email) {
+      const { data: p } = await serviceClient.from('profiles').select('id').eq('email', user.email).maybeSingle()
+      if (p?.id) queryUserId = p.id
     }
 
     const currentTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
 
     // 1. Fetch user's roles, profiles, and all system tenants
     const [roleRows, profileRows, allTenants] = await Promise.all([
-      serviceClient.from('user_roles').select('tenant_id, role, tenants:tenant_id(id, name, slug)').eq('user_id', user.id),
-      serviceClient.from('profiles').select('tenant_id, is_active').eq('id', user.id),
+      serviceClient.from('user_roles').select('tenant_id, role, tenants:tenant_id(id, name, slug)').eq('user_id', queryUserId),
+      serviceClient.from('profiles').select('tenant_id, is_active').eq('id', queryUserId),
       serviceClient.from('tenants').select('id, name, slug, accent_color')
     ])
 

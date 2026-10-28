@@ -12,9 +12,7 @@ import { OnboardingService } from '@/lib/hiring/onboarding-service'
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const { onboarding_id, document_type, document_name, file_url, file_size, mime_type } = body
@@ -60,9 +58,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const { document_id, decision, comment } = body

@@ -15,9 +15,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const serviceClient = getSupabaseServiceClient()
     const application = await ApplicationService.getById(
@@ -40,9 +38,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'

@@ -11,9 +11,7 @@ import { AnalyticsService } from '@/lib/hiring/analytics-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     // Mock data is ONLY allowed when mock/development mode is explicitly enabled
     if (isDevMockSupabase()) {
@@ -36,9 +34,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     // Mock data is ONLY allowed when mock/development mode is explicitly enabled
     if (isDevMockSupabase()) {

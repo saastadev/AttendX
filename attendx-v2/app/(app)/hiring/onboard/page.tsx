@@ -40,11 +40,14 @@ export default function OnboardPage() {
   const [showConvertModal, setShowConvertModal] = useState(false)
 
   // Fetch onboarding processes
-  const { data: onboardData, isLoading } = useQuery({
+  const { data: onboardData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hiring-onboarding-list'],
     queryFn: async () => {
       const res = await fetch('/api/hiring/onboarding')
-      if (!res.ok) return { processes: [] }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load onboarding processes')
+      }
       return res.json()
     }
   })
@@ -305,6 +308,13 @@ export default function OnboardPage() {
           <div className="neu-onboard-candidate-list">
             {isLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', width: '100%' }}>Loading onboarding list…</div>
+            ) : isError ? (
+              <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16, width: '100%' }}>
+                <AlertCircle size={24} color="var(--danger)" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Failed to load onboarding list</div>
+                <p style={{ fontSize: '0.8rem', marginTop: 4, color: 'var(--danger)' }}>{(error as any)?.message || 'Database connection error'}</p>
+                <button onClick={() => refetch()} className="btn btn-primary" style={{ marginTop: 10, fontSize: '0.8rem', padding: '6px 12px' }}>Retry</button>
+              </div>
             ) : processes.length === 0 ? (
               <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16, width: '100%' }}>
                 No candidates currently in onboarding. Release an offer above to begin.

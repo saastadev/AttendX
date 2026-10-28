@@ -47,17 +47,18 @@ export class ServerIdentity {
         }
       }
 
+      let demoPayload: any = null
       if (demoCookie) {
         try {
-          const decoded = decodeURIComponent(demoCookie)
-          const payload = JSON.parse(Buffer.from(decoded, 'base64').toString('utf-8'))
-          if (payload && payload.id && payload.role && payload.tenant_id) {
+          const cleanCookie = decodeURIComponent(demoCookie.trim().replace(/^"|"$/g, ''))
+          demoPayload = JSON.parse(Buffer.from(cleanCookie, 'base64').toString('utf-8'))
+          if (demoPayload && demoPayload.id && demoPayload.role && demoPayload.tenant_id) {
             isDemo = true
             demoCaller = {
-              userId: payload.id,
-              tenantId: payload.tenant_id,
-              role: payload.role,
-              email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
+              userId: demoPayload.id,
+              tenantId: demoPayload.tenant_id,
+              role: demoPayload.role,
+              email: demoPayload.email || `${demoPayload.role.toLowerCase()}@acme-tech.com`,
             }
           }
         } catch {
@@ -66,6 +67,33 @@ export class ServerIdentity {
       }
 
       if (isDemo && demoCaller) {
+        if (demoPayload && demoPayload.is_active === false) {
+          const err = new Error('Forbidden: Account is deactivated.') as any
+          err.status = 403
+          err.code = 'ACCOUNT_DEACTIVATED'
+          throw err
+        }
+
+        if (process.env.ATTENDX_USE_LOCAL_DB === 'true') {
+          try {
+            const { getSupabaseServiceClient } = await import('../supabase/server.ts')
+            const sc = getSupabaseServiceClient()
+            const { data: p } = await sc
+              .from('profiles')
+              .select('is_active')
+              .eq('id', demoCaller.userId)
+              .maybeSingle()
+            if (p && p.is_active === false) {
+              const err = new Error('Forbidden: Account is deactivated.') as any
+              err.status = 403
+              err.code = 'ACCOUNT_DEACTIVATED'
+              throw err
+            }
+          } catch (e: any) {
+            if (e?.status === 403) throw e
+          }
+        }
+
         if (!allowedRoles.includes(demoCaller.role)) {
           const err = new Error(`Forbidden: Role '${demoCaller.role}' cannot execute this administrative action.`) as any
           err.status = 403
@@ -122,11 +150,76 @@ export class ServerIdentity {
     }
 
     const serviceClient = getSupabaseServiceClient()
+    let activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
+
+    if (activeTenantClaim) {
+      const { data: tenantRow } = await serviceClient
+        .from('tenants')
+        .select('id')
+        .eq('id', activeTenantClaim)
+        .maybeSingle()
+      if (!tenantRow) {
+        // The claimed tenant ID does not exist in the active database (e.g. stale/legacy claim from another environment).
+        // Treat as unconstrained tenant claim so authoritative membership in active database can be resolved.
+        activeTenantClaim = undefined
+      }
+    }
+
     // 1. Authoritatively query user_roles
-    const { data: roleRows, error: roleErr } = await serviceClient
+    let { data: roleRows, error: roleErr } = await serviceClient
       .from('user_roles')
       .select('role, tenant_id')
       .eq('user_id', user.id)
+
+    let canonicalUserId = user.id
+
+    // Fallback: If no role row by user.id and user has an email, look up profile by email
+    // to map authenticated session identity to canonical tenant profiles in the active database.
+    // Strict security requirements:
+    // 1. Caller identity originates from a cryptographically validated session (guaranteed by line 145).
+    // 2. Query is scoped to activeTenantClaim if present.
+    // 3. Fails closed if multiple profiles match the same email (prevents cross-tenant email collisions).
+    if ((!roleRows || roleRows.length === 0) && user.email) {
+      let profileQuery = serviceClient
+        .from('profiles')
+        .select('id, tenant_id, is_active')
+        .eq('email', user.email)
+
+      if (activeTenantClaim) {
+        profileQuery = profileQuery.eq('tenant_id', activeTenantClaim)
+      }
+
+      const { data: matchedProfiles } = await profileQuery
+      if (matchedProfiles && matchedProfiles.length > 1) {
+        const err = new Error('Forbidden: Ambiguous profile identity across tenants.') as any
+        err.status = 403
+        throw err
+      }
+
+      const profile = matchedProfiles?.[0]
+      if (profile?.id) {
+        canonicalUserId = profile.id
+        const retry = await serviceClient
+          .from('user_roles')
+          .select('role, tenant_id')
+          .eq('user_id', profile.id)
+        roleRows = retry.data || []
+      }
+    }
+
+    // 2. Fail-closed on deactivated account (Rule 3)
+    const { data: profileActiveCheck } = await serviceClient
+      .from('profiles')
+      .select('id, is_active')
+      .eq('id', canonicalUserId)
+      .maybeSingle()
+
+    if (profileActiveCheck && profileActiveCheck.is_active === false) {
+      const err = new Error('Forbidden: Account is deactivated.') as any
+      err.status = 403
+      err.code = 'ACCOUNT_DEACTIVATED'
+      throw err
+    }
 
     if (roleErr || !roleRows || roleRows.length === 0) {
       const err = new Error('Forbidden: No active organization membership found.') as any
@@ -134,14 +227,25 @@ export class ServerIdentity {
       throw err
     }
 
-    const activeTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
     const tenantRoles = (roleRows || []).filter(r => activeTenantClaim ? r.tenant_id === activeTenantClaim : true)
-    const matchedRoleRow = tenantRoles.find(r => allowedRoles.includes(r.role)) || tenantRoles[0] || roleRows[0]
+
+    if (activeTenantClaim && tenantRoles.length === 0) {
+      const err = new Error('Forbidden: Caller has no membership in the claimed tenant.') as any
+      err.status = 403
+      throw err
+    }
+
+    const matchedRoleRow = tenantRoles.find(r => allowedRoles.includes(r.role)) || tenantRoles[0]
+    if (!matchedRoleRow) {
+      const err = new Error('Forbidden: No matching role found for the active tenant.') as any
+      err.status = 403
+      throw err
+    }
 
     const callerRole = matchedRoleRow.role
     const activeTenantId = matchedRoleRow.tenant_id
 
-    // 2. Enforce permission boundary
+    // 3. Enforce permission boundary
     if (!allowedRoles.includes(callerRole)) {
       const err = new Error(`Forbidden: Role '${callerRole}' cannot execute this administrative action.`) as any
       err.status = 403
@@ -149,7 +253,7 @@ export class ServerIdentity {
     }
 
     return {
-      userId: user.id,
+      userId: canonicalUserId,
       tenantId: activeTenantId,
       role: callerRole,
       email: user.email || '',

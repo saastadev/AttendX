@@ -21,6 +21,7 @@ import { ApplicationService } from './application-service.ts'
 import { MatchScoreEngine } from './match-score-engine.ts'
 import { HiringAuditLogger } from './audit-logger.ts'
 import { mockHiringStore } from './mock-store.ts'
+import { isDevMockSupabase } from '../supabase/config.ts'
 
 export function isTableMissingError(err: any): boolean {
   if (!err) return false
@@ -272,13 +273,21 @@ export class SourcingService {
           .insert(rowsToInsert)
           .select()
 
-        if (!insertErr && inserted && inserted.length > 0) {
+        if (insertErr) {
+          if (isDevMockSupabase()) {
+            insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
+          } else {
+            throw new Error(`Failed to persist sourced candidates: ${insertErr.message}`)
+          }
+        } else if (inserted && inserted.length > 0) {
           insertedRows = inserted
-        } else {
-          insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
         }
-      } catch {
-        insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
+      } catch (err: any) {
+        if (isDevMockSupabase()) {
+          insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
+        } else {
+          throw err
+        }
       }
 
       for (const r of insertedRows) {
@@ -762,18 +771,26 @@ export class SourcingService {
     }
 
     if (reqErr || !req) {
-      const mockReq = mockHiringStore.requisitions.find(
-        r => r.id === requisitionId && (r.organization_id === organizationId || r.organization_id === '11111111-0000-0000-0000-000000000001' || !r.organization_id)
-      )
-      if (mockReq && (isTableMissingError(reqErr) || !req)) {
-        req = mockReq
-        reqErr = null
+      if (isDevMockSupabase()) {
+        const mockReq = mockHiringStore.requisitions.find(
+          r => r.id === requisitionId && (r.organization_id === organizationId || r.organization_id === '11111111-0000-0000-0000-000000000001' || !r.organization_id)
+        )
+        if (mockReq) {
+          req = mockReq
+          reqErr = null
+        }
       }
     }
 
     if (reqErr || !req) {
       const err = new Error(`Job requisition '${requisitionId}' not found.`) as any
       err.status = 404
+      throw err
+    }
+
+    if (req.status !== 'OPEN') {
+      const err = new Error(`Job requisition '${requisitionId}' is not eligible for candidate shortlisting (status: ${req.status}). Must be OPEN.`) as any
+      err.status = 400
       throw err
     }
 
@@ -807,7 +824,7 @@ export class SourcingService {
       // Fallback if table unconfigured or DB offline
     }
 
-    if (!candidate) {
+    if (!candidate && isDevMockSupabase()) {
       candidate = mockHiringStore.candidates.find(c =>
         (normalized.email && c.email?.toLowerCase() === normalized.email.toLowerCase()) ||
         (normalized.phone && c.phone === normalized.phone)
@@ -824,7 +841,7 @@ export class SourcingService {
           context
         )
       } catch (candErr: any) {
-        if (isTableMissingError(candErr) || candErr?.message?.includes('Failed to create candidate')) {
+        if (isDevMockSupabase() && (isTableMissingError(candErr) || candErr?.message?.includes('Failed to create candidate'))) {
           candidate = {
             id: `cand-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             organization_id: organizationId,
@@ -879,7 +896,7 @@ export class SourcingService {
       // Fallback if table unconfigured or DB offline
     }
 
-    if (!existingApp) {
+    if (!existingApp && isDevMockSupabase()) {
       existingApp = mockHiringStore.applications.find(a =>
         a.requisition_id === requisitionId &&
         a.candidate_id === candidate.id &&

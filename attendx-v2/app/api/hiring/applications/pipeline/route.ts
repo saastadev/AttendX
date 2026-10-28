@@ -10,9 +10,7 @@ import { ApplicationService } from '@/lib/hiring/application-service'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const requisitionId = searchParams.get('requisition_id') || undefined

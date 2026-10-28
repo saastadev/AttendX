@@ -80,7 +80,7 @@ export default function ApplicationsPage() {
     }
   })
 
-  const { data: appData, isLoading } = useQuery({
+  const { data: appData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hiring-applications-list', selectedRequisition, selectedStage, minScore],
     queryFn: async () => {
       const params = new URLSearchParams()
@@ -90,7 +90,10 @@ export default function ApplicationsPage() {
       params.set('limit', '100')
 
       const res = await fetch(`/api/hiring/applications?${params.toString()}`)
-      if (!res.ok) throw new Error('Failed to load applications')
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null)
+        throw new Error(errorData?.error || 'Failed to load applications')
+      }
       return res.json()
     }
   })
@@ -333,6 +336,23 @@ export default function ApplicationsPage() {
         {isLoading ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
             Loading candidate applications…
+          </div>
+        ) : isError ? (
+          <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+            <AlertCircle size={36} color="var(--danger)" style={{ margin: '0 auto 12px' }} />
+            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Failed to load applications
+            </div>
+            <p style={{ fontSize: '0.875rem', marginTop: 4, color: 'var(--danger)' }}>
+              {(error as any)?.message || 'An error occurred while fetching applications from the database.'}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="btn btn-primary"
+              style={{ marginTop: 16, fontSize: '0.85rem', padding: '8px 16px' }}
+            >
+              Retry
+            </button>
           </div>
         ) : filteredApps.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>

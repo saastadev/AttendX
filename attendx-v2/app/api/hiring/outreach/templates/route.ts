@@ -12,9 +12,7 @@ import { TemplateEngine } from '@/lib/hiring/template-engine'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     if (!isDevMockSupabase()) {
       try {
@@ -52,9 +50,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.name?.trim() || !body.body_template?.trim()) {
