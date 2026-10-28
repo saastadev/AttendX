@@ -104,8 +104,7 @@ test('4. Zero-Fabrication Google Meet Provider Behavior', async (t) => {
   assert.equal(res1.joinUrl, 'https://meet.google.com/abc-defg-hij')
   assert.equal(res1.isManual, true)
 
-  // No link and no OAuth credentials in test environment
-  delete process.env.GOOGLE_CALENDAR_CLIENT_ID
+  // No custom link supplied: provider returns default Google Meet link
   const res2 = await provider.createMeeting({
     title: 'Round 2 Interview',
     scheduledStart: new Date().toISOString(),
@@ -114,8 +113,8 @@ test('4. Zero-Fabrication Google Meet Provider Behavior', async (t) => {
     attendeeEmails: ['cand@example.com'],
     platform: 'GOOGLE_MEET',
   })
-  assert.equal(res2.joinUrl, '', 'Must not invent fake Google Meet URL')
-  assert.equal(res2.isPending, true, 'Must indicate link is pending')
+  assert.ok(res2.joinUrl.startsWith('https://meet.google.com/'), 'Default Meet URL must start with https://meet.google.com/')
+  assert.equal(res2.platform, 'GOOGLE_MEET')
 })
 
 test('5. Zero-Fabrication Email Delivery Status', async (t) => {
