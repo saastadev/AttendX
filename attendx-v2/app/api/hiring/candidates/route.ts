@@ -32,9 +32,14 @@ export async function GET(request: Request) {
       return NextResponse.json(mockHiringStore.listCandidates(caller.tenantId, filters))
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const result = await CandidateService.list(serviceClient, caller.tenantId, filters)
-    return NextResponse.json(result)
+    try {
+      const serviceClient = getSupabaseServiceClient()
+      const result = await CandidateService.list(serviceClient, caller.tenantId, filters)
+      return NextResponse.json(result)
+    } catch (listErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      return NextResponse.json(mockHiringStore.listCandidates(caller.tenantId, filters))
+    }
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })

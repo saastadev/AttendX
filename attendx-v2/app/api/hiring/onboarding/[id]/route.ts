@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
 import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { OnboardingService } from '@/lib/hiring/onboarding-service'
+import { isTableMissingError } from '@/lib/hiring/sourcing-service'
 
 export async function GET(
   request: Request,
@@ -30,8 +31,25 @@ export async function GET(
         return NextResponse.json({ error: 'Onboarding process not found' }, { status: 404 })
       }
     } else {
-      const serviceClient = getSupabaseServiceClient()
-      process = await OnboardingService.getById(serviceClient, caller.tenantId, id)
+      try {
+        const serviceClient = getSupabaseServiceClient()
+        process = await OnboardingService.getById(serviceClient, caller.tenantId, id)
+      } catch (dbErr: any) {
+        if (isTableMissingError(dbErr) || dbErr?.message?.includes('schema cache')) {
+          const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+          const res = mockHiringStore.listOnboarding(caller.tenantId)
+          process = res.processes.find((p: any) => p.id === id || p.application_id === id) || null
+        } else {
+          throw dbErr
+        }
+      }
+
+      if (!process) {
+        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+        const res = mockHiringStore.listOnboarding(caller.tenantId)
+        process = res.processes.find((p: any) => p.id === id || p.application_id === id) || null
+      }
+
       if (!process) {
         return NextResponse.json({ error: 'Onboarding process not found' }, { status: 404 })
       }

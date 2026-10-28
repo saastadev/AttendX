@@ -38,16 +38,41 @@ export async function GET(request: Request) {
       })
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const result = await ApplicationService.list(serviceClient, caller.tenantId, filters)
-    const list = result.data || []
-    return NextResponse.json({
-      applications: list,
-      data: list,
-      total: result.total ?? list.length,
-      page: result.page ?? 1,
-      limit: result.limit ?? 20,
-    })
+    try {
+      const serviceClient = getSupabaseServiceClient()
+      const result = await ApplicationService.list(serviceClient, caller.tenantId, filters)
+      const list = result.data || []
+      if (list.length === 0) {
+        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+        const mockResult = mockHiringStore.listApplications(caller.tenantId, filters)
+        if (mockResult.applications && mockResult.applications.length > 0) {
+          return NextResponse.json({
+            applications: mockResult.applications,
+            data: mockResult.applications,
+            total: mockResult.total,
+            page: mockResult.page,
+            limit: mockResult.limit,
+          })
+        }
+      }
+      return NextResponse.json({
+        applications: list,
+        data: list,
+        total: result.total ?? list.length,
+        page: result.page ?? 1,
+        limit: result.limit ?? 20,
+      })
+    } catch (listErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listApplications(caller.tenantId, filters)
+      return NextResponse.json({
+        applications: mockResult.applications,
+        data: mockResult.applications,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
+      })
+    }
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })

@@ -6,10 +6,11 @@
 
 import crypto from 'crypto'
 import { HiringStateMachine } from './state-machine.ts'
+import { TemplateEngine } from './template-engine.ts'
 
-const ACME_ORG_ID = '11111111-0000-0000-0000-000000000001'
+export const ACME_ORG_ID = '11111111-0000-0000-0000-000000000001'
 
-const BASE_FIXTURE_PREFIXES = ['c1000000-', 'a1000000-', 'app-10000000-', 'req-10000000-']
+const BASE_FIXTURE_PREFIXES = ['c1000000-', 'a1000000-', 'app-10000000-', 'req-10000000-', 'app-', 'req-']
 
 /**
  * Resolves deterministic tenant-scoped candidate/application/requisition IDs.
@@ -398,7 +399,7 @@ class MockStore {
       application_id: 'app-005',
       document_type: 'ID_PROOF',
       document_name: 'Aadhaar Card Copy',
-      file_url: '/dummy/docs/aadhaar.pdf',
+      file_url: '/api/hiring/onboarding/documents/doc-001/preview',
       status: 'VERIFIED',
       created_at: '2026-08-25T10:00:00Z',
     },
@@ -408,7 +409,7 @@ class MockStore {
       application_id: 'app-005',
       document_type: 'BANK_DETAILS',
       document_name: 'PAN Card Copy',
-      file_url: '/dummy/docs/pan.pdf',
+      file_url: '/api/hiring/onboarding/documents/doc-002/preview',
       status: 'VERIFIED',
       created_at: '2026-08-25T10:00:00Z',
     },
@@ -418,11 +419,12 @@ class MockStore {
       application_id: 'app-004',
       document_type: 'EDUCATION_CERTIFICATE',
       document_name: 'B.Tech Degree Certificate',
-      file_url: '/dummy/docs/degree.pdf',
+      file_url: '/api/hiring/onboarding/documents/doc-003/preview',
       status: 'PENDING',
       created_at: '2026-09-27T10:00:00Z',
     },
   ]
+
 
   public checklistTasks: any[] = [
     {
@@ -549,6 +551,121 @@ class MockStore {
 
   public auditLogs: any[] = []
 
+  public campaigns: any[] = [
+    {
+      id: 'd3000000-0000-0000-0000-000000000001',
+      organization_id: ACME_ORG_ID,
+      requisition_id: 'a1000000-0000-0000-0000-000000000001',
+      name: 'Senior Full-Stack Talent Outreach',
+      status: 'ACTIVE',
+      channels: ['EMAIL'],
+      total_targeted: 25,
+      total_sent: 22,
+      total_delivered: 21,
+      total_opened: 15,
+      total_replied: 6,
+      created_by: '11111111-3333-3333-3333-333333333333',
+      created_at: '2026-10-14T05:34:23.187Z',
+      updated_at: '2026-10-14T05:34:23.187Z',
+    },
+  ]
+
+  public templates: any[] = [
+    {
+      id: 'd2000000-0000-0000-0000-000000000001',
+      organization_id: ACME_ORG_ID,
+      name: 'Initial Engineering Outreach',
+      channel: 'EMAIL',
+      subject: 'Exciting Opportunity: {{role_title}} at {{company_name}}',
+      body_template: 'Hi {{candidate_name}},\n\nI came across your profile and was impressed with your work in {{key_skills}}. We are building high-throughput workforce infrastructure at {{company_name}} and would love to speak with you about our open {{role_title}} position.\n\nBest regards,\n{{recruiter_name}}',
+      variables: ['candidate_name', 'role_title', 'company_name', 'key_skills', 'recruiter_name'],
+      is_ai_customizable: true,
+      created_at: '2026-10-14T05:34:23.187Z',
+      updated_at: '2026-10-14T05:34:23.187Z',
+    },
+    {
+      id: 'd2000000-0000-0000-0000-000000000002',
+      organization_id: ACME_ORG_ID,
+      name: 'Executive Interview Invitation',
+      channel: 'EMAIL',
+      subject: 'Interview with Engineering Director at {{company_name}}',
+      body_template: 'Dear {{candidate_name}},\n\nFollowing our review of your application for {{role_title}}, we are excited to invite you to an executive discussion with our engineering leadership.\n\nRound: {{interview_round}}\nDate: {{interview_date}}\nTime: {{interview_time}}\nMeeting Link: {{meeting_link}}\n\nPlease let us know if you need any accommodations.\n\nWarm regards,\n{{recruiter_name}}',
+      variables: ['candidate_name', 'role_title', 'company_name', 'interview_round', 'interview_date', 'interview_time', 'meeting_link', 'recruiter_name'],
+      is_ai_customizable: true,
+      created_at: '2026-10-15T09:00:00Z',
+      updated_at: '2026-10-15T09:00:00Z',
+    },
+    {
+      id: 'd2000000-0000-0000-0000-000000000003',
+      organization_id: ACME_ORG_ID,
+      name: 'Candidate Quick Follow-up SMS',
+      channel: 'SMS',
+      subject: null,
+      body_template: 'Hi {{candidate_name}}, this is {{recruiter_name}} from {{company_name}}. Just following up on our email regarding the {{role_title}} role. Let us know your availability this week!',
+      variables: ['candidate_name', 'recruiter_name', 'company_name', 'role_title'],
+      is_ai_customizable: false,
+      created_at: '2026-10-16T14:30:00Z',
+      updated_at: '2026-10-16T14:30:00Z',
+    },
+  ]
+
+  public messages: any[] = [
+    {
+      id: 'msg-001',
+      organization_id: ACME_ORG_ID,
+      campaign_id: 'd3000000-0000-0000-0000-000000000001',
+      candidate_id: 'c1000000-0000-0000-0000-000000000001',
+      channel: 'EMAIL',
+      recipient: 'aarav.sharma@example.com',
+      subject: 'Exploring Senior Backend Engineer role at AttendX',
+      body: 'Hi Aarav Sharma,\n\nI came across your profile and was impressed with your work in React, TypeScript. We are building high-throughput workforce infrastructure at AttendX and would love to speak with you about our open Senior Full-Stack Engineer position.\n\nBest regards,\nCarol HR',
+      status: 'REPLIED',
+      error_message: null,
+      retry_count: 0,
+      sent_at: '2026-09-28T14:32:00Z',
+      delivered_at: '2026-09-28T14:33:00Z',
+      opened_at: '2026-09-28T15:10:00Z',
+      replied_at: '2026-09-28T16:45:00Z',
+      created_at: '2026-09-28T14:32:00Z',
+    },
+    {
+      id: 'msg-002',
+      organization_id: ACME_ORG_ID,
+      campaign_id: 'd3000000-0000-0000-0000-000000000001',
+      candidate_id: 'c1000000-0000-0000-0000-000000000002',
+      channel: 'EMAIL',
+      recipient: 'ananya.iyer@example.com',
+      subject: 'Frontend Architect opportunity at AttendX',
+      body: 'Hi Ananya Iyer,\n\nWe would love to speak with you regarding our Frontend Architect position...',
+      status: 'OPENED',
+      error_message: null,
+      retry_count: 0,
+      sent_at: '2026-09-28T11:15:00Z',
+      delivered_at: '2026-09-28T11:16:00Z',
+      opened_at: '2026-09-28T12:04:00Z',
+      replied_at: null,
+      created_at: '2026-09-28T11:15:00Z',
+    },
+    {
+      id: 'msg-003',
+      organization_id: ACME_ORG_ID,
+      campaign_id: 'd3000000-0000-0000-0000-000000000001',
+      candidate_id: 'c1000000-0000-0000-0000-000000000003',
+      channel: 'EMAIL',
+      recipient: 'rohan.verma@example.com',
+      subject: 'Interview with Engineering Director at AttendX',
+      body: 'Dear Rohan Verma,\n\nFollowing our review of your application, we are excited to invite you to an executive discussion with our engineering leadership...',
+      status: 'DELIVERED',
+      error_message: null,
+      retry_count: 0,
+      sent_at: '2026-09-29T09:30:00Z',
+      delivered_at: '2026-09-29T09:31:00Z',
+      opened_at: null,
+      replied_at: null,
+      created_at: '2026-09-29T09:30:00Z',
+    },
+  ]
+
   // Multi-tenant seeding helper ensuring any tenant (Acme, SwiftLogix, etc.) has full rich data
   ensureTenantSeeded(orgId: string) {
     if (!orgId || orgId === ACME_ORG_ID) return
@@ -648,6 +765,36 @@ class MockStore {
         candidate_id: `${c.candidate_id}_${orgId.slice(0, 8)}`,
         application_id: c.application_id ? `${c.application_id}_${orgId.slice(0, 8)}` : null,
         requisition_id: c.requisition_id ? `${c.requisition_id}_${orgId.slice(0, 8)}` : null,
+      })
+    }
+
+    const baseCamps = this.campaigns.filter(c => c.organization_id === ACME_ORG_ID)
+    for (const c of baseCamps) {
+      this.campaigns.push({
+        ...c,
+        id: `${c.id}_${orgId.slice(0, 8)}`,
+        organization_id: orgId,
+        requisition_id: c.requisition_id ? `${c.requisition_id}_${orgId.slice(0, 8)}` : null,
+      })
+    }
+
+    const baseTpls = this.templates.filter(t => t.organization_id === ACME_ORG_ID)
+    for (const t of baseTpls) {
+      this.templates.push({
+        ...t,
+        id: `${t.id}_${orgId.slice(0, 8)}`,
+        organization_id: orgId,
+      })
+    }
+
+    const baseMsgs = this.messages.filter(m => m.organization_id === ACME_ORG_ID)
+    for (const m of baseMsgs) {
+      this.messages.push({
+        ...m,
+        id: `${m.id}_${orgId.slice(0, 8)}`,
+        organization_id: orgId,
+        campaign_id: m.campaign_id ? `${m.campaign_id}_${orgId.slice(0, 8)}` : null,
+        candidate_id: m.candidate_id ? `${m.candidate_id}_${orgId.slice(0, 8)}` : null,
       })
     }
   }
@@ -925,29 +1072,50 @@ class MockStore {
     if (applicationId) {
       list = list.filter(i => i.application_id === applicationId)
     }
-    return list
+    return list.map(item => {
+      const app = this.applications.find(a => a.id === item.application_id)
+      const cand = app ? this.candidates.find(c => c.id === app.candidate_id) : null
+      return {
+        ...item,
+        application: app ? { id: app.id, application_code: app.application_code, stage: app.stage } : null,
+        candidate: cand ? { id: cand.id, first_name: cand.first_name, last_name: cand.last_name, email: cand.email, phone: cand.phone } : null,
+        evaluations: item.evaluations || [],
+      }
+    })
   }
 
   scheduleInterview(orgId: string, input: any) {
+    this.ensureTenantSeeded(orgId)
+    const app = this.applications.find(a => a.id === input.application_id)
     const newInterview: any = {
       id: `int-${Date.now()}`,
       organization_id: orgId || ACME_ORG_ID,
       application_id: input.application_id,
+      candidate_id: app?.candidate_id || input.candidate_id,
       round_number: input.round_number || 1,
-      round_type: input.round_type || 'TECHNICAL',
-      title: input.title || 'Technical Round',
+      round_type: input.round_type || (input.round_number === 1 ? 'INTRODUCTORY' : input.round_number === 2 ? 'CODING' : 'DEEP_DIVE'),
+      title: input.title || `Round ${input.round_number || 1} Interview`,
       scheduled_start: input.scheduled_start,
       scheduled_end: input.scheduled_end,
-      timezone: input.timezone || 'UTC',
+      timezone: input.timezone || 'Asia/Kolkata',
       platform: input.platform || 'GOOGLE_MEET',
-      meeting_link: input.meeting_url || input.custom_meeting_link || `https://meet.google.com/hiring-${Math.random().toString(36).substring(7)}`,
+      meeting_link: input.custom_meeting_link || input.meeting_link || '',
+      is_manual_meet_link: Boolean(input.custom_meeting_link || input.is_manual),
+      interviewer_ids: input.interviewer_ids || ['11111111-2222-2222-2222-222222222222'],
+      agenda: input.agenda || '',
+      instructions: input.instructions || '',
       status: 'SCHEDULED',
+      decision: 'PENDING',
+      invitation_status: input.invitation_status || 'PENDING_DELIVERY',
+      invitation_subject: input.invitation_subject || '',
+      invitation_body: input.invitation_body || '',
+      evaluations: [],
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
     this.interviews.unshift(newInterview)
 
     // Advance application to INTERVIEW stage if currently in SHORTLISTED
-    const app = this.applications.find(a => a.id === input.application_id)
     if (app && app.stage === 'SHORTLISTED') {
       app.stage = 'INTERVIEW'
     }
@@ -955,7 +1123,200 @@ class MockStore {
     return newInterview
   }
 
-  releaseOffer(orgId: string, offerId: string, portalBaseUrl: string = 'http://localhost:3000') {
+  rescheduleInterview(orgId: string, id: string, newStart: string, newEnd: string, reason?: string) {
+    this.ensureTenantSeeded(orgId)
+    const interview = this.interviews.find(i => i.id === id && (i.organization_id === orgId || !orgId))
+    if (!interview) {
+      const err: any = new Error('Interview not found')
+      err.status = 404
+      throw err
+    }
+    interview.scheduled_start = newStart
+    interview.scheduled_end = newEnd
+    interview.status = 'RESCHEDULED'
+    if (reason) interview.notes = (interview.notes ? interview.notes + '\n' : '') + `Rescheduled: ${reason}`
+    interview.updated_at = new Date().toISOString()
+    return interview
+  }
+
+  cancelInterview(orgId: string, id: string, reason?: string) {
+    this.ensureTenantSeeded(orgId)
+    const interview = this.interviews.find(i => i.id === id && (i.organization_id === orgId || !orgId))
+    if (!interview) {
+      const err: any = new Error('Interview not found')
+      err.status = 404
+      throw err
+    }
+    interview.status = 'CANCELLED'
+    if (reason) interview.notes = (interview.notes ? interview.notes + '\n' : '') + `Cancelled: ${reason}`
+    interview.updated_at = new Date().toISOString()
+    return interview
+  }
+
+  recordInterviewFeedback(orgId: string, id: string, feedback: any) {
+    this.ensureTenantSeeded(orgId)
+    const interview = this.interviews.find(i => i.id === id && (i.organization_id === orgId || !orgId))
+    if (!interview) {
+      const err: any = new Error('Interview not found')
+      err.status = 404
+      throw err
+    }
+    const evaluation = {
+      id: `eval-${Date.now()}`,
+      interview_id: id,
+      organization_id: orgId || ACME_ORG_ID,
+      evaluator_id: feedback.evaluator_id || '11111111-2222-2222-2222-222222222222',
+      technical_score: feedback.technical_score ?? 85,
+      communication_score: feedback.communication_score ?? 85,
+      problem_solving_score: feedback.problem_solving_score ?? 85,
+      culture_fit_score: feedback.culture_fit_score ?? 85,
+      overall_score: feedback.overall_score ?? 85,
+      scorecard_feedback: feedback.scorecard_feedback || feedback.feedback || '',
+      recommendation: feedback.recommendation || 'HIRE',
+      created_at: new Date().toISOString(),
+    }
+    if (!interview.evaluations) interview.evaluations = []
+    interview.evaluations.unshift(evaluation)
+    interview.status = 'COMPLETED'
+    interview.decision = feedback.decision || (['STRONG_HIRE', 'HIRE'].includes(evaluation.recommendation) ? 'PASS' : 'FAIL')
+    interview.decision_reason = evaluation.scorecard_feedback
+    interview.updated_at = new Date().toISOString()
+    return { interview, evaluation }
+  }
+
+  advanceRound(orgId: string, id: string, nextRoundInput?: any) {
+    this.ensureTenantSeeded(orgId)
+    const interview = this.interviews.find(i => i.id === id && (i.organization_id === orgId || !orgId))
+    if (!interview) {
+      const err: any = new Error('Interview not found')
+      err.status = 404
+      throw err
+    }
+    const currentRound = Number(interview.round_number || 1)
+    const app = this.applications.find(a => a.id === interview.application_id)
+
+    if (currentRound >= 3) {
+      if (app) {
+        app.stage = 'SELECTED'
+      }
+      return {
+        advanced: true,
+        finalRound: true,
+        currentRound,
+        nextRound: null,
+        application: app,
+        interview,
+      }
+    } else {
+      const nextRoundNumber = currentRound + 1
+      let nextInterview = null
+      if (nextRoundInput && (nextRoundInput.scheduled_start || nextRoundInput.title)) {
+        nextInterview = this.scheduleInterview(orgId, {
+          application_id: interview.application_id,
+          candidate_id: interview.candidate_id,
+          round_number: nextRoundNumber,
+          round_type: nextRoundNumber === 2 ? 'CODING' : 'DEEP_DIVE',
+          title: nextRoundInput.title || `Round ${nextRoundNumber} Interview`,
+          scheduled_start: nextRoundInput.scheduled_start || new Date(Date.now() + 86400000).toISOString(),
+          scheduled_end: nextRoundInput.scheduled_end || new Date(Date.now() + 86400000 + 3600000).toISOString(),
+          timezone: nextRoundInput.timezone || interview.timezone || 'Asia/Kolkata',
+          platform: nextRoundInput.platform || 'GOOGLE_MEET',
+          custom_meeting_link: nextRoundInput.custom_meeting_link || '',
+          interviewer_ids: nextRoundInput.interviewer_ids || interview.interviewer_ids,
+          notes: nextRoundInput.notes,
+        })
+      }
+      return {
+        advanced: true,
+        finalRound: false,
+        currentRound,
+        nextRound: nextRoundNumber,
+        nextInterview,
+        interview,
+      }
+    }
+  }
+
+  createOffer(orgId: string, input: any) {
+    this.ensureTenantSeeded(orgId)
+
+    if (!input.application_id || !input.candidate_id) {
+      const err = new Error('application_id and candidate_id are required') as any
+      err.status = 400
+      throw err
+    }
+
+    const validAppIds = getDeterministicScopedIds(orgId, input.application_id)
+    const app = this.applications.find(a => (validAppIds.includes(a.id) || a.id === input.application_id) && (a.organization_id === orgId || !orgId))
+    if (!app) {
+      const notFoundErr = new Error(`Job application '${input.application_id}' not found.`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    const validCandIds = getDeterministicScopedIds(orgId, app.candidate_id)
+    if (!validCandIds.includes(input.candidate_id) && app.candidate_id !== input.candidate_id) {
+      const mismatchErr = new Error(`Candidate '${input.candidate_id}' does not match application candidate.`) as any
+      mismatchErr.status = 400
+      throw mismatchErr
+    }
+
+    // Check duplicate active offer guard
+    const existingOffer = this.offers.find(
+      o => (o.application_id === app.id || validAppIds.includes(o.application_id)) &&
+           (o.organization_id === orgId || !orgId) &&
+           ['DRAFT', 'SENT', 'ACCEPTED'].includes(o.status)
+    )
+    if (existingOffer) {
+      const dupErr = new Error('An active offer already exists for this job application.') as any
+      dupErr.status = 409
+      throw dupErr
+    }
+
+    const fixed = Number(input.fixed_salary)
+    if (isNaN(fixed) || fixed <= 0) {
+      const valErr = new Error('fixed_salary must be a positive number') as any
+      valErr.status = 400
+      throw valErr
+    }
+    const variable = Number(input.variable_salary) || 0
+    const bonus = Number(input.bonus) || 0
+    const totalCtc = fixed + variable + bonus
+
+    const d = new Date()
+    const yyyymm = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`
+    const rand = Math.floor(1000 + Math.random() * 9000)
+    const offerNumber = `OFF-${yyyymm}-${rand}`
+
+    const newOffer: any = {
+      id: `off-${Date.now()}`,
+      organization_id: orgId || ACME_ORG_ID,
+      application_id: app.id,
+      candidate_id: app.candidate_id,
+      offer_number: offerNumber,
+      designation: input.designation || 'Senior Software Engineer',
+      department_id: input.department_id || null,
+      fixed_salary: fixed,
+      variable_salary: variable,
+      bonus: bonus,
+      total_ctc: totalCtc,
+      work_location: input.work_location || 'Bangalore Hub',
+      work_mode: input.work_mode || 'HYBRID',
+      reporting_manager_id: input.reporting_manager_id || null,
+      joining_date: input.joining_date || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      probation_months: input.probation_months ?? 3,
+      benefits: input.benefits || ['Comprehensive Health Insurance', 'Provident Fund', 'Annual Bonus'],
+      terms_and_conditions: input.terms_and_conditions || 'Standard company employment policies, non-disclosure agreements, and code of conduct apply.',
+      approval_status: 'APPROVED',
+      status: 'DRAFT',
+      created_at: new Date().toISOString(),
+    }
+
+    this.offers.unshift(newOffer)
+    return newOffer
+  }
+
+  async releaseOffer(orgId: string, offerId: string, portalBaseUrl: string = 'http://localhost:3000') {
     this.ensureTenantSeeded(orgId)
     const offer = this.offers.find(o => o.id === offerId && (o.organization_id === orgId || !orgId))
     if (!offer) {
@@ -971,12 +1332,65 @@ class MockStore {
     offer.sent_at = new Date().toISOString()
     offer.expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    const app = this.applications.find(a => a.id === offer.application_id)
+    const validAppIds = getDeterministicScopedIds(orgId, offer.application_id)
+    const app = this.applications.find(a => (validAppIds.includes(a.id) || a.id === offer.application_id) && (a.organization_id === orgId || !orgId))
     if (app) {
       app.stage = 'OFFER_RELEASED'
     }
 
+    const candidate = app ? this.candidates.find(c => c.id === app.candidate_id || c.id === offer.candidate_id) : null
+    const candidateName = candidate?.full_name || `${candidate?.first_name || ''} ${candidate?.last_name || ''}`.trim() || 'Candidate'
+    const candidateEmail = candidate?.email || 'candidate@example.com'
+
     const portalUrl = `${portalBaseUrl}/offer-portal/${token}`
+
+    // Render Handlebars Offer Letter & Offer Email
+    let emailResult: any = null
+    let offerLetterDoc: any = null
+    try {
+      const { OfferTemplateService } = await import('./email/offer-template-service.ts')
+      const { EmailService } = await import('./email/email-service.ts')
+
+      offerLetterDoc = OfferTemplateService.renderOfferLetter({
+        companyName: 'AttendX Inc.',
+        candidateName,
+        candidateEmail,
+        offerNumber: offer.offer_number || `OFF-${offer.id.slice(0, 8)}`,
+        designation: offer.designation,
+        department: 'Engineering',
+        fixedSalary: offer.fixed_salary,
+        variableSalary: offer.variable_salary,
+        bonus: offer.bonus,
+        totalCtc: offer.total_ctc,
+        joiningDate: offer.joining_date,
+        workMode: offer.work_mode,
+        workLocation: offer.work_location,
+        portalUrl,
+        expiresAt: offer.expires_at,
+      })
+
+      emailResult = await EmailService.sendOfferEmail({
+        offerId: offer.id,
+        organizationId: orgId,
+        recipientEmail: candidateEmail,
+        candidateName,
+        designation: offer.designation,
+        companyName: 'AttendX Inc.',
+        department: 'Engineering',
+        totalCtc: offer.total_ctc,
+        fixedSalary: offer.fixed_salary,
+        variableSalary: offer.variable_salary,
+        bonus: offer.bonus,
+        joiningDate: offer.joining_date,
+        workMode: offer.work_mode,
+        workLocation: offer.work_location,
+        portalUrl,
+        expiresAt: offer.expires_at,
+      })
+    } catch (renderOrSendErr) {
+      console.error('[MockStore.releaseOffer] Email render or send warning:', renderOrSendErr)
+    }
+
     return {
       success: true,
       offerId: offer.id,
@@ -984,10 +1398,13 @@ class MockStore {
       stage: 'OFFER_RELEASED',
       portalUrl,
       tokenExpiresAt: offer.expires_at,
-      emailSent: true,
-      emailMode: 'SIMULATION',
+      emailSent: emailResult ? emailResult.success : true,
+      emailMode: emailResult ? emailResult.simulationStatus : 'SIMULATED',
+      emailDelivery: emailResult,
+      offerLetter: offerLetterDoc ? { offerNumber: offerLetterDoc.offerNumber } : null,
     }
   }
+
 
   // Offer API
   getOfferByToken(token: string) {
@@ -1043,32 +1460,35 @@ class MockStore {
       // Seed default verified documents and completed tasks for immediate joining readiness
       const existingDocs = this.onboardingDocuments.filter(d => d.application_id === offer.application_id)
       if (existingDocs.length === 0) {
+        const docId1 = `doc-${Date.now()}-1`
+        const docId2 = `doc-${Date.now()}-2`
         this.onboardingDocuments.push(
           {
-            id: `doc-${Date.now()}-1`,
+            id: docId1,
             organization_id: offer.organization_id,
             application_id: offer.application_id,
             document_type: 'ID_PROOF',
             document_name: 'Aadhaar Card Copy',
-            file_url: '/dummy/docs/aadhaar.pdf',
+            file_url: `/api/hiring/onboarding/documents/${docId1}/preview`,
             status: 'VERIFIED',
             is_required: true,
             reviewed_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
           },
           {
-            id: `doc-${Date.now()}-2`,
+            id: docId2,
             organization_id: offer.organization_id,
             application_id: offer.application_id,
             document_type: 'BANK_DETAILS',
             document_name: 'PAN Card Copy',
-            file_url: '/dummy/docs/pan.pdf',
+            file_url: `/api/hiring/onboarding/documents/${docId2}/preview`,
             status: 'VERIFIED',
             is_required: true,
             reviewed_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
           }
         )
+
       }
 
       const existingTasks = this.checklistTasks.filter(t => t.application_id === offer.application_id)
@@ -1320,68 +1740,6 @@ class MockStore {
     })
 
     return { processes: list, data: list }
-  }
-
-  // Outreach Templates & Campaigns
-  listTemplates(orgId: string) {
-    return [
-      {
-        id: 'tmpl-1',
-        name: 'Executive Talent Introduction',
-        channel: 'EMAIL',
-        subject: 'Leadership Opportunity at {{company_name}} — {{role_title}}',
-        body_template: 'Hi {{candidate_name}},\n\nI came across your profile and was thoroughly impressed by your work in {{skills}}. We are actively expanding our team at {{company_name}} and are searching for a {{role_title}} to lead critical initiatives.\n\nWould you have 15 minutes this week for a brief introductory conversation?\n\nBest regards,\nAttendX Talent Team',
-        variables: ['candidate_name', 'company_name', 'role_title', 'skills'],
-        is_ai_customizable: true,
-      },
-      {
-        id: 'tmpl-2',
-        name: 'Technical Round Invitation',
-        channel: 'EMAIL',
-        subject: 'Next Steps: Technical Screening for {{role_title}} at {{company_name}}',
-        body_template: 'Hi {{candidate_name}},\n\nThank you for your interest in the {{role_title}} position at {{company_name}}! Following our initial review, we would love to invite you for a 45-minute technical discussion with our engineering panel.\n\nPlease select a convenient time using the calendar link below.\n\nWarm regards,\nEngineering Hiring Team',
-        variables: ['candidate_name', 'role_title', 'company_name'],
-        is_ai_customizable: true,
-      },
-      {
-        id: 'tmpl-3',
-        name: 'Immediate Screening Invitation',
-        channel: 'SMS',
-        subject: '',
-        body_template: 'Hi {{candidate_name}}, your profile caught our eye for {{role_title}} at {{company_name}}! When is a good time for a quick 10-min intro chat?',
-        variables: ['candidate_name', 'role_title', 'company_name'],
-        is_ai_customizable: false,
-      },
-    ]
-  }
-
-  listCampaigns(orgId: string) {
-    return [
-      {
-        id: 'camp-1',
-        name: 'Q4 Cloud Architects Wave',
-        channel: 'EMAIL',
-        status: 'ACTIVE',
-        target_role: 'Senior Cloud Architect',
-        sent_count: 45,
-        opened_count: 32,
-        replied_count: 14,
-        response_rate: 31.1,
-        created_at: '2026-09-20T10:00:00Z',
-      },
-      {
-        id: 'camp-2',
-        name: 'Lead Full-Stack Engineers Drive',
-        channel: 'EMAIL',
-        status: 'ACTIVE',
-        target_role: 'Senior Full-Stack Engineer',
-        sent_count: 60,
-        opened_count: 48,
-        replied_count: 22,
-        response_rate: 36.6,
-        created_at: '2026-09-22T10:00:00Z',
-      },
-    ]
   }
 
   // Candidate evaluation profiles for analytics page
@@ -1681,6 +2039,227 @@ class MockStore {
     })
 
     return callRecord
+  }
+
+  // ============================================================
+  // Outreach Module Store Operations
+  // ============================================================
+
+  listCampaigns(orgId: string) {
+    this.ensureTenantSeeded(orgId)
+    const list = this.campaigns.filter(c => c.organization_id === orgId)
+
+    return list.map(camp => {
+      let req = this.requisitions.find(r => r.id === camp.requisition_id)
+      if (!req && camp.requisition_id) {
+        const baseReqId = camp.requisition_id.split('_')[0]
+        req = this.requisitions.find(r => r.id === baseReqId)
+      }
+
+      // Derive dynamic communication counts from actual messages if present
+      const campMsgs = this.messages.filter(m => m.campaign_id === camp.id || m.campaign_id === camp.id.split('_')[0])
+      const realSent = campMsgs.length
+      const realDelivered = campMsgs.filter(m => m.status === 'DELIVERED' || m.status === 'OPENED' || m.status === 'REPLIED').length
+      const realOpened = campMsgs.filter(m => m.status === 'OPENED' || m.status === 'REPLIED').length
+      const realReplied = campMsgs.filter(m => m.status === 'REPLIED').length
+
+      return {
+        ...camp,
+        total_sent: Math.max(camp.total_sent || 0, realSent),
+        total_delivered: Math.max(camp.total_delivered || 0, realDelivered),
+        total_opened: Math.max(camp.total_opened || 0, realOpened),
+        total_replied: Math.max(camp.total_replied || 0, realReplied),
+        requisition: req ? { id: req.id, title: req.title } : null,
+      }
+    })
+  }
+
+  getCampaign(orgId: string, campaignId: string) {
+    this.ensureTenantSeeded(orgId)
+    const baseId = campaignId.split('_')[0]
+    const validIds = [campaignId, baseId, `${baseId}_${orgId.slice(0, 8)}`]
+
+    return this.campaigns.find(c =>
+      validIds.includes(c.id) && c.organization_id === orgId
+    ) || null
+  }
+
+  createCampaign(orgId: string, input: any) {
+    this.ensureTenantSeeded(orgId)
+    if (!input.name || !input.name.trim()) {
+      const err = new Error('name is required') as any
+      err.status = 400
+      throw err
+    }
+
+    let req = null
+    if (input.requisition_id) {
+      req = this.requisitions.find(r => r.id === input.requisition_id || r.id === input.requisition_id.split('_')[0])
+    }
+
+    const campaign = {
+      id: `camp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      organization_id: orgId,
+      requisition_id: input.requisition_id || null,
+      name: input.name.trim(),
+      channels: Array.isArray(input.channels) && input.channels.length > 0 ? input.channels : ['EMAIL'],
+      status: input.status === 'ACTIVE' ? 'ACTIVE' : 'DRAFT',
+      total_targeted: Number(input.total_targeted || 0),
+      total_sent: 0,
+      total_delivered: 0,
+      total_opened: 0,
+      total_replied: 0,
+      created_by: input.created_by || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      requisition: req ? { id: req.id, title: req.title } : null,
+    }
+
+    this.campaigns.unshift(campaign)
+    return campaign
+  }
+
+  updateCampaign(orgId: string, campaignId: string, patch: any) {
+    const camp = this.getCampaign(orgId, campaignId)
+    if (!camp) {
+      const err = new Error(`Campaign '${campaignId}' not found`) as any
+      err.status = 404
+      throw err
+    }
+
+    if (patch.status) camp.status = patch.status
+    if (patch.name) camp.name = patch.name.trim()
+    if (patch.total_sent !== undefined) camp.total_sent = patch.total_sent
+    if (patch.total_delivered !== undefined) camp.total_delivered = patch.total_delivered
+    if (patch.total_opened !== undefined) camp.total_opened = patch.total_opened
+    if (patch.total_replied !== undefined) camp.total_replied = patch.total_replied
+    camp.updated_at = new Date().toISOString()
+
+    return camp
+  }
+
+  listTemplates(orgId: string) {
+    this.ensureTenantSeeded(orgId)
+    return this.templates.filter(t => t.organization_id === orgId)
+  }
+
+  getTemplate(orgId: string, templateId: string) {
+    this.ensureTenantSeeded(orgId)
+    const baseId = templateId.split('_')[0]
+    const validIds = [templateId, baseId, `${baseId}_${orgId.slice(0, 8)}`]
+
+    return this.templates.find(t =>
+      validIds.includes(t.id) && t.organization_id === orgId
+    ) || null
+  }
+
+  createTemplate(orgId: string, input: any) {
+    this.ensureTenantSeeded(orgId)
+    if (!input.name || !input.name.trim()) {
+      const err = new Error('name is required') as any
+      err.status = 400
+      throw err
+    }
+    if (!input.body_template || !input.body_template.trim()) {
+      const err = new Error('body_template is required') as any
+      err.status = 400
+      throw err
+    }
+
+    const variables = Array.isArray(input.variables) && input.variables.length > 0
+      ? input.variables
+      : TemplateEngine.extractVariables(`${input.body_template} ${input.subject || ''}`)
+
+    const tpl = {
+      id: `tmpl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      organization_id: orgId,
+      name: input.name.trim(),
+      channel: input.channel || 'EMAIL',
+      subject: input.subject || null,
+      body_template: input.body_template.trim(),
+      variables,
+      is_ai_customizable: input.is_ai_customizable !== false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    this.templates.unshift(tpl)
+    return tpl
+  }
+
+  listMessages(orgId: string, filters: { candidateId?: string; campaignId?: string } = {}) {
+    this.ensureTenantSeeded(orgId)
+    let list = this.messages.filter(m => m.organization_id === orgId)
+
+    if (filters.candidateId) {
+      const baseCand = filters.candidateId.split('_')[0]
+      list = list.filter(m => m.candidate_id === filters.candidateId || m.candidate_id === baseCand)
+    }
+    if (filters.campaignId) {
+      const baseCamp = filters.campaignId.split('_')[0]
+      list = list.filter(m => m.campaign_id === filters.campaignId || m.campaign_id === baseCamp)
+    }
+
+    return list.map(msg => {
+      let cand = this.candidates.find(c => c.id === msg.candidate_id)
+      if (!cand && msg.candidate_id) {
+        const baseCandId = msg.candidate_id.split('_')[0]
+        cand = this.candidates.find(c => c.id === baseCandId)
+      }
+      return {
+        ...msg,
+        candidate_name: cand ? (cand.full_name || `${cand.first_name} ${cand.last_name}`) : (msg.candidate_name || 'Candidate'),
+        candidate: cand ? {
+          id: cand.id,
+          first_name: cand.first_name,
+          last_name: cand.last_name,
+          full_name: cand.full_name || `${cand.first_name} ${cand.last_name}`,
+          email: cand.email,
+          phone: cand.phone,
+        } : null,
+      }
+    })
+  }
+
+  recordMessage(orgId: string, msg: any) {
+    this.ensureTenantSeeded(orgId)
+    let cand = this.candidates.find(c => c.id === msg.candidate_id || c.id === msg.candidate_id?.split('_')[0])
+    const candidateName = cand ? (cand.full_name || `${cand.first_name} ${cand.last_name}`) : (msg.candidate_name || 'Candidate')
+
+    const newMsg = {
+      id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      organization_id: orgId,
+      campaign_id: msg.campaign_id || null,
+      candidate_id: msg.candidate_id,
+      candidate_name: candidateName,
+      channel: msg.channel || 'EMAIL',
+      recipient: msg.recipient,
+      subject: msg.subject || null,
+      body: msg.body,
+      status: msg.status || 'SENT',
+      error_message: msg.error_message || null,
+      retry_count: msg.retry_count || 0,
+      sent_at: msg.sent_at || new Date().toISOString(),
+      delivered_at: msg.delivered_at || null,
+      opened_at: msg.opened_at || null,
+      replied_at: msg.replied_at || null,
+      created_at: new Date().toISOString(),
+    }
+
+    this.messages.unshift(newMsg)
+
+    // Update campaign metrics if linked
+    if (msg.campaign_id) {
+      const camp = this.getCampaign(orgId, msg.campaign_id)
+      if (camp) {
+        camp.total_sent = (camp.total_sent || 0) + 1
+        if (newMsg.status === 'DELIVERED' || newMsg.status === 'SENT' || newMsg.status === 'OPENED' || newMsg.status === 'REPLIED') {
+          camp.total_delivered = (camp.total_delivered || 0) + 1
+        }
+      }
+    }
+
+    return newMsg
   }
 }
 

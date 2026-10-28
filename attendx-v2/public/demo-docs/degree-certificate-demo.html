@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>B.Tech Degree Certificate (Demo Specimen)</title>
+  <style>
+    body { font-family: "Georgia", serif; background: #f1f5f9; margin: 0; padding: 32px 16px; display: flex; flex-direction: column; align-items: center; }
+    .watermark-banner { font-family: -apple-system, sans-serif; background: #dc2626; color: #ffffff; padding: 10px 24px; font-weight: 800; font-size: 13px; letter-spacing: 1px; border-radius: 8px; margin-bottom: 24px; text-align: center; max-width: 680px; width: 100%; box-sizing: border-box; }
+    .certificate { background: #fffdfa; width: 100%; max-width: 680px; border: 8px double #b45309; border-radius: 4px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; padding: 44px 36px; text-align: center; box-sizing: border-box; }
+    .certificate::before { content: "DEMO DOCUMENT — NOT VALID FOR OFFICIAL USE"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-family: -apple-system, sans-serif; font-size: 28px; font-weight: 900; color: rgba(220, 38, 38, 0.12); white-space: nowrap; pointer-events: none; z-index: 10; }
+    .institution-name { font-size: 24px; font-weight: bold; color: #1e293b; letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; }
+    .recipient-name { font-size: 26px; font-weight: bold; color: #b45309; border-bottom: 1px solid #cbd5e1; display: inline-block; padding-bottom: 4px; margin-bottom: 16px; }
+    .degree-title { font-size: 19px; font-weight: bold; color: #0f172a; margin: 14px 0 6px 0; }
+    .discipline { font-size: 15px; color: #334155; font-style: italic; margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <div class="watermark-banner">⚠️ DEMO DOCUMENT &mdash; NOT VALID FOR OFFICIAL OR LEGAL USE</div>
+  <div class="certificate">
+    <div style="font-size: 32px; margin-bottom: 8px;">🎓</div>
+    <div class="institution-name">National Institute of Technology</div>
+    <div style="font-size: 13px; color: #64748b; margin-bottom: 24px; font-style: italic;">An Autonomous Institute of National Importance (Demo Specimen)</div>
+    <div style="font-size: 14px; color: #475569; margin-bottom: 12px;">This is to certify that</div>
+    <div class="recipient-name">Rohan Verma</div>
+    <div style="font-size: 14px; color: #475569; margin-bottom: 8px;">has fulfilled all requirements and is admitted to the Degree of</div>
+    <div class="degree-title">Bachelor of Technology</div>
+    <div class="discipline">in Computer Science and Engineering</div>
+    <div style="font-size: 13px; font-weight: bold; color: #1e293b; margin-bottom: 24px;">Class Awarded: First Class with Distinction</div>
+    <div style="font-size: 11px; color: #64748b;">Registration No: <strong>NITK-CSE-2014-0492</strong> &bull; Conferred in June 2018</div>
+  </div>
+</body>
+</html>

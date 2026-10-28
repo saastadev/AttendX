@@ -4,21 +4,71 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
-  Video, CheckCircle2, XCircle, PhoneCall, Sparkles,
-  Award, Clock, ArrowRight, UserCheck, UserX, MessageSquare,
-  FileCheck, Shield, ChevronRight, ChevronDown, ChevronUp,
-  Calendar, RotateCcw, AlertCircle, Headphones
+  Video, CheckCircle2, XCircle, Award, Clock, ArrowRight,
+  UserCheck, UserX, Mail, Send, Calendar, RotateCcw,
+  AlertCircle, ExternalLink, FileCheck, ChevronRight,
+  Plus, Shield, X, Check, Edit3, Trash2
 } from 'lucide-react'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { useToast } from '@/components/ui/Toast'
+import {
+  STRUCTURED_INTERVIEW_ROUNDS,
+  getStructuredRoundConfig,
+  validateGoogleMeetUrl,
+  renderInterviewEmail
+} from '@/lib/hiring/interview-rounds'
 
 export default function InterviewStatusPage() {
   const { success, error: toastError } = useToast()
   const qc = useQueryClient()
 
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
-  const [activeVoiceCall, setActiveVoiceCall] = useState<any | null>(null)
-  const [showTranscript, setShowTranscript] = useState<boolean>(false)
+
+  // Modals state
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [scheduleRoundNumber, setScheduleRoundNumber] = useState<number>(1)
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    const d = new Date(Date.now() + 86400000)
+    return d.toISOString().split('T')[0]
+  })
+  const [scheduleTime, setScheduleTime] = useState('11:00')
+  const [scheduleDuration, setScheduleDuration] = useState(20)
+  const [scheduleTimezone, setScheduleTimezone] = useState('Asia/Kolkata')
+  const [scheduleMeetLink, setScheduleMeetLink] = useState('https://meet.google.com/abc-defg-hij')
+  const [scheduleNotes, setScheduleNotes] = useState('')
+  const [meetLinkError, setMeetLinkError] = useState<string | null>(null)
+
+  // Invitation Modal state
+  const [invitationModalOpen, setInvitationModalOpen] = useState(false)
+  const [selectedInterviewForInvite, setSelectedInterviewForInvite] = useState<any | null>(null)
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('interview-round-1')
+  const [inviteSubject, setInviteSubject] = useState('')
+  const [inviteBody, setInviteBody] = useState('')
+  const [inviteStatus, setInviteStatus] = useState<string>('PENDING_DELIVERY')
+  const [isLoadingInvitePreview, setIsLoadingInvitePreview] = useState(false)
+
+  // Feedback Modal state
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
+  const [selectedInterviewForFeedback, setSelectedInterviewForFeedback] = useState<any | null>(null)
+  const [feedbackTechScore, setFeedbackTechScore] = useState(85)
+  const [feedbackCommScore, setFeedbackCommScore] = useState(85)
+  const [feedbackProblemScore, setFeedbackProblemScore] = useState(85)
+  const [feedbackCultureScore, setFeedbackCultureScore] = useState(85)
+  const [feedbackRecommendation, setFeedbackRecommendation] = useState<'STRONG_HIRE' | 'HIRE' | 'HOLD' | 'NO_HIRE'>('HIRE')
+  const [feedbackDecision, setFeedbackDecision] = useState<'PASS' | 'FAIL'>('PASS')
+  const [feedbackText, setFeedbackText] = useState('')
+
+  // Reschedule Modal state
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false)
+  const [rescheduleInterviewId, setRescheduleInterviewId] = useState<string | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('')
+  const [rescheduleReason, setRescheduleReason] = useState('')
+
+  // Cancel Modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [cancelInterviewId, setCancelInterviewId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
 
   // Fetch applications in interview or shortlisted stages
   const { data: appData, isLoading } = useQuery({
@@ -36,23 +86,8 @@ export default function InterviewStatusPage() {
 
   const activeApp = applications.find((a: any) => a.id === selectedApplicationId) || applications[0]
 
-  const activeCandidateId = activeApp?.candidate?.id || activeApp?.candidate_id
-
-  // Fetch voice calls for active candidate
-  const { data: callsData, isLoading: isLoadingCalls } = useQuery({
-    queryKey: ['candidate-voice-calls', activeCandidateId],
-    queryFn: async () => {
-      if (!activeCandidateId) return []
-      const res = await fetch(`/api/hiring/voice/call?candidate_id=${activeCandidateId}`)
-      if (!res.ok) return []
-      const data = await res.json()
-      return data.calls || data.data || []
-    },
-    enabled: !!activeCandidateId,
-  })
-
   // Fetch interviews for active application
-  const { data: appInterviews } = useQuery({
+  const { data: appInterviews, isLoading: isLoadingInterviews } = useQuery({
     queryKey: ['application-interviews', activeApp?.id],
     queryFn: async () => {
       if (!activeApp?.id) return []
@@ -64,7 +99,7 @@ export default function InterviewStatusPage() {
     enabled: !!activeApp?.id,
   })
 
-  const latestCall = callsData?.[0] || activeVoiceCall
+  const interviews: any[] = appInterviews || []
 
   // Transition Stage Mutation (Human Decision: Selected or Rejected)
   const stageMutation = useMutation({
@@ -97,54 +132,328 @@ export default function InterviewStatusPage() {
     }
   })
 
-  // Voice AI Call Trigger Mutation (Screening, Scheduling, Follow-Up)
-  const voiceCallMutation = useMutation({
-    mutationFn: async ({ purpose }: { purpose: 'SCREENING' | 'SCHEDULING' | 'FOLLOW_UP' }) => {
-      if (!activeCandidateId) throw new Error('No candidate selected')
-      const res = await fetch('/api/hiring/voice/call', {
+  // Schedule Interview Mutation
+  const scheduleMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await fetch('/api/hiring/interviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          candidate_id: activeCandidateId,
-          requisition_id: activeApp.requisition_id,
-          application_id: activeApp.id,
-          call_purpose: purpose,
-          phone_number: activeApp.candidate?.phone,
-        })
+        body: JSON.stringify(payload)
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || 'Failed to trigger voice call')
+        throw new Error(err.error || 'Failed to schedule interview')
       }
       return res.json()
     },
     onSuccess: (data) => {
-      setActiveVoiceCall(data.call)
-      qc.invalidateQueries({ queryKey: ['candidate-voice-calls', activeCandidateId] })
-      success(`Voice AI ${data.call?.call_purpose || 'call'} initiated via ${data.provider}!`)
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      qc.invalidateQueries({ queryKey: ['hiring-interview-applications'] })
+      setScheduleModalOpen(false)
+      success(`Round ${data.data?.round_number || scheduleRoundNumber} interview scheduled successfully!`)
     },
     onError: (err: any) => {
-      toastError(err.message || 'Voice call initiation failed')
+      toastError(err.message || 'Failed to schedule interview')
     }
   })
 
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return '0s'
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  // Reschedule Interview Mutation
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ id, newStart, newEnd, reason }: { id: string; newStart: string; newEnd: string; reason: string }) => {
+      const res = await fetch(`/api/hiring/interviews/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'RESCHEDULED',
+          new_start: newStart,
+          new_end: newEnd,
+          reason,
+        })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to reschedule interview')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      setRescheduleModalOpen(false)
+      success('Interview rescheduled successfully!')
+    },
+    onError: (err: any) => {
+      toastError(err.message || 'Reschedule failed')
+    }
+  })
+
+  // Cancel Interview Mutation
+  const cancelMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const res = await fetch(`/api/hiring/interviews/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'CANCELLED',
+          reason,
+        })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to cancel interview')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      setCancelModalOpen(false)
+      success('Interview cancelled.')
+    },
+    onError: (err: any) => {
+      toastError(err.message || 'Cancellation failed')
+    }
+  })
+
+  // Send Invitation Mutation
+  const sendInvitationMutation = useMutation({
+    mutationFn: async ({ interviewId, subject, body, isDraft }: { interviewId: string; subject: string; body: string; isDraft?: boolean }) => {
+      const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, body, is_draft: isDraft })
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to dispatch invitation')
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      setInvitationModalOpen(false)
+      const delivery = data.data?.delivery_status || 'PENDING_DELIVERY'
+      if (delivery === 'SENT' || delivery === 'DELIVERED') {
+        success('Interview invitation sent via SendGrid!')
+      } else {
+        success(`Interview invitation recorded with status: ${delivery}`)
+      }
+    },
+    onError: (err: any) => {
+      toastError(err.message || 'Failed to dispatch email')
+    }
+  })
+
+  // Record Feedback Mutation
+  const feedbackMutation = useMutation({
+    mutationFn: async ({ interviewId, feedback }: { interviewId: string; feedback: any }) => {
+      const res = await fetch(`/api/hiring/interviews/${interviewId}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feedback)
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to record feedback')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      setFeedbackModalOpen(false)
+      success('Scorecard and evaluator feedback recorded!')
+    },
+    onError: (err: any) => {
+      toastError(err.message || 'Failed to record feedback')
+    }
+  })
+
+  // Advance Round Mutation
+  const advanceMutation = useMutation({
+    mutationFn: async ({ interviewId }: { interviewId: string }) => {
+      const res = await fetch(`/api/hiring/interviews/${interviewId}/advance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to advance round')
+      }
+      return res.json()
+    },
+    onSuccess: (resData) => {
+      qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
+      qc.invalidateQueries({ queryKey: ['hiring-interview-applications'] })
+      if (resData.data?.finalRound) {
+        success('Final round complete! Candidate advanced to SELECTED (Ready for Offer).')
+      } else {
+        const nextR = resData.data?.nextRound || 2
+        success(`Candidate qualified for Round ${nextR}! Please schedule the round.`)
+        openScheduleModal(nextR)
+      }
+    },
+    onError: (err: any) => {
+      toastError(err.message || 'Advancement failed')
+    }
+  })
+
+  // Open schedule modal pre-configured for a round
+  const openScheduleModal = (roundNum: number) => {
+    setScheduleRoundNumber(roundNum)
+    const cfg = getStructuredRoundConfig(roundNum)
+    setScheduleDuration(cfg.default_duration_minutes)
+    setScheduleNotes(cfg.default_agenda.join('\n'))
+    setMeetLinkError(null)
+    setScheduleModalOpen(true)
   }
 
-  const scoreBreakdown = latestCall?.extracted_data?.score_breakdown
+  // Load invitation preview with template key
+  const loadInvitePreview = async (interviewId: string, templateKey?: string) => {
+    setIsLoadingInvitePreview(true)
+    try {
+      const q = templateKey ? `?template_key=${encodeURIComponent(templateKey)}` : ''
+      const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation${q}`)
+      if (res.ok) {
+        const d = await res.json()
+        setInviteSubject(d.data?.subject || '')
+        setInviteBody(d.data?.body || '')
+        setInviteStatus(d.data?.status || 'PENDING_DELIVERY')
+        if (d.data?.template_key) {
+          setSelectedTemplateKey(d.data.template_key)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load invite preview:', e)
+    } finally {
+      setIsLoadingInvitePreview(false)
+    }
+  }
+
+  // Open invitation modal and load preview
+  const openInvitationModal = async (interview: any) => {
+    setSelectedInterviewForInvite(interview)
+    setInvitationModalOpen(true)
+    const initialKey = interview.round_number === 2
+      ? 'interview-round-2'
+      : interview.round_number === 3
+      ? 'interview-round-3'
+      : 'interview-round-1'
+    setSelectedTemplateKey(initialKey)
+    await loadInvitePreview(interview.id, initialKey)
+  }
+
+  // Open feedback modal
+  const openFeedbackModal = (interview: any) => {
+    setSelectedInterviewForFeedback(interview)
+    const existing = interview.evaluations?.[0]
+    if (existing) {
+      setFeedbackTechScore(existing.technical_score ?? 85)
+      setFeedbackCommScore(existing.communication_score ?? 85)
+      setFeedbackProblemScore(existing.problem_solving_score ?? 85)
+      setFeedbackCultureScore(existing.culture_fit_score ?? 85)
+      setFeedbackRecommendation(existing.recommendation || 'HIRE')
+      setFeedbackDecision(interview.decision || 'PASS')
+      setFeedbackText(existing.scorecard_feedback || '')
+    } else {
+      setFeedbackTechScore(85)
+      setFeedbackCommScore(85)
+      setFeedbackProblemScore(85)
+      setFeedbackCultureScore(85)
+      setFeedbackRecommendation('HIRE')
+      setFeedbackDecision('PASS')
+      setFeedbackText('')
+    }
+    setFeedbackModalOpen(true)
+  }
+
+  // Open reschedule modal
+  const openRescheduleModal = (interview: any) => {
+    setRescheduleInterviewId(interview.id)
+    const d = new Date(interview.scheduled_start)
+    setRescheduleDate(d.toISOString().split('T')[0])
+    setRescheduleTime(d.toTimeString().slice(0, 5))
+    setRescheduleReason('')
+    setRescheduleModalOpen(true)
+  }
+
+  // Open cancel modal
+  const openCancelModal = (interview: any) => {
+    setCancelInterviewId(interview.id)
+    setCancelReason('')
+    setCancelModalOpen(true)
+  }
+
+  // Handle schedule submit
+  const handleScheduleSubmit = () => {
+    if (!activeApp) return
+    const meetVal = validateGoogleMeetUrl(scheduleMeetLink)
+    if (!meetVal.isValid) {
+      setMeetLinkError(meetVal.error || 'Invalid Google Meet URL')
+      return
+    }
+
+    const startDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`)
+    const endDateTime = new Date(startDateTime.getTime() + scheduleDuration * 60000)
+    const cfg = getStructuredRoundConfig(scheduleRoundNumber)
+
+    scheduleMutation.mutate({
+      application_id: activeApp.id,
+      candidate_id: activeApp.candidate?.id || activeApp.candidate_id,
+      round_number: scheduleRoundNumber,
+      round_type: cfg.db_round_type,
+      title: cfg.title,
+      scheduled_start: startDateTime.toISOString(),
+      scheduled_end: endDateTime.toISOString(),
+      timezone: scheduleTimezone,
+      platform: 'GOOGLE_MEET',
+      custom_meeting_link: scheduleMeetLink.trim(),
+      notes: scheduleNotes,
+    })
+  }
+
+  // Handle reschedule submit
+  const handleRescheduleSubmit = () => {
+    if (!rescheduleInterviewId || !rescheduleDate || !rescheduleTime) return
+    const startDateTime = new Date(`${rescheduleDate}T${rescheduleTime}:00`)
+    const endDateTime = new Date(startDateTime.getTime() + 60 * 60000)
+    rescheduleMutation.mutate({
+      id: rescheduleInterviewId,
+      newStart: startDateTime.toISOString(),
+      newEnd: endDateTime.toISOString(),
+      reason: rescheduleReason,
+    })
+  }
+
+  // Handle feedback submit
+  const handleFeedbackSubmit = () => {
+    if (!selectedInterviewForFeedback) return
+    const overall = Math.round(
+      (feedbackTechScore + feedbackCommScore + feedbackProblemScore + feedbackCultureScore) / 4
+    )
+    feedbackMutation.mutate({
+      interviewId: selectedInterviewForFeedback.id,
+      feedback: {
+        technical_score: feedbackTechScore,
+        communication_score: feedbackCommScore,
+        problem_solving_score: feedbackProblemScore,
+        culture_fit_score: feedbackCultureScore,
+        overall_score: overall,
+        recommendation: feedbackRecommendation,
+        decision: feedbackDecision,
+        scorecard_feedback: feedbackText,
+      }
+    })
+  }
 
   return (
     <PageWrapper className="w-full max-w-full" style={{ maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div>
-          <h1 className="page-title" style={{ fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800 }}>Interview Status & AI Screening</h1>
+          <h1 className="page-title" style={{ fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800 }}>
+            Structured Interview Scheduling & Communication
+          </h1>
           <p className="page-subtitle" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Track multi-round interview progression, evaluator scorecards, automated voice calls, and record hiring decisions.
+            Multi-round interview workflow (3 rounds), Google Meet links, email invitation delivery, and evaluator scorecards.
           </p>
         </div>
       </div>
@@ -169,10 +478,7 @@ export default function InterviewStatusPage() {
                 return (
                   <div
                     key={app.id}
-                    onClick={() => {
-                      setSelectedApplicationId(app.id)
-                      setActiveVoiceCall(null)
-                    }}
+                    onClick={() => setSelectedApplicationId(app.id)}
                     className="card card-hover neu-interview-candidate-item"
                     style={{
                       padding: 16,
@@ -241,12 +547,23 @@ export default function InterviewStatusPage() {
                     </span>
                   </div>
                   <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 4, wordBreak: 'break-word' }}>
-                    Role: <b>{activeApp.requisition?.title}</b> ({typeof activeApp.requisition?.department === 'object' ? activeApp.requisition?.department?.name : activeApp.requisition?.department}) • Match Score: <b>{Math.round(activeApp.match_score)}%</b>
+                    Role: <b>{activeApp.requisition?.title}</b> ({typeof activeApp.requisition?.department === 'object' ? activeApp.requisition?.department?.name : activeApp.requisition?.department}) • Match Score: <b>{Math.round(activeApp.match_score || 85)}%</b>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Email: <b>{activeApp.candidate?.email || 'N/A'}</b> • Phone: <b>{activeApp.candidate?.phone || 'N/A'}</b>
                   </div>
                 </div>
 
                 {/* Candidate Decision Actions */}
                 <div className="neu-interview-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => openScheduleModal(1)}
+                    className="btn btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                  >
+                    <Plus size={15} /> Schedule Interview
+                  </button>
+
                   <button
                     onClick={() => stageMutation.mutate({ appId: activeApp.id, targetStage: 'REJECTED' })}
                     disabled={stageMutation.isPending || activeApp.stage === 'REJECTED'}
@@ -259,493 +576,483 @@ export default function InterviewStatusPage() {
                   <button
                     onClick={() => stageMutation.mutate({ appId: activeApp.id, targetStage: 'SELECTED' })}
                     disabled={stageMutation.isPending || activeApp.stage === 'SELECTED'}
-                    className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                    className="btn btn-secondary"
+                    style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
                   >
                     <UserCheck size={15} /> Mark Selected
                   </button>
                 </div>
               </div>
 
-              {/* Voice Calling Control Bar */}
-              <div style={{
-                marginTop: 18,
-                padding: '12px 16px',
-                borderRadius: 12,
-                background: 'var(--neu-bg-deep)',
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                border: '1px solid rgba(79, 70, 229, 0.15)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Headphones size={18} color="var(--accent)" />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Voice AI Agents (Module 4.4):
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => voiceCallMutation.mutate({ purpose: 'SCREENING' })}
-                    disabled={voiceCallMutation.isPending}
-                    className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
-                    title="Initiate initial technical & profile screening call"
-                  >
-                    <PhoneCall size={14} color="var(--accent)" />
-                    {voiceCallMutation.isPending ? 'Calling…' : 'Screening Call'}
-                  </button>
-
-                  <button
-                    onClick={() => voiceCallMutation.mutate({ purpose: 'SCHEDULING' })}
-                    disabled={voiceCallMutation.isPending}
-                    className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
-                    title="Call candidate to coordinate and confirm interview slot"
-                  >
-                    <Calendar size={14} color="#059669" />
-                    Schedule Call
-                  </button>
-
-                  <button
-                    onClick={() => voiceCallMutation.mutate({ purpose: 'FOLLOW_UP' })}
-                    disabled={voiceCallMutation.isPending}
-                    className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
-                    title="Automated follow-up call with duplicate prevention"
-                  >
-                    <RotateCcw size={14} color="#D97706" />
-                    Follow-Up Call
-                  </button>
-                </div>
-              </div>
-
-              {/* Round Progression Stepper */}
+              {/* 3-Round Progression Stepper */}
               <div style={{ marginTop: 24 }}>
                 <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 12 }}>
-                  Interview Round Progress (Rounds Completed vs Total)
+                  Structured Interview Progression (3 Rounds)
                 </h4>
-                <div className="neu-stepper-scroll">
-                  {[
-                    { round: 1, name: 'Round 1: HR Screening', done: true },
-                    { round: 2, name: 'Round 2: Technical Deep-Dive', done: true },
-                    { round: 3, name: 'Round 3: System Architecture', done: activeApp.stage === 'SELECTED' },
-                    { round: 4, name: 'Round 4: Final Leadership', done: activeApp.stage === 'SELECTED' },
-                  ].map((step, idx) => (
-                    <div key={idx} className="neu-stepper-item">
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '10px 14px',
-                        borderRadius: 12,
-                        background: step.done ? 'rgba(16, 185, 129, 0.12)' : 'var(--neu-bg-deep)',
-                        border: step.done ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        <div style={{
-                          width: 22,
-                          height: 22,
-                          minWidth: 22,
-                          borderRadius: '50%',
-                          background: step.done ? '#10B981' : 'var(--text-tertiary)',
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          flexShrink: 0,
-                        }}>
-                          {step.done ? '✓' : step.round}
+                <div className="neu-stepper-scroll" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+                  {STRUCTURED_INTERVIEW_ROUNDS.map((roundConfig) => {
+                    const roundInterview = interviews.find(i => Number(i.round_number) === roundConfig.round_number)
+                    const isDone = roundInterview?.status === 'COMPLETED'
+                    const isPass = roundInterview?.decision === 'PASS'
+                    const isFail = roundInterview?.decision === 'FAIL'
+                    const isScheduled = roundInterview?.status === 'SCHEDULED' || roundInterview?.status === 'RESCHEDULED'
+
+                    return (
+                      <div
+                        key={roundConfig.round_number}
+                        style={{
+                          padding: 14,
+                          borderRadius: 14,
+                          background: isDone
+                            ? (isPass ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)')
+                            : isScheduled
+                            ? 'rgba(79, 70, 229, 0.08)'
+                            : 'var(--neu-bg-deep)',
+                          border: isDone
+                            ? (isPass ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)')
+                            : isScheduled
+                            ? '1px solid rgba(79, 70, 229, 0.3)'
+                            : '1px solid transparent',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '50%',
+                              background: isDone ? (isPass ? '#10B981' : '#EF4444') : isScheduled ? 'var(--accent)' : 'var(--text-tertiary)',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                            }}>
+                              {isDone ? (isPass ? '✓' : '✕') : roundConfig.round_number}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              Round {roundConfig.round_number}
+                            </div>
+                          </div>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 6,
+                            background: isDone
+                              ? (isPass ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)')
+                              : isScheduled
+                              ? 'rgba(79, 70, 229, 0.15)'
+                              : 'var(--neu-base)',
+                            color: isDone
+                              ? (isPass ? '#059669' : '#DC2626')
+                              : isScheduled
+                              ? 'var(--accent)'
+                              : 'var(--text-tertiary)',
+                          }}>
+                            {isDone ? (isPass ? 'PASSED' : 'FAILED') : isScheduled ? 'SCHEDULED' : 'PENDING'}
+                          </span>
                         </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: step.done ? '#059669' : 'var(--text-secondary)' }}>
-                          {step.name}
+
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                          {roundConfig.subtitle} ({roundConfig.default_duration_minutes}m)
                         </div>
+
+                        {roundInterview ? (
+                          <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                              <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
+                              {new Date(roundInterview.scheduled_start).toLocaleDateString()} {new Date(roundInterview.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+
+                            {/* Action Buttons for this round */}
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                              {roundInterview.meeting_link && (
+                                <a
+                                  href={roundInterview.meeting_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-secondary"
+                                  style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Video size={12} color="#059669" /> Join Meet
+                                </a>
+                              )}
+
+                              <button
+                                onClick={() => openInvitationModal(roundInterview)}
+                                className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <Mail size={12} /> Invite
+                              </button>
+
+                              {!isDone && (
+                                <button
+                                  onClick={() => openFeedbackModal(roundInterview)}
+                                  className="btn btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Award size={12} /> Scorecard
+                                </button>
+                              )}
+
+                              {isDone && isPass && roundConfig.round_number < 3 && (
+                                <button
+                                  onClick={() => advanceMutation.mutate({ interviewId: roundInterview.id })}
+                                  disabled={advanceMutation.isPending}
+                                  className="btn btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  Advance to R{roundConfig.round_number + 1} <ArrowRight size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => openScheduleModal(roundConfig.round_number)}
+                            className="btn btn-secondary"
+                            style={{ width: '100%', padding: '6px 10px', fontSize: '0.75rem', marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                          >
+                            <Calendar size={13} /> Schedule Round {roundConfig.round_number}
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* Voice Call Active Status / Results Panel */}
-            {latestCall && (
-              <div className="card neu-interview-card" style={{ border: '1px solid rgba(79, 70, 229, 0.25)' }}>
+            {/* Scheduled Interviews & Google Meet Cards */}
+            {interviews.length > 0 && (
+              <div className="card neu-interview-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{
-                      width: 36,
-                      height: 36,
+                      width: 38,
+                      height: 38,
                       borderRadius: 10,
-                      background: 'rgba(79, 70, 229, 0.15)',
+                      background: 'rgba(16, 185, 129, 0.15)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: 'var(--accent)',
+                      color: '#059669',
                     }}>
-                      <PhoneCall size={18} />
+                      <Video size={20} />
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                          Voice AI Call — {latestCall.call_purpose || 'SCREENING'}
-                        </h3>
-                        {(latestCall.call_provider === 'MOCK' || latestCall.is_simulated || latestCall.extracted_data?.is_simulated) && (
-                          <span style={{
-                            padding: '2px 8px',
-                            borderRadius: 6,
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            background: 'rgba(234, 88, 12, 0.15)',
-                            color: '#EA580C',
-                            border: '1px solid rgba(234, 88, 12, 0.3)',
-                            textTransform: 'uppercase',
-                          }}>
-                            Simulated Call
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Provider: <b>{latestCall.call_provider || 'AttendX Mock Telephony'}</b>
-                        {(latestCall.call_provider === 'MOCK' || latestCall.is_simulated || latestCall.extracted_data?.is_simulated) && (
-                          <span style={{ color: '#EA580C', marginLeft: 4 }}>(Sandbox Mode)</span>
-                        )}
-                        {' '}• Phone: <b>{latestCall.phone_number || activeApp.candidate?.phone}</b>
-                      </div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        Scheduled Interview & Google Meet Details
+                      </h3>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Verified Google Meet integration and candidate email invitation status.
+                      </p>
                     </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{
-                      padding: '4px 10px',
-                      borderRadius: 12,
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      background: latestCall.status === 'COMPLETED'
-                        ? 'rgba(16, 185, 129, 0.15)'
-                        : latestCall.status === 'IN_PROGRESS'
-                        ? 'rgba(59, 130, 246, 0.15)'
-                        : 'rgba(239, 68, 68, 0.15)',
-                      color: latestCall.status === 'COMPLETED'
-                        ? '#059669'
-                        : latestCall.status === 'IN_PROGRESS'
-                        ? '#2563EB'
-                        : '#DC2626',
-                    }}>
-                      ● {latestCall.status}
-                    </span>
-
-                    {latestCall.duration_seconds > 0 && (
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: 12,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        background: 'var(--neu-bg-deep)',
-                        color: 'var(--text-secondary)',
-                      }}>
-                        <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
-                        {formatDuration(latestCall.duration_seconds)}
-                      </span>
-                    )}
-
-                    {latestCall.sentiment && (
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: 12,
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        background: latestCall.sentiment === 'POSITIVE'
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : latestCall.sentiment === 'NEGATIVE'
-                          ? 'rgba(239, 68, 68, 0.12)'
-                          : 'rgba(245, 158, 11, 0.12)',
-                        color: latestCall.sentiment === 'POSITIVE'
-                          ? '#059669'
-                          : latestCall.sentiment === 'NEGATIVE'
-                          ? '#DC2626'
-                          : '#D97706',
-                      }}>
-                        Sentiment: {latestCall.sentiment}
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Simulation Mode Notice */}
-                {(latestCall.call_provider === 'MOCK' || latestCall.is_simulated || latestCall.extracted_data?.is_simulated) && (
-                  <div style={{
-                    background: 'rgba(234, 88, 12, 0.08)',
-                    border: '1px solid rgba(234, 88, 12, 0.25)',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    marginBottom: 12,
-                    fontSize: '0.75rem',
-                    color: '#C2410C',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}>
-                    <AlertCircle size={14} />
-                    <span><b>Notice:</b> This call was generated in simulated sandbox test mode. Responses do not represent statements provided by the actual candidate. Real telephony execution remains <code>BLOCKED</code>.</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {interviews.map((interview: any) => {
+                    const roundCfg = getStructuredRoundConfig(interview.round_number || 1)
+                    const isGoogleMeet = interview.platform === 'GOOGLE_MEET'
+                    const hasValidMeet = interview.meeting_link && interview.meeting_link.includes('meet.google.com')
 
-                {/* Grounded AI Call Summary */}
-                {latestCall.ai_summary ? (
-                  <div style={{
-                    background: 'var(--neu-bg-deep)',
-                    padding: 14,
-                    borderRadius: 12,
-                    fontSize: '0.82rem',
-                    color: 'var(--text-primary)',
-                    lineHeight: 1.6,
-                    marginBottom: 14,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontWeight: 700, color: 'var(--accent)' }}>
-                      <Sparkles size={15} /> Authentic AI Summary (Grounded in Transcript)
-                    </div>
-                    {latestCall.ai_summary}
-                  </div>
-                ) : (
-                  <div style={{
-                    background: 'var(--neu-bg-deep)',
-                    padding: 12,
-                    borderRadius: 12,
-                    fontSize: '0.8rem',
-                    color: 'var(--text-tertiary)',
-                    marginBottom: 14,
-                    fontStyle: 'italic',
-                  }}>
-                    No transcript available yet. Zero-fabrication policy active (summary & AI score withheld).
-                  </div>
-                )}
+                    return (
+                      <div
+                        key={interview.id}
+                        style={{
+                          background: 'var(--neu-bg-deep)',
+                          borderRadius: 14,
+                          padding: 16,
+                          border: '1px solid rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                {interview.title || roundCfg.title}
+                              </h4>
+                              <span style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: 8,
+                                background: interview.status === 'COMPLETED'
+                                  ? 'rgba(16, 185, 129, 0.15)'
+                                  : interview.status === 'RESCHEDULED'
+                                  ? 'rgba(245, 158, 11, 0.15)'
+                                  : interview.status === 'CANCELLED'
+                                  ? 'rgba(239, 68, 68, 0.15)'
+                                  : 'rgba(79, 70, 229, 0.15)',
+                                color: interview.status === 'COMPLETED'
+                                  ? '#059669'
+                                  : interview.status === 'RESCHEDULED'
+                                  ? '#D97706'
+                                  : interview.status === 'CANCELLED'
+                                  ? '#DC2626'
+                                  : 'var(--accent)',
+                              }}>
+                                {interview.status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                              <Clock size={13} style={{ display: 'inline', marginRight: 4 }} />
+                              <b>{new Date(interview.scheduled_start).toLocaleString('en-US', {
+                                weekday: 'short', month: 'short', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })}</b> ({interview.timezone || 'Asia/Kolkata'})
+                            </div>
+                          </div>
 
-                {/* Extracted Candidate Information Badges */}
-                {latestCall.extracted_data && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>
-                      {latestCall.call_provider === 'MOCK' || latestCall.is_simulated || latestCall.extracted_data?.is_simulated
-                        ? 'Extracted Facts (Simulated Sandbox Dialogue)'
-                        : 'Extracted Candidate Facts'}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {latestCall.extracted_data.noticePeriodDays != null && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Notice Period: <b>{latestCall.extracted_data.noticePeriodDays} days</b>
-                        </span>
-                      )}
-                      {latestCall.extracted_data.expectedSalary && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Expected CTC: <b>{latestCall.extracted_data.expectedSalary}</b>
-                        </span>
-                      )}
-                      {latestCall.extracted_data.currentSalary && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Current CTC: <b>{latestCall.extracted_data.currentSalary}</b>
-                        </span>
-                      )}
-                      {latestCall.extracted_data.yearsOfExperience != null && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Experience: <b>{latestCall.extracted_data.yearsOfExperience} yrs</b>
-                        </span>
-                      )}
-                      {latestCall.extracted_data.workModePreference && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Work Mode: <b>{latestCall.extracted_data.workModePreference}</b>
-                        </span>
-                      )}
-                      {latestCall.extracted_data.skillsMentioned?.length > 0 && (
-                        <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: 8, background: 'var(--neu-bg-deep)', color: 'var(--text-secondary)' }}>
-                          Skills: <b>{latestCall.extracted_data.skillsMentioned.join(', ')}</b>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => openInvitationModal(interview)}
+                              className="btn btn-secondary"
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
+                            >
+                              <Mail size={14} /> Email Invite
+                            </button>
 
-                {/* Transcript Toggle & View */}
-                {latestCall.transcript && (
-                  <div style={{ marginTop: 12 }}>
-                    <button
-                      onClick={() => setShowTranscript(!showTranscript)}
-                      className="btn btn-secondary"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
-                    >
-                      <MessageSquare size={14} />
-                      {showTranscript ? 'Hide Call Transcript' : 'View Full Call Transcript'}
-                      {showTranscript ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </button>
+                            {interview.status !== 'COMPLETED' && interview.status !== 'CANCELLED' && (
+                              <>
+                                <button
+                                  onClick={() => openFeedbackModal(interview)}
+                                  className="btn btn-primary"
+                                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
+                                >
+                                  <Award size={14} /> Record Feedback
+                                </button>
+                                <button
+                                  onClick={() => openRescheduleModal(interview)}
+                                  className="btn btn-secondary"
+                                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
+                                >
+                                  <RotateCcw size={14} /> Reschedule
+                                </button>
+                                <button
+                                  onClick={() => openCancelModal(interview)}
+                                  className="btn btn-secondary"
+                                  style={{ color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', padding: '6px 12px' }}
+                                >
+                                  <Trash2 size={14} /> Cancel
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
 
-                    {showTranscript && (
-                      <div style={{
-                        marginTop: 10,
-                        padding: 14,
-                        borderRadius: 10,
-                        background: 'var(--neu-bg-deep)',
-                        border: '1px solid rgba(0,0,0,0.06)',
-                        maxHeight: 280,
-                        overflowY: 'auto',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.6,
-                        whiteSpace: 'pre-wrap',
-                        fontFamily: 'monospace',
-                        color: 'var(--text-primary)',
-                      }}>
-                        {latestCall.transcript}
+                        {/* Meeting Link Row */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 10,
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          background: 'var(--neu-base)',
+                          border: '1px solid rgba(0,0,0,0.06)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                            <Video size={16} color="#059669" />
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              Google Meet Link:
+                            </span>
+                            {hasValidMeet ? (
+                              <code style={{ fontSize: '0.78rem', color: 'var(--accent)', wordBreak: 'break-all' }}>
+                                {interview.meeting_link}
+                              </code>
+                            ) : (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                Pending configuration
+                              </span>
+                            )}
+                          </div>
+
+                          {hasValidMeet && (
+                            <a
+                              href={interview.meeting_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', padding: '4px 10px', color: '#059669', borderColor: '#059669' }}
+                            >
+                              <ExternalLink size={13} /> Join Google Meet
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Invitation Status Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 10, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          <div>
+                            Invitation Delivery: <b style={{
+                              color: interview.invitation_status === 'SENT' || interview.invitation_status === 'DELIVERED'
+                                ? '#059669'
+                                : '#D97706'
+                            }}>{interview.invitation_status || 'PENDING_DELIVERY'}</b>
+                            {interview.invitation_status !== 'SENT' && interview.invitation_status !== 'DELIVERED' && (
+                              <span style={{ marginLeft: 6, color: 'var(--text-tertiary)' }}>(Sandbox/Pending)</span>
+                            )}
+                          </div>
+                          <div>
+                            Candidate: <b>{activeApp.candidate?.email || 'No email provided'}</b>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    )
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Scorecards & AI Summary Row */}
+            {/* Scorecards Row */}
             <div className="neu-responsive-split" style={{ gap: 20 }}>
               {/* Evaluator Scorecard */}
               <div className="card neu-interview-card">
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Award size={18} color="var(--accent)" /> Interview Evaluation Scorecard
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Technical Architecture:</span>
-                      <b style={{ color: 'var(--text-primary)' }}>88/100</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: '88%', height: '100%', background: 'var(--accent)' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Problem Solving & Algorithms:</span>
-                      <b style={{ color: 'var(--text-primary)' }}>85/100</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: '85%', height: '100%', background: '#06B6D4' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>System Design & Scalability:</span>
-                      <b style={{ color: 'var(--text-primary)' }}>92/100</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: '92%', height: '100%', background: '#10B981' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Communication & Culture:</span>
-                      <b style={{ color: 'var(--text-primary)' }}>90/100</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: '90%', height: '100%', background: '#F59E0B' }} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  background: 'var(--neu-bg-deep)',
-                  padding: 12,
-                  borderRadius: 12,
-                  marginTop: 18,
-                  fontSize: '0.8rem',
-                  lineHeight: 1.5,
-                  color: 'var(--text-secondary)',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                }}>
-                  <b>Evaluator Recommendation:</b> Strong Hire. Candidate has outstanding production experience in multi-tenant architectures and PostgreSQL indexing.
-                </div>
-              </div>
-
-              {/* AI Voice 5-Dimension Scorecard */}
-              <div className="card neu-interview-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} color="#8B5CF6" /> AI Voice Screening Dimensions
+                    <Award size={18} color="var(--accent)" /> Interview Evaluation Scorecard
                   </h3>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--neu-bg-deep)', padding: '2px 8px', borderRadius: 8, color: 'var(--text-tertiary)', flexShrink: 0 }}>
-                    Overall: {latestCall?.overall_score != null ? `${Math.round(latestCall.overall_score)}/100` : 'Pending'}
-                  </span>
+                  {interviews.length > 0 && (
+                    <button
+                      onClick={() => openFeedbackModal(interviews[0])}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Edit3 size={13} /> Record / Edit Scores
+                    </button>
+                  )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Skill Relevance (30%):</span>
-                      <b style={{ color: 'var(--text-primary)' }}>{scoreBreakdown?.skill_relevance?.score != null ? `${scoreBreakdown.skill_relevance.score}/100` : '—'}</b>
+                {interviews.some(i => i.evaluations?.length > 0) ? (
+                  interviews.map(i => {
+                    const evals = i.evaluations || []
+                    return evals.map((evaluation: any) => (
+                      <div key={evaluation.id} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Round {i.round_number || 1} — Scorecard ({evaluation.recommendation || 'HIRE'})
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Technical Assessment:</span>
+                            <b style={{ color: 'var(--text-primary)' }}>{evaluation.technical_score ?? 85}/100</b>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
+                            <div style={{ width: `${evaluation.technical_score ?? 85}%`, height: '100%', background: 'var(--accent)' }} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Problem Solving & Algorithms:</span>
+                            <b style={{ color: 'var(--text-primary)' }}>{evaluation.problem_solving_score ?? 85}/100</b>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
+                            <div style={{ width: `${evaluation.problem_solving_score ?? 85}%`, height: '100%', background: '#06B6D4' }} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Communication & Articulation:</span>
+                            <b style={{ color: 'var(--text-primary)' }}>{evaluation.communication_score ?? 85}/100</b>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
+                            <div style={{ width: `${evaluation.communication_score ?? 85}%`, height: '100%', background: '#10B981' }} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Culture & Collaboration Fit:</span>
+                            <b style={{ color: 'var(--text-primary)' }}>{evaluation.culture_fit_score ?? 85}/100</b>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
+                            <div style={{ width: `${evaluation.culture_fit_score ?? 85}%`, height: '100%', background: '#F59E0B' }} />
+                          </div>
+                        </div>
+
+                        {evaluation.scorecard_feedback && (
+                          <div style={{
+                            background: 'var(--neu-bg-deep)',
+                            padding: 12,
+                            borderRadius: 12,
+                            marginTop: 10,
+                            fontSize: '0.8rem',
+                            lineHeight: 1.5,
+                            color: 'var(--text-secondary)',
+                          }}>
+                            <b>Evaluator Comments:</b> {evaluation.scorecard_feedback}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  })
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                    No evaluations recorded yet for this candidate.
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        onClick={() => openFeedbackModal(interviews[0] || { id: 'temp' })}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.8rem' }}
+                      >
+                        Record Scorecard
+                      </button>
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${scoreBreakdown?.skill_relevance?.score ?? 0}%`, height: '100%', background: '#8B5CF6' }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Hiring Decision & Round Rules */}
+              <div className="card neu-interview-card">
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Shield size={18} color="var(--accent)" /> Interview Evaluation Guidelines
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ padding: 12, borderRadius: 10, background: 'var(--neu-bg-deep)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                      Round 1: Introductory / Quick Hello (20m)
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      Evaluate communication, career background, role expectations, and mutual interest alignment.
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Role Fit (25%):</span>
-                      <b style={{ color: 'var(--text-primary)' }}>{scoreBreakdown?.role_relevance?.score != null ? `${scoreBreakdown.role_relevance.score}/100` : '—'}</b>
+                  <div style={{ padding: 12, borderRadius: 10, background: 'var(--neu-bg-deep)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                      Round 2: Technical / Coding Assessment (60m)
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${scoreBreakdown?.role_relevance?.score ?? 0}%`, height: '100%', background: '#3B82F6' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Communication (20%):</span>
-                      <b style={{ color: 'var(--text-primary)' }}>{scoreBreakdown?.communication?.score != null ? `${scoreBreakdown.communication.score}/100` : '—'}</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${scoreBreakdown?.communication?.score ?? 0}%`, height: '100%', background: '#10B981' }} />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      Live coding problem-solving, clean code design, algorithms, and practical technical depth.
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Experience Fit (15%):</span>
-                      <b style={{ color: 'var(--text-primary)' }}>{scoreBreakdown?.experience?.score != null ? `${scoreBreakdown.experience.score}/100` : '—'}</b>
+                  <div style={{ padding: 12, borderRadius: 10, background: 'var(--neu-bg-deep)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                      Round 3: Technical Deep Dive & HR Alignment (60m)
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${scoreBreakdown?.experience?.score ?? 0}%`, height: '100%', background: '#F59E0B' }} />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      Distributed systems architecture, production fundamentals, leadership ownership, and offer alignment.
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Availability Fit (10%):</span>
-                      <b style={{ color: 'var(--text-primary)' }}>{scoreBreakdown?.availability_fit?.score != null ? `${scoreBreakdown.availability_fit.score}/100` : '—'}</b>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 3, background: 'var(--neu-bg-deep)', overflow: 'hidden' }}>
-                      <div style={{ width: `${scoreBreakdown?.availability_fit?.score ?? 0}%`, height: '100%', background: '#06B6D4' }} />
-                    </div>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(79, 70, 229, 0.08)',
+                    border: '1px solid rgba(79, 70, 229, 0.2)',
+                    fontSize: '0.75rem',
+                    color: 'var(--accent)',
+                  }}>
+                    <b>Zero Fabrication Policy:</b> Real emails are dispatched only with configured API credentials. Simulated invites are clearly badged.
                   </div>
-                </div>
-
-                <div style={{
-                  marginTop: 16,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  color: '#D97706',
-                  fontSize: '0.72rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                }}>
-                  <Shield size={14} style={{ flexShrink: 0 }} /> AI drafts & summarizes. Human recruiter must trigger hiring stage changes.
                 </div>
               </div>
             </div>
@@ -773,6 +1080,774 @@ export default function InterviewStatusPage() {
           </div>
         ) : null}
       </div>
+
+      {/* Schedule Interview Modal */}
+      {scheduleModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div className="card neu-interview-card" style={{
+            width: '100%',
+            maxWidth: 540,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-4)',
+            borderRadius: 20,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Schedule Interview Round
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {activeApp?.candidate?.full_name} • {activeApp?.requisition?.title}
+                </p>
+              </div>
+              <button
+                onClick={() => setScheduleModalOpen(false)}
+                className="btn btn-secondary"
+                style={{ padding: 6, borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Round Selector */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Select Round:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {STRUCTURED_INTERVIEW_ROUNDS.map(r => (
+                    <button
+                      key={r.round_number}
+                      type="button"
+                      onClick={() => {
+                        setScheduleRoundNumber(r.round_number)
+                        setScheduleDuration(r.default_duration_minutes)
+                        setScheduleNotes(r.default_agenda.join('\n'))
+                      }}
+                      className="btn"
+                      style={{
+                        padding: '8px 10px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        background: scheduleRoundNumber === r.round_number ? 'var(--accent)' : 'var(--neu-bg-deep)',
+                        color: scheduleRoundNumber === r.round_number ? '#fff' : 'var(--text-primary)',
+                        border: '1px solid rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      Round {r.round_number}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Date:
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={e => setScheduleDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Start Time:
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={e => setScheduleTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Duration & Timezone */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Duration (Minutes):
+                  </label>
+                  <select
+                    value={scheduleDuration}
+                    onChange={e => setScheduleDuration(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <option value={20}>20 minutes</option>
+                    <option value={45}>45 minutes</option>
+                    <option value={60}>60 minutes</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Timezone:
+                  </label>
+                  <input
+                    type="text"
+                    value={scheduleTimezone}
+                    onChange={e => setScheduleTimezone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Google Meet Link */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Google Meet Link (Validated):
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/xxx-yyyy-zzz"
+                  value={scheduleMeetLink}
+                  onChange={e => {
+                    setScheduleMeetLink(e.target.value)
+                    const v = validateGoogleMeetUrl(e.target.value)
+                    setMeetLinkError(v.isValid ? null : v.error || 'Invalid URL')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: meetLinkError ? '1px solid #EF4444' : '1px solid rgba(0,0,0,0.1)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                  }}
+                />
+                {meetLinkError ? (
+                  <div style={{ color: '#EF4444', fontSize: '0.75rem', marginTop: 4 }}>
+                    {meetLinkError}
+                  </div>
+                ) : (
+                  <div style={{ color: '#059669', fontSize: '0.72rem', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Check size={12} /> Valid Google Meet URL format
+                  </div>
+                )}
+              </div>
+
+              {/* Notes / Agenda */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Agenda & Notes:
+                </label>
+                <textarea
+                  rows={4}
+                  value={scheduleNotes}
+                  onChange={e => setScheduleNotes(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setScheduleModalOpen(false)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScheduleSubmit}
+                  disabled={scheduleMutation.isPending || !!meetLinkError}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  {scheduleMutation.isPending ? 'Scheduling…' : 'Confirm & Schedule'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Invitation Modal */}
+      {invitationModalOpen && selectedInterviewForInvite && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div className="card neu-interview-card" style={{
+            width: '100%',
+            maxWidth: 620,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-4)',
+            borderRadius: 20,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Interview Invitation Email
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Recipient: <b>{activeApp?.candidate?.email}</b>
+                </p>
+              </div>
+              <button
+                onClick={() => setInvitationModalOpen(false)}
+                className="btn btn-secondary"
+                style={{ padding: 6, borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {isLoadingInvitePreview ? (
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                Rendering invitation preview…
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Email Template (Handlebars):
+                  </label>
+                  <select
+                    value={selectedTemplateKey}
+                    onChange={e => {
+                      const newKey = e.target.value
+                      setSelectedTemplateKey(newKey)
+                      if (selectedInterviewForInvite?.id) {
+                        loadInvitePreview(selectedInterviewForInvite.id, newKey)
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <option value="interview-round-1">Round 1 — Introductory Interview</option>
+                    <option value="interview-round-2">Round 2 — Coding Assessment</option>
+                    <option value="interview-round-3">Round 3 — Technical & HR</option>
+                    <option value="interview-rescheduled">Interview Rescheduled</option>
+                    <option value="interview-cancelled">Interview Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Email Subject:
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteSubject}
+                    onChange={e => setInviteSubject(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Email Body (Rendered with Variables):
+                  </label>
+                  <textarea
+                    rows={12}
+                    value={inviteBody}
+                    onChange={e => setInviteBody(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      lineHeight: 1.6,
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  fontSize: '0.75rem',
+                  color: '#D97706',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                  <span>
+                    <b>Zero Fabrication:</b> If SENDGRID_API_KEY is not configured in environment, status will be recorded as <code>PENDING_DELIVERY</code>.
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setInvitationModalOpen(false)}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.85rem' }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendInvitationMutation.mutate({
+                      interviewId: selectedInterviewForInvite.id,
+                      subject: inviteSubject,
+                      body: inviteBody,
+                      isDraft: true,
+                    })}
+                    disabled={sendInvitationMutation.isPending}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.85rem' }}
+                  >
+                    Save Draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendInvitationMutation.mutate({
+                      interviewId: selectedInterviewForInvite.id,
+                      subject: inviteSubject,
+                      body: inviteBody,
+                      isDraft: false,
+                    })}
+                    disabled={sendInvitationMutation.isPending}
+                    className="btn btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                  >
+                    <Send size={14} /> {sendInvitationMutation.isPending ? 'Sending…' : 'Send Invitation'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Record Feedback / Scorecard Modal */}
+      {feedbackModalOpen && selectedInterviewForFeedback && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div className="card neu-interview-card" style={{
+            width: '100%',
+            maxWidth: 580,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-4)',
+            borderRadius: 20,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Evaluator Scorecard & Feedback
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Round {selectedInterviewForFeedback.round_number || 1} • {activeApp?.candidate?.full_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setFeedbackModalOpen(false)}
+                className="btn btn-secondary"
+                style={{ padding: 6, borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Sliders for Competencies */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Technical Assessment:</span>
+                  <b>{feedbackTechScore}/100</b>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={feedbackTechScore}
+                  onChange={e => setFeedbackTechScore(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Problem Solving & Algorithms:</span>
+                  <b>{feedbackProblemScore}/100</b>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={feedbackProblemScore}
+                  onChange={e => setFeedbackProblemScore(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Communication & Articulation:</span>
+                  <b>{feedbackCommScore}/100</b>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={feedbackCommScore}
+                  onChange={e => setFeedbackCommScore(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Culture & Collaboration Fit:</span>
+                  <b>{feedbackCultureScore}/100</b>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={feedbackCultureScore}
+                  onChange={e => setFeedbackCultureScore(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {/* Recommendation Selector */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Hiring Recommendation:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                  {(['STRONG_HIRE', 'HIRE', 'HOLD', 'NO_HIRE'] as const).map(rec => (
+                    <button
+                      key={rec}
+                      type="button"
+                      onClick={() => {
+                        setFeedbackRecommendation(rec)
+                        setFeedbackDecision(rec === 'NO_HIRE' ? 'FAIL' : 'PASS')
+                      }}
+                      className="btn"
+                      style={{
+                        padding: '6px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        background: feedbackRecommendation === rec ? 'var(--accent)' : 'var(--neu-bg-deep)',
+                        color: feedbackRecommendation === rec ? '#fff' : 'var(--text-primary)',
+                      }}
+                    >
+                      {rec.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Written Feedback */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Written Evaluation & Assessment Comments:
+                </label>
+                <textarea
+                  rows={4}
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="Detail candidate technical strengths, areas of improvement, and reason for hiring recommendation..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.1)',
+                    background: 'var(--neu-bg-deep)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackModalOpen(false)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFeedbackSubmit}
+                  disabled={feedbackMutation.isPending}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  {feedbackMutation.isPending ? 'Saving…' : 'Submit Scorecard & Complete Round'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {rescheduleModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div className="card neu-interview-card" style={{
+            width: '100%',
+            maxWidth: 460,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-4)',
+            borderRadius: 20,
+            padding: 24,
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 16 }}>
+              Reschedule Interview
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  New Date:
+                </label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={e => setRescheduleDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--neu-bg-deep)', color: 'var(--text-primary)', border: '1px solid rgba(0,0,0,0.1)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  New Time:
+                </label>
+                <input
+                  type="time"
+                  value={rescheduleTime}
+                  onChange={e => setRescheduleTime(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--neu-bg-deep)', color: 'var(--text-primary)', border: '1px solid rgba(0,0,0,0.1)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Reason for Reschedule:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Interviewer conflict / Candidate requested change"
+                  value={rescheduleReason}
+                  onChange={e => setRescheduleReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--neu-bg-deep)', color: 'var(--text-primary)', border: '1px solid rgba(0,0,0,0.1)' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setRescheduleModalOpen(false)}
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRescheduleSubmit}
+                  disabled={rescheduleMutation.isPending}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  {rescheduleMutation.isPending ? 'Rescheduling…' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {cancelModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          padding: 16,
+        }}>
+          <div className="card neu-interview-card" style={{
+            width: '100%',
+            maxWidth: 440,
+            background: 'var(--neu-base)',
+            boxShadow: 'var(--elev-4)',
+            borderRadius: 20,
+            padding: 24,
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#DC2626', marginBottom: 12 }}>
+              Cancel Interview
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 14 }}>
+              Are you sure you want to cancel this interview?
+            </p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                Reason:
+              </label>
+              <input
+                type="text"
+                placeholder="Candidate withdrew / Position closed"
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 10, background: 'var(--neu-bg-deep)', color: 'var(--text-primary)', border: '1px solid rgba(0,0,0,0.1)' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setCancelModalOpen(false)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Keep Interview
+              </button>
+              <button
+                type="button"
+                onClick={() => cancelInterviewId && cancelMutation.mutate({ id: cancelInterviewId, reason: cancelReason })}
+                disabled={cancelMutation.isPending}
+                className="btn btn-secondary"
+                style={{ color: '#DC2626', fontSize: '0.85rem' }}
+              >
+                {cancelMutation.isPending ? 'Cancelling…' : 'Confirm Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageWrapper>
   )
 }

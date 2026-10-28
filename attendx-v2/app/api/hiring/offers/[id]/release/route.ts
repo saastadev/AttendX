@@ -1,6 +1,7 @@
 // ============================================================
 // AttendX v2 — REST API: /api/hiring/offers/[id]/release
-// POST: Release an offer to candidate with 7-day secure portal token
+// POST: Release an offer to candidate with 7-day secure portal token,
+// Handlebars offer letter & invitation email, and Zero Fabrication.
 // ============================================================
 
 import { NextResponse } from 'next/server'
@@ -25,7 +26,7 @@ export async function POST(
 
     if (isDevMockSupabase()) {
       const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-      const mockResult = mockHiringStore.releaseOffer(caller.tenantId, id, portalBaseUrl)
+      const mockResult = await mockHiringStore.releaseOffer(caller.tenantId, id, portalBaseUrl)
       return NextResponse.json(mockResult)
     }
 

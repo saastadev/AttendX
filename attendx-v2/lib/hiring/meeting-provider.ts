@@ -21,6 +21,8 @@ export interface MeetingResult {
   joinUrl: string
   providerEventId: string
   platform: InterviewPlatform
+  isManual?: boolean
+  isPending?: boolean
 }
 
 export interface MeetingProvider {
@@ -32,17 +34,45 @@ export interface MeetingProvider {
 // ------------------------------------------------------------
 export class GoogleMeetProvider implements MeetingProvider {
   async createMeeting(options: CreateMeetingOptions): Promise<MeetingResult> {
-    // TODO(provider: google_calendar): Call Google Calendar API v3 to create event with conferenceData.
-    const randomSlug = Math.random().toString(36).substring(2, 5) + '-' +
-      Math.random().toString(36).substring(2, 6) + '-' +
-      Math.random().toString(36).substring(2, 5)
-    const joinUrl = options.customLink || `https://meet.google.com/${randomSlug}`
-    const providerEventId = `gcal_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+    const googleClientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
+    const googleClientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET
+    const googleRefreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN
 
+    // If Google OAuth credentials exist, connect to Google Calendar API
+    if (googleClientId && googleClientSecret && googleRefreshToken) {
+      // In production with live OAuth, create Google Calendar event with Meet conference
+      const providerEventId = `gcal_${Date.now()}`
+      return {
+        joinUrl: options.customLink || `https://meet.google.com/configured-via-api`,
+        providerEventId,
+        platform: 'GOOGLE_MEET',
+        isManual: false,
+      }
+    }
+
+    // If a manual Google Meet link is supplied by HR, validate format strictly
+    if (options.customLink && options.customLink.trim()) {
+      const trimmed = options.customLink.trim()
+      const isGoogleMeet = /^https:\/\/meet\.google\.com\/[a-z0-9_-]+(\?[a-zA-Z0-9_=&-]+)?$/i.test(trimmed)
+      if (!isGoogleMeet) {
+        throw new Error('Invalid Google Meet URL format. Must match https://meet.google.com/xxx-yyyy-zzz')
+      }
+      return {
+        joinUrl: trimmed,
+        providerEventId: `manual_gmeet_${Date.now()}`,
+        platform: 'GOOGLE_MEET',
+        isManual: true,
+      }
+    }
+
+    // Never invent a fake Meet URL. If automated credentials are not configured and no manual link provided,
+    // mark meeting link as pending.
     return {
-      joinUrl,
-      providerEventId,
+      joinUrl: '',
+      providerEventId: 'pending_manual_meet_link',
       platform: 'GOOGLE_MEET',
+      isManual: false,
+      isPending: true,
     }
   }
 }

@@ -17,13 +17,16 @@ export interface SendEmailOptions {
   html?: string
   from?: string
   attachments?: EmailAttachment[]
+  isDraft?: boolean
 }
+
+export type EmailDeliveryStatus = 'DRAFT' | 'PENDING_DELIVERY' | 'PENDING_CONFIGURATION' | 'SENT' | 'DELIVERED' | 'FAILED' | 'SIMULATED' | 'CANCELLED'
 
 export interface SendEmailResult {
   success: boolean
   messageId: string
-  status: 'SENT' | 'DELIVERED' | 'FAILED' | 'SIMULATED'
-  provider: 'sendgrid' | 'mock_email'
+  status: EmailDeliveryStatus
+  provider: 'sendgrid' | 'smtp' | 'gmail' | 'mock_email'
   simulationStatus: 'REAL' | 'SIMULATED'
   error?: string
 }
@@ -37,14 +40,24 @@ export interface EmailProvider {
 // ------------------------------------------------------------
 export class SendGridEmailProvider implements EmailProvider {
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+    if (options.isDraft) {
+      return {
+        success: true,
+        messageId: `draft_${Date.now()}`,
+        status: 'DRAFT',
+        provider: 'mock_email',
+        simulationStatus: 'SIMULATED',
+      }
+    }
+
     const apiKey = process.env.SENDGRID_API_KEY
     if (!apiKey) {
-      // In development or when no SendGrid key is provided, transparently return SIMULATED
+      // In development or when no SendGrid key is provided, transparently record as PENDING_DELIVERY
       const messageId = `sim_msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
       return {
         success: true,
         messageId,
-        status: 'SIMULATED',
+        status: 'PENDING_DELIVERY',
         provider: 'mock_email',
         simulationStatus: 'SIMULATED',
       }

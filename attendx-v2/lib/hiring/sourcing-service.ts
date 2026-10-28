@@ -22,7 +22,7 @@ import { MatchScoreEngine } from './match-score-engine.ts'
 import { HiringAuditLogger } from './audit-logger.ts'
 import { mockHiringStore } from './mock-store.ts'
 
-function isTableMissingError(err: any): boolean {
+export function isTableMissingError(err: any): boolean {
   if (!err) return false
   const msg = String(err.message || err || '').toLowerCase()
   const code = String(err.code || '')
@@ -907,7 +907,7 @@ export class SourcingService {
           context
         )
       } catch (appErr: any) {
-        if (isTableMissingError(appErr) || appErr?.message?.includes('Failed to create application')) {
+        if (isTableMissingError(appErr) || appErr?.message?.includes('Failed to create application') || appErr?.status === 404 || appErr?.message?.includes('not found')) {
           application = mockHiringStore.createApplication(organizationId, {
             requisition_id: requisitionId,
             candidate_id: candidate.id,

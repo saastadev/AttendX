@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Sparkles, Filter, CheckCircle2, Globe,
@@ -42,6 +42,20 @@ export default function SourcingPage() {
   })
 
   const requisitions = reqData?.requisitions || []
+
+  // Auto-select first active eligible requisition when loaded
+  useEffect(() => {
+    if (!selectedReqId && requisitions.length > 0) {
+      const firstActive = requisitions.find((r: any) => r.status === 'OPEN')?.id || requisitions[0]?.id
+      if (firstActive) {
+        setSelectedReqId(firstActive)
+        const req = requisitions.find((r: any) => r.id === firstActive)
+        if (req?.skills?.length) {
+          setSkillsInput(req.skills.map((s: any) => s.skill_name || s).join(', '))
+        }
+      }
+    }
+  }, [requisitions, selectedReqId])
 
   // Mode 2: Run Recruiter Candidate Discovery Mutation
   const searchMutation = useMutation({
@@ -699,7 +713,11 @@ export default function SourcingPage() {
                       onClick={() => {
                         const targetReq = selectedReqId || (requisitions[0]?.id)
                         if (!targetReq) {
-                          toastError('Please select a target requisition to shortlist candidate')
+                          toastError(
+                            requisitions.length === 0
+                              ? 'No job requisitions found. Please ensure a requisition is open.'
+                              : 'Please select a target requisition to shortlist candidate'
+                          )
                           return
                         }
                         shortlistMutation.mutate({
@@ -707,10 +725,11 @@ export default function SourcingPage() {
                           reqId: targetReq,
                         })
                       }}
+                      disabled={shortlistMutation.isPending}
                       className="btn btn-primary"
                       style={{ fontSize: '0.78rem', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
-                      <UserCheck size={14} /> Shortlist Candidate
+                      <UserCheck size={14} /> {shortlistMutation.isPending ? 'Shortlisting…' : 'Shortlist Candidate'}
                     </button>
                   )}
                 </div>

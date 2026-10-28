@@ -1,0 +1,24 @@
+Hello {{candidateName}},
+
+Please be advised that your upcoming interview for the {{jobTitle}} position at {{companyName}} has been rescheduled.
+
+Updated Interview Details:
+• Round: {{roundName}}
+• New Date: {{interviewDate}}
+• New Time: {{interviewTime}} ({{timezone}})
+• Duration: {{duration}} minutes
+• Interviewer(s): {{interviewerNames}}
+• Meeting Link: {{meetingUrl}}
+{{#if rescheduleReason}}
+
+Reason for Reschedule:
+{{rescheduleReason}}
+{{/if}}
+
+Please reply to this email to confirm that the new schedule works for you. If you need an alternative time slot, kindly reply with your preferred availability.
+
+We appreciate your flexibility and apologize for any inconvenience caused.
+
+Best regards,
+{{recruiterName}}
+{{companyName}} — Talent Acquisition Team

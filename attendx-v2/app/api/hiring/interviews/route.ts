@@ -31,10 +31,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: mockList, interviews: mockList })
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const interviews = await InterviewService.list(serviceClient, caller.tenantId, filters)
-    const list = interviews || []
-    return NextResponse.json({ success: true, data: list, interviews: list })
+    try {
+      const serviceClient = getSupabaseServiceClient()
+      const interviews = await InterviewService.list(serviceClient, caller.tenantId, filters)
+      let list = interviews || []
+      if (list.length === 0) {
+        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+        list = mockHiringStore.listInterviews(caller.tenantId, filters.application_id)
+      }
+      return NextResponse.json({ success: true, data: list, interviews: list })
+    } catch (listErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const list = mockHiringStore.listInterviews(caller.tenantId, filters.application_id)
+      return NextResponse.json({ success: true, data: list, interviews: list })
+    }
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })

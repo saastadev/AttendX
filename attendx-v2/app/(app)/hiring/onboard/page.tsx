@@ -475,9 +475,9 @@ export default function OnboardPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
-                        {doc.file_url && (
+                        {doc.id && (
                           <a
-                            href={doc.file_url}
+                            href={doc.file_url?.startsWith('/api/hiring/onboarding/documents/') ? doc.file_url : `/api/hiring/onboarding/documents/${doc.id}/preview`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
