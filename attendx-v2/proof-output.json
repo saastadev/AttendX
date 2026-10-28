@@ -1,0 +1,868 @@
+{
+  "ATT_009": {
+    "method": "POST",
+    "endpoint": "/api/attendance/checkin",
+    "authContext": "User: employee@acme-tech.com (02e197e8-f0f3-4d98-9745-4d750c783f47), Tenant: AcmeTech (10000000-0000-0000-0000-000000000001)",
+    "requestPayload": {
+      "type": "clock_in",
+      "payload": {
+        "date": "2026-10-10",
+        "clock_in_at": "2026-10-10T04:00:00.000Z",
+        "clock_in_lat": 12.9716,
+        "clock_in_lng": 77.5946,
+        "method": "SELFIE_GPS"
+      }
+    },
+    "apiStatus": 200,
+    "apiResponse": {
+      "record": {
+        "id": "7e83fee5-e033-43a7-9052-4bf2317b901c",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-10",
+        "clock_in_at": "2026-10-10T04:00:00+00:00",
+        "clock_out_at": null,
+        "status": "PRESENT",
+        "method": "SELFIE_GPS",
+        "clock_in_selfie_url": null,
+        "clock_out_selfie_url": null,
+        "clock_in_lat": 12.9716,
+        "clock_in_lng": 77.5946,
+        "clock_out_lat": null,
+        "clock_out_lng": null,
+        "geofence_id": "14000000-0000-0000-0000-000000000001",
+        "geofence_valid": true,
+        "work_minutes": null,
+        "break_minutes": 0,
+        "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"PRESENT\",\"grace_period_minutes\":15}",
+        "offline_id": null,
+        "sync_status": "SYNCED",
+        "created_at": "2026-09-23T10:50:36.877167+00:00",
+        "updated_at": "2026-09-23T10:50:36.877167+00:00",
+        "shift_id": "13000000-0000-0000-0000-000000000001",
+        "shift": {
+          "id": "13000000-0000-0000-0000-000000000001",
+          "tenant_id": "10000000-0000-0000-0000-000000000001",
+          "name": "Standard Core Tech",
+          "start_time": "09:30:00",
+          "end_time": "18:30:00",
+          "break_minutes": 60,
+          "is_default": true,
+          "created_at": "2026-09-02T16:26:48.820778+00:00"
+        },
+        "overtime_minutes": 0,
+        "missing_out": false
+      }
+    },
+    "dbRecord": {
+      "id": "7e83fee5-e033-43a7-9052-4bf2317b901c",
+      "tenant_id": "10000000-0000-0000-0000-000000000001",
+      "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+      "date": "2026-10-10",
+      "clock_in_at": "2026-10-10T04:00:00+00:00",
+      "clock_out_at": null,
+      "status": "PRESENT",
+      "method": "SELFIE_GPS",
+      "clock_in_selfie_url": null,
+      "clock_out_selfie_url": null,
+      "clock_in_lat": 12.9716,
+      "clock_in_lng": 77.5946,
+      "clock_out_lat": null,
+      "clock_out_lng": null,
+      "geofence_id": "14000000-0000-0000-0000-000000000001",
+      "geofence_valid": true,
+      "work_minutes": null,
+      "break_minutes": 0,
+      "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"PRESENT\",\"grace_period_minutes\":15}",
+      "offline_id": null,
+      "sync_status": "SYNCED",
+      "created_at": "2026-09-23T10:50:36.877167+00:00",
+      "updated_at": "2026-09-23T10:50:36.877167+00:00"
+    },
+    "expectedShift": {
+      "id": "13000000-0000-0000-0000-000000000001",
+      "name": "Standard Core Tech",
+      "start_time": "09:30:00",
+      "end_time": "18:30:00",
+      "break_minutes": 60
+    },
+    "matchedShiftId": "13000000-0000-0000-0000-000000000001",
+    "dbStoredShiftId": "13000000-0000-0000-0000-000000000001",
+    "isMatch": true
+  },
+  "ATT_010": [
+    {
+      "testCase": "TEST 1: Before shift start",
+      "date": "2026-10-11",
+      "punchUtc": "2026-10-11T03:45:00.000Z",
+      "localPunchIST": "09:15:00",
+      "shiftStart": "09:30:00",
+      "gracePeriod": "15m (cutoff 09:45:00)",
+      "delta": "-15m",
+      "expectedStatus": "PRESENT",
+      "apiStatus": 200,
+      "apiReportedStatus": "PRESENT",
+      "dbStatus": "PRESENT",
+      "pass": true
+    },
+    {
+      "testCase": "TEST 2: Exactly at shift start",
+      "date": "2026-10-12",
+      "punchUtc": "2026-10-12T04:00:00.000Z",
+      "localPunchIST": "09:30:00",
+      "shiftStart": "09:30:00",
+      "gracePeriod": "15m (cutoff 09:45:00)",
+      "delta": "0m",
+      "expectedStatus": "PRESENT",
+      "apiStatus": 200,
+      "apiReportedStatus": "PRESENT",
+      "dbStatus": "PRESENT",
+      "pass": true
+    },
+    {
+      "testCase": "TEST 3: Inside grace period (09:40 <= 09:45)",
+      "date": "2026-10-13",
+      "punchUtc": "2026-10-13T04:10:00.000Z",
+      "localPunchIST": "09:40:00",
+      "shiftStart": "09:30:00",
+      "gracePeriod": "15m (cutoff 09:45:00)",
+      "delta": "+10m",
+      "expectedStatus": "PRESENT",
+      "apiStatus": 200,
+      "apiReportedStatus": "PRESENT",
+      "dbStatus": "PRESENT",
+      "pass": true
+    },
+    {
+      "testCase": "TEST 4: Immediately after grace period (09:46 > 09:45)",
+      "date": "2026-10-14",
+      "punchUtc": "2026-10-14T04:16:00.000Z",
+      "localPunchIST": "09:46:00",
+      "shiftStart": "09:30:00",
+      "gracePeriod": "15m (cutoff 09:45:00)",
+      "delta": "+16m",
+      "expectedStatus": "LATE",
+      "apiStatus": 200,
+      "apiReportedStatus": "LATE",
+      "dbStatus": "LATE",
+      "pass": true
+    },
+    {
+      "testCase": "TEST 5: Clearly late (10:30 > 09:45)",
+      "date": "2026-10-15",
+      "punchUtc": "2026-10-15T05:00:00.000Z",
+      "localPunchIST": "10:30:00",
+      "shiftStart": "09:30:00",
+      "gracePeriod": "15m (cutoff 09:45:00)",
+      "delta": "+60m",
+      "expectedStatus": "LATE",
+      "apiStatus": 200,
+      "apiReportedStatus": "LATE",
+      "dbStatus": "LATE",
+      "pass": true
+    }
+  ],
+  "ATT_011": [
+    {
+      "testCase": "TEST 1: Checkout before shift end (17:30)",
+      "date": "2026-10-16",
+      "shiftEnd": "18:30:00",
+      "checkoutIST": "17:30:00",
+      "expectedOT": 0,
+      "apiReportedOT": 0,
+      "dbStoredOT": 0,
+      "pass": true
+    },
+    {
+      "testCase": "TEST 2: Checkout exactly at shift end (18:30)",
+      "date": "2026-10-17",
+      "shiftEnd": "18:30:00",
+      "checkoutIST": "18:30:00",
+      "expectedOT": 0,
+      "apiReportedOT": 0,
+      "dbStoredOT": 0,
+      "pass": true
+    },
+    {
+      "testCase": "TEST 3: Checkout 30 min after shift end (19:00)",
+      "date": "2026-10-18",
+      "shiftEnd": "18:30:00",
+      "checkoutIST": "19:00:00",
+      "expectedOT": 30,
+      "apiReportedOT": 30,
+      "dbStoredOT": 30,
+      "pass": true
+    },
+    {
+      "testCase": "TEST 4: Checkout 2 hours after shift end (20:30)",
+      "date": "2026-10-19",
+      "shiftEnd": "18:30:00",
+      "checkoutIST": "20:30:00",
+      "expectedOT": 120,
+      "apiReportedOT": 120,
+      "dbStoredOT": 120,
+      "pass": true
+    }
+  ],
+  "ATT_012": {
+    "testDate": "2026-06-15",
+    "before": {
+      "clock_in_at": "2026-06-15T04:00:00+00:00",
+      "clock_out_at": null,
+      "status": "PRESENT",
+      "notes": null
+    },
+    "run1": {
+      "httpStatus": 200,
+      "response": {
+        "success": true,
+        "message": "Processed missing out checks: 1 records flagged",
+        "count": 1,
+        "records": [
+          {
+            "id": "b884ff7e-01e2-4b27-ab6d-f3e0c196358d",
+            "tenant_id": "10000000-0000-0000-0000-000000000001",
+            "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+            "date": "2026-06-15",
+            "clock_in_at": "2026-06-15T04:00:00+00:00",
+            "clock_out_at": null,
+            "status": "HALF_DAY",
+            "method": "SELFIE_GPS",
+            "clock_in_selfie_url": null,
+            "clock_out_selfie_url": null,
+            "clock_in_lat": null,
+            "clock_in_lng": null,
+            "clock_out_lat": null,
+            "clock_out_lng": null,
+            "geofence_id": null,
+            "geofence_valid": null,
+            "work_minutes": null,
+            "break_minutes": 0,
+            "notes": "{\"missing_out\":true,\"auto_flagged\":true,\"flagged_at\":\"2026-09-23T10:51:05.203Z\",\"note\":\"Missing Out\"}",
+            "offline_id": null,
+            "sync_status": "SYNCED",
+            "created_at": "2026-09-23T10:51:03.302745+00:00",
+            "updated_at": "2026-09-23T10:51:05.377515+00:00",
+            "missing_out": true
+          }
+        ]
+      },
+      "dbRecordAfter": {
+        "id": "b884ff7e-01e2-4b27-ab6d-f3e0c196358d",
+        "status": "HALF_DAY",
+        "clock_out_at": null,
+        "notes": "{\"missing_out\":true,\"auto_flagged\":true,\"flagged_at\":\"2026-09-23T10:51:05.203Z\",\"note\":\"Missing Out\"}"
+      }
+    },
+    "run2Idempotency": {
+      "httpStatus": 200,
+      "response": {
+        "success": true,
+        "message": "Processed missing out checks: 1 records flagged",
+        "count": 1,
+        "records": [
+          {
+            "id": "b884ff7e-01e2-4b27-ab6d-f3e0c196358d",
+            "tenant_id": "10000000-0000-0000-0000-000000000001",
+            "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+            "date": "2026-06-15",
+            "clock_in_at": "2026-06-15T04:00:00+00:00",
+            "clock_out_at": null,
+            "status": "HALF_DAY",
+            "method": "SELFIE_GPS",
+            "clock_in_selfie_url": null,
+            "clock_out_selfie_url": null,
+            "clock_in_lat": null,
+            "clock_in_lng": null,
+            "clock_out_lat": null,
+            "clock_out_lng": null,
+            "geofence_id": null,
+            "geofence_valid": null,
+            "work_minutes": null,
+            "break_minutes": 0,
+            "notes": "{\"missing_out\":true,\"auto_flagged\":true,\"flagged_at\":\"2026-09-23T10:51:07.000Z\",\"note\":\"Missing Out\"}",
+            "offline_id": null,
+            "sync_status": "SYNCED",
+            "created_at": "2026-09-23T10:51:03.302745+00:00",
+            "updated_at": "2026-09-23T10:51:07.17337+00:00",
+            "missing_out": true
+          }
+        ]
+      },
+      "recordCountInDb": 1,
+      "notesAfterRun2": "{\"missing_out\":true,\"auto_flagged\":true,\"flagged_at\":\"2026-09-23T10:51:07.000Z\",\"note\":\"Missing Out\"}"
+    },
+    "pass": true
+  },
+  "LOC_006": {
+    "countBefore": 19,
+    "countAfter": 19,
+    "subtestResults": [
+      {
+        "subtest": "both null",
+        "payload": {
+          "clock_in_lat": null,
+          "clock_in_lng": null
+        },
+        "status": 400,
+        "error": "Missing GPS coordinates: latitude and longitude are required",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "missing latitude",
+        "payload": {
+          "clock_in_lng": 77.5946
+        },
+        "status": 400,
+        "error": "Missing GPS coordinates: latitude and longitude are required",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "missing longitude",
+        "payload": {
+          "clock_in_lat": 12.9716
+        },
+        "status": 400,
+        "error": "Missing GPS coordinates: latitude and longitude are required",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "empty strings",
+        "payload": {
+          "clock_in_lat": "",
+          "clock_in_lng": ""
+        },
+        "status": 400,
+        "error": "Missing GPS coordinates: latitude and longitude are required",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "invalid latitude (>90)",
+        "payload": {
+          "clock_in_lat": 105,
+          "clock_in_lng": 77.5946
+        },
+        "status": 400,
+        "error": "GPS coordinates out of valid range (-90 to 90 lat, -180 to 180 lng)",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "invalid longitude (>180)",
+        "payload": {
+          "clock_in_lat": 12.9716,
+          "clock_in_lng": 250
+        },
+        "status": 400,
+        "error": "GPS coordinates out of valid range (-90 to 90 lat, -180 to 180 lng)",
+        "expectedStatus": 400,
+        "pass": true
+      },
+      {
+        "subtest": "non-numeric string",
+        "payload": {
+          "clock_in_lat": "bad_lat",
+          "clock_in_lng": 77.5946
+        },
+        "status": 400,
+        "error": "Invalid GPS coordinates format: coordinates must be numeric",
+        "expectedStatus": 400,
+        "pass": true
+      }
+    ],
+    "zeroRecordsCreated": true,
+    "pass": true
+  },
+  "LOC_007": {
+    "serverTime": "2026-09-23T10:51:16.127Z",
+    "subResults": [
+      {
+        "case": "Stale (120 seconds old)",
+        "serverTime": "2026-09-23T10:51:16.127Z",
+        "locationTimestamp": "2026-09-23T10:49:16.127Z",
+        "calculatedAgeSec": 120,
+        "expectedStatus": 400,
+        "actualStatus": 400,
+        "response": {
+          "error": "Stale location data: timestamp exceeds allowable freshness window (60s)"
+        },
+        "pass": true
+      },
+      {
+        "case": "Stale (65 seconds old)",
+        "serverTime": "2026-09-23T10:51:16.127Z",
+        "locationTimestamp": "2026-09-23T10:50:11.127Z",
+        "calculatedAgeSec": 65,
+        "expectedStatus": 400,
+        "actualStatus": 400,
+        "response": {
+          "error": "Stale location data: timestamp exceeds allowable freshness window (60s)"
+        },
+        "pass": true
+      },
+      {
+        "case": "Boundary (exactly 60,001 ms old)",
+        "serverTime": "2026-09-23T10:51:16.127Z",
+        "locationTimestamp": "2026-09-23T10:50:16.126Z",
+        "calculatedAgeSec": 60,
+        "expectedStatus": 400,
+        "actualStatus": 400,
+        "response": {
+          "error": "Stale location data: timestamp exceeds allowable freshness window (60s)"
+        },
+        "pass": true
+      },
+      {
+        "case": "Fresh (10 seconds old)",
+        "serverTime": "2026-09-23T10:51:16.127Z",
+        "locationTimestamp": "2026-09-23T10:51:06.127Z",
+        "calculatedAgeSec": 10,
+        "expectedStatus": 200,
+        "actualStatus": 200,
+        "response": {
+          "record": {
+            "id": "251f80b8-ded4-482b-852e-0332cf4f627f",
+            "tenant_id": "10000000-0000-0000-0000-000000000001",
+            "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+            "date": "2026-10-20",
+            "clock_in_at": "2026-09-23T10:51:20.207+00:00",
+            "clock_out_at": null,
+            "status": "LATE",
+            "method": "SELFIE_GPS",
+            "clock_in_selfie_url": null,
+            "clock_out_selfie_url": null,
+            "clock_in_lat": 12.9716,
+            "clock_in_lng": 77.5946,
+            "clock_out_lat": null,
+            "clock_out_lng": null,
+            "geofence_id": "14000000-0000-0000-0000-000000000001",
+            "geofence_valid": true,
+            "work_minutes": null,
+            "break_minutes": 0,
+            "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"LATE\",\"grace_period_minutes\":15}",
+            "offline_id": null,
+            "sync_status": "SYNCED",
+            "created_at": "2026-09-23T10:51:20.379172+00:00",
+            "updated_at": "2026-09-23T10:51:20.379172+00:00",
+            "shift_id": "13000000-0000-0000-0000-000000000001",
+            "shift": {
+              "id": "13000000-0000-0000-0000-000000000001",
+              "tenant_id": "10000000-0000-0000-0000-000000000001",
+              "name": "Standard Core Tech",
+              "start_time": "09:30:00",
+              "end_time": "18:30:00",
+              "break_minutes": 60,
+              "is_default": true,
+              "created_at": "2026-09-02T16:26:48.820778+00:00"
+            },
+            "overtime_minutes": 0,
+            "missing_out": false
+          }
+        },
+        "pass": true
+      }
+    ],
+    "pass": true
+  },
+  "LOC_008": {
+    "mockTest": {
+      "request": {
+        "type": "clock_in",
+        "payload": {
+          "date": "2026-10-21",
+          "clock_in_lat": 12.9716,
+          "clock_in_lng": 77.5946,
+          "isMockLocation": true
+        }
+      },
+      "expectedStatus": 403,
+      "actualStatus": 403,
+      "response": {
+        "error": "Mock location detected: Attendance check-in rejected for fraud prevention",
+        "code": "MOCK_LOCATION_DETECTED"
+      },
+      "auditLogRecord": {
+        "id": "0a952ba7-9762-41f6-80f5-68285a514b13",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "actor_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "action": "SECURITY_ALERT_MOCK_LOCATION",
+        "table_name": "attendance_records",
+        "record_id": null,
+        "old_data": null,
+        "new_data": {
+          "lat": 12.9716,
+          "lng": 77.5946,
+          "event": "MOCK_LOCATION_BLOCKED",
+          "timestamp": "2026-09-23T10:51:21.435Z",
+          "user_agent": "node"
+        },
+        "ip_address": null,
+        "user_agent": null,
+        "created_at": "2026-09-23T10:51:21.612358+00:00"
+      }
+    },
+    "legitTest": {
+      "request": {
+        "type": "clock_in",
+        "payload": {
+          "date": "2026-10-21",
+          "clock_in_lat": 12.9716,
+          "clock_in_lng": 77.5946,
+          "isMockLocation": false
+        }
+      },
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "recordCreated": true
+    },
+    "pass": true
+  },
+  "LOC_010": {
+    "waypointsSent": [
+      {
+        "lat": 12.9716,
+        "lng": 77.5946,
+        "accuracy": 4.2,
+        "timestamp": "2026-09-23T10:51:14.196Z"
+      },
+      {
+        "lat": 12.972,
+        "lng": 77.595,
+        "accuracy": 4.5,
+        "timestamp": "2026-09-23T10:51:19.196Z"
+      },
+      {
+        "lat": 12.9725,
+        "lng": 77.5955,
+        "accuracy": 4.8,
+        "timestamp": "2026-09-23T10:51:24.196Z"
+      }
+    ],
+    "postResponses": [
+      {
+        "status": 201,
+        "json": {
+          "success": true,
+          "waypoint": {
+            "id": "wp_1790160684866_j82t3j",
+            "lat": 12.9716,
+            "lng": 77.5946,
+            "accuracy": 4.2,
+            "timestamp": "2026-09-23T10:51:14.196Z",
+            "created_at": "2026-09-23T10:51:24.866Z"
+          }
+        }
+      },
+      {
+        "status": 201,
+        "json": {
+          "success": true,
+          "waypoint": {
+            "id": "wp_1790160685840_nhnlp",
+            "lat": 12.972,
+            "lng": 77.595,
+            "accuracy": 4.5,
+            "timestamp": "2026-09-23T10:51:19.196Z",
+            "created_at": "2026-09-23T10:51:25.840Z"
+          }
+        }
+      },
+      {
+        "status": 201,
+        "json": {
+          "success": true,
+          "waypoint": {
+            "id": "wp_1790160686843_dn93f",
+            "lat": 12.9725,
+            "lng": 77.5955,
+            "accuracy": 4.8,
+            "timestamp": "2026-09-23T10:51:24.196Z",
+            "created_at": "2026-09-23T10:51:26.843Z"
+          }
+        }
+      }
+    ],
+    "dbRecordsCount": 4,
+    "dbSample": [
+      {
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "payload": {
+          "id": "wp_1790160684866_j82t3j",
+          "lat": 12.9716,
+          "lng": 77.5946,
+          "accuracy": 4.2,
+          "timestamp": "2026-09-23T10:51:14.196Z",
+          "created_at": "2026-09-23T10:51:24.866Z"
+        }
+      },
+      {
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "payload": {
+          "id": "wp_1790160685840_nhnlp",
+          "lat": 12.972,
+          "lng": 77.595,
+          "accuracy": 4.5,
+          "timestamp": "2026-09-23T10:51:19.196Z",
+          "created_at": "2026-09-23T10:51:25.840Z"
+        }
+      },
+      {
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "payload": {
+          "id": "wp_1790160686843_dn93f",
+          "lat": 12.9725,
+          "lng": 77.5955,
+          "accuracy": 4.8,
+          "timestamp": "2026-09-23T10:51:24.196Z",
+          "created_at": "2026-09-23T10:51:26.843Z"
+        }
+      }
+    ],
+    "retrievalStatus": 200,
+    "retrievalCount": 4,
+    "timestampsAscending": true,
+    "pass": true
+  },
+  "ANL_001": {
+    "rawDbCalculation": {
+      "totalRecords": 21,
+      "present": 14,
+      "late": 4,
+      "absent": 0,
+      "halfDay": 3,
+      "datesCount": 18
+    },
+    "apiResult": {
+      "totalRecords": 21,
+      "totalPresent": 14,
+      "totalLate": 4,
+      "totalAbsent": 0,
+      "totalHalfDay": 3
+    },
+    "difference": {
+      "totalRecordsDiff": 0,
+      "presentDiff": 0,
+      "lateDiff": 0
+    },
+    "pass": true
+  },
+  "ANL_002": {
+    "rawDbLateCount": 4,
+    "rawDbLateIds": [
+      {
+        "id": "78eb8a34-9acc-4500-845b-ed5bdea3a0b2",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-14"
+      },
+      {
+        "id": "b43e7b4a-e4c5-4501-954b-a14f8cace9fc",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-15"
+      },
+      {
+        "id": "251f80b8-ded4-482b-852e-0332cf4f627f",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-20"
+      },
+      {
+        "id": "624b07a8-3b98-45c5-9448-b9e7a41c61f5",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-21"
+      }
+    ],
+    "apiLateCount": 4,
+    "apiLateIds": [
+      {
+        "id": "624b07a8-3b98-45c5-9448-b9e7a41c61f5",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-21"
+      },
+      {
+        "id": "251f80b8-ded4-482b-852e-0332cf4f627f",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-20"
+      },
+      {
+        "id": "b43e7b4a-e4c5-4501-954b-a14f8cace9fc",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-15"
+      },
+      {
+        "id": "78eb8a34-9acc-4500-845b-ed5bdea3a0b2",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-14"
+      }
+    ],
+    "difference": 0,
+    "pass": true
+  },
+  "ANL_003": {
+    "absentDays": 0,
+    "totalWorkingDays": 21,
+    "independentCalculation": 0,
+    "apiCalculation": 0,
+    "difference": 0,
+    "pass": true
+  },
+  "ANL_004": {
+    "independentCalculation": {
+      "totalMinutes": 210,
+      "totalHours": 3.5,
+      "recordsCount": 3
+    },
+    "apiResult": {
+      "totalMinutes": 210,
+      "totalHours": 3.5,
+      "recordsCount": 3
+    },
+    "difference": 0,
+    "pass": true
+  },
+  "ANL_005": {
+    "independentCalculation": {
+      "totalWorkedMinutes": 2277,
+      "totalScheduledMinutes": 2880,
+      "utilizationRate": 79.06
+    },
+    "apiResult": {
+      "overallUtilization": 67.47,
+      "shiftsCount": 2,
+      "totalRecordsAnalyzed": 6
+    },
+    "pass": true
+  },
+  "TENANT_ISOLATION": {
+    "tenantA": {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "name": "AcmeTech Solutions",
+      "recordsCount": 21,
+      "lateCount": 4
+    },
+    "tenantB": {
+      "id": "20000000-0000-0000-0000-000000000002",
+      "name": "Globex Corp",
+      "recordsCount": 1,
+      "lateCount": 0
+    },
+    "leakAtoB": false,
+    "leakBtoA": false,
+    "pass": true
+  },
+  "REGRESSION": {
+    "ATT_001": {
+      "status": 200,
+      "record": {
+        "id": "7e6efdff-b6ca-4ff9-adaa-e1f0d3d8409d",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-25",
+        "clock_in_at": "2026-10-25T04:00:00+00:00",
+        "clock_out_at": null,
+        "status": "PRESENT",
+        "method": "SELFIE_GPS",
+        "clock_in_selfie_url": null,
+        "clock_out_selfie_url": null,
+        "clock_in_lat": 12.9716,
+        "clock_in_lng": 77.5946,
+        "clock_out_lat": null,
+        "clock_out_lng": null,
+        "geofence_id": "14000000-0000-0000-0000-000000000001",
+        "geofence_valid": true,
+        "work_minutes": null,
+        "break_minutes": 0,
+        "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"PRESENT\",\"grace_period_minutes\":15}",
+        "offline_id": null,
+        "sync_status": "SYNCED",
+        "created_at": "2026-09-23T10:51:41.87587+00:00",
+        "updated_at": "2026-09-23T10:51:41.87587+00:00",
+        "shift_id": "13000000-0000-0000-0000-000000000001",
+        "shift": {
+          "id": "13000000-0000-0000-0000-000000000001",
+          "tenant_id": "10000000-0000-0000-0000-000000000001",
+          "name": "Standard Core Tech",
+          "start_time": "09:30:00",
+          "end_time": "18:30:00",
+          "break_minutes": 60,
+          "is_default": true,
+          "created_at": "2026-09-02T16:26:48.820778+00:00"
+        },
+        "overtime_minutes": 0,
+        "missing_out": false
+      },
+      "pass": true
+    },
+    "ATT_002": {
+      "status": 200,
+      "record": {
+        "id": "7e6efdff-b6ca-4ff9-adaa-e1f0d3d8409d",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "date": "2026-10-25",
+        "clock_in_at": "2026-10-25T04:00:00+00:00",
+        "clock_out_at": "2026-10-25T12:00:00+00:00",
+        "status": "PRESENT",
+        "method": "SELFIE_GPS",
+        "clock_in_selfie_url": null,
+        "clock_out_selfie_url": null,
+        "clock_in_lat": 12.9716,
+        "clock_in_lng": 77.5946,
+        "clock_out_lat": 12.9716,
+        "clock_out_lng": 77.5946,
+        "geofence_id": "14000000-0000-0000-0000-000000000001",
+        "geofence_valid": true,
+        "work_minutes": 480,
+        "break_minutes": 0,
+        "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"PRESENT\",\"grace_period_minutes\":15,\"overtime_minutes\":0}",
+        "offline_id": null,
+        "sync_status": "SYNCED",
+        "created_at": "2026-09-23T10:51:41.87587+00:00",
+        "updated_at": "2026-09-23T10:51:43.486148+00:00",
+        "shift_id": "13000000-0000-0000-0000-000000000001",
+        "shift": {
+          "id": "13000000-0000-0000-0000-000000000001",
+          "tenant_id": "10000000-0000-0000-0000-000000000001",
+          "name": "Standard Core Tech",
+          "start_time": "09:30:00",
+          "end_time": "18:30:00",
+          "break_minutes": 60,
+          "is_default": true,
+          "created_at": "2026-09-02T16:26:48.820778+00:00"
+        },
+        "overtime_minutes": 0,
+        "missing_out": false
+      },
+      "pass": true
+    },
+    "LOC_001": {
+      "status": 200,
+      "valid": true,
+      "pass": true
+    },
+    "LOC_002": {
+      "status": 403,
+      "error": "OUTSIDE_GEOFENCE: Employee location is outside authorized geofence perimeter",
+      "pass": true
+    },
+    "LOC_005": {
+      "insideStatus": 200,
+      "outsideStatus": 403,
+      "pass": true
+    },
+    "LOC_009": {
+      "site1Status": 200,
+      "site2Status": 200,
+      "pass": true
+    },
+    "LOC_012": {
+      "status": 400,
+      "pass": true
+    }
+  }
+}

@@ -6,15 +6,12 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { ApplicationService } from '@/lib/hiring/application-service'
-import { mockHiringStore } from '@/lib/hiring/mock-store'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const filters = {
@@ -27,10 +24,35 @@ export async function GET(request: Request) {
       role: caller.role,
     }
 
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listApplications(caller.tenantId, filters)
+      return NextResponse.json({
+        applications: mockResult.applications,
+        data: mockResult.applications,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
+      })
+    }
+
     try {
       const serviceClient = getSupabaseServiceClient()
       const result = await ApplicationService.list(serviceClient, caller.tenantId, filters)
       const list = result.data || []
+      if (list.length === 0) {
+        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+        const mockResult = mockHiringStore.listApplications(caller.tenantId, filters)
+        if (mockResult.applications && mockResult.applications.length > 0) {
+          return NextResponse.json({
+            applications: mockResult.applications,
+            data: mockResult.applications,
+            total: mockResult.total,
+            page: mockResult.page,
+            limit: mockResult.limit,
+          })
+        }
+      }
       return NextResponse.json({
         applications: list,
         data: list,
@@ -38,17 +60,19 @@ export async function GET(request: Request) {
         page: result.page ?? 1,
         limit: result.limit ?? 20,
       })
-    } catch {
-      const result = mockHiringStore.listApplications(caller.tenantId, filters)
+    } catch (listErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listApplications(caller.tenantId, filters)
       return NextResponse.json({
-        applications: result.applications,
-        data: result.applications,
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
+        applications: mockResult.applications,
+        data: mockResult.applications,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
       })
     }
   } catch (err: any) {
+    console.error('[API /api/hiring/applications] Error listing applications:', err.message || err)
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
   }
@@ -56,9 +80,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.requisition_id || !body.candidate_id) {
@@ -71,20 +93,19 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
 
-    try {
-      const serviceClient = getSupabaseServiceClient()
-      const application = await ApplicationService.create(
-        serviceClient,
-        caller.tenantId,
-        caller.userId,
-        body,
-        { ip, userAgent }
-      )
-
-      return NextResponse.json({ success: true, data: application }, { status: 201 })
-    } catch {
+    if (isDevMockSupabase()) {
       return NextResponse.json({ success: true, message: 'Application submitted successfully' }, { status: 201 })
     }
+
+    const serviceClient = getSupabaseServiceClient()
+    const application = await ApplicationService.create(
+      serviceClient,
+      caller.tenantId,
+      caller.userId,
+      body,
+      { ip, userAgent }
+    )
+    return NextResponse.json({ success: true, data: application }, { status: 201 })
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status })

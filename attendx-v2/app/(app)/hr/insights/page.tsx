@@ -438,6 +438,19 @@ export default function HRInsightsPage() {
   const dist = attritionData?.distribution || []
   const scores = attritionData?.scores || []
 
+  const [activePredTab, setActivePredTab] = useState<'all' | 'promotion' | 'top' | 'skills' | 'leadership'>('all')
+
+  const { data: predictiveData, isLoading: predLoading } = useQuery({
+    queryKey: ['hr-predictive-analytics', effectiveTenantId],
+    queryFn: async () => {
+      const url = `/api/predictive/analytics${effectiveTenantId ? `?tenant_id=${effectiveTenantId}` : ''}`
+      const res = await fetch(url)
+      if (!res.ok) return null
+      return res.json()
+    },
+    enabled: !!effectiveTenantId,
+  })
+
   return (
     <div className="w-full max-w-full" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       {/* Header */}
@@ -696,6 +709,174 @@ export default function HRInsightsPage() {
               })}
             </div>
           </>
+        )}
+      </div>
+
+      {/* Predictive Analytics Suite (5 MVP Capabilities: PA_TC_001 - PA_TC_018) */}
+      <div className="neu-card" id="predictive-analytics-suite" style={{ marginBottom: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ fontSize: 'var(--text-lg)', margin: 0 }}>Predictive Analytics Suite</h2>
+              <span className="badge badge-accent" id="badge-all-5-capabilities">
+                All 5 MVP Capabilities Active
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: 4, marginBottom: 0 }}>
+              AI forecasting across Promotion Readiness, Top Performers, Skill Gaps, Attrition Risk, and Leadership Potential
+            </p>
+          </div>
+
+          {/* Capability Filters */}
+          <div style={{ display: 'flex', gap: 6, background: 'var(--neu-bg-deep)', padding: 4, borderRadius: 20, flexWrap: 'wrap' }}>
+            {[
+              { id: 'all', label: 'All 5 Models' },
+              { id: 'promotion', label: 'Promotion Readiness' },
+              { id: 'top', label: 'Top Performers' },
+              { id: 'skills', label: 'Skill Gaps' },
+              { id: 'leadership', label: 'Leadership Potential' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActivePredTab(tab.id as any)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  border: 'none',
+                  background: activePredTab === tab.id ? 'var(--accent)' : 'transparent',
+                  color: activePredTab === tab.id ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {predLoading ? (
+          <div className="skeleton" style={{ height: 160, borderRadius: 12 }} />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
+            {/* 1. Promotion Readiness (PA_TC_001) */}
+            {(activePredTab === 'all' || activePredTab === 'promotion') && (
+              <div className="neu-card" id="model-card-promotion-readiness" style={{ background: 'var(--neu-bg-deep)', padding: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    Promotion Readiness (PA_TC_001)
+                  </span>
+                  <span className="badge badge-accent">
+                    {predictiveData?.promotion_readiness?.length || 0} Evaluated
+                  </span>
+                </div>
+                {(predictiveData?.promotion_readiness || []).slice(0, 3).map((item: any) => (
+                  <div key={item.employee_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{item.employee_name}</span>
+                      <span className={`badge ${item.readiness_level === 'HIGH_READINESS' ? 'badge-success' : 'badge-warning'}`}>
+                        {item.readiness_score !== null ? `${item.readiness_score}%` : 'INSUFFICIENT DATA'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0' }}>
+                      {item.rationale}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      {(item.signals || []).map((sig: any, idx: number) => (
+                        <span key={idx} style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: 'var(--accent)' }}>
+                          {sig.metric}: {sig.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 2. Top Performers (PA_TC_003, PA_TC_017) */}
+            {(activePredTab === 'all' || activePredTab === 'top') && (
+              <div className="neu-card" id="model-card-top-performers" style={{ background: 'var(--neu-bg-deep)', padding: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#F59E0B' }}>
+                    Top Performers (PA_TC_003)
+                  </span>
+                  <span className="badge badge-warning">
+                    {predictiveData?.top_performers?.filter((t: any) => t.is_top_performer).length || 0} Ranked
+                  </span>
+                </div>
+                {(predictiveData?.top_performers || []).slice(0, 3).map((item: any) => (
+                  <div key={item.employee_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{item.employee_name}</span>
+                      <span className={`badge ${item.is_top_performer ? 'badge-success' : 'badge-neutral'}`}>
+                        {item.composite_score !== null ? `${item.composite_score} pts` : 'EXCLUDED'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0' }}>
+                      {item.rationale}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 3. Skill Gaps (PA_TC_004, PA_TC_005) */}
+            {(activePredTab === 'all' || activePredTab === 'skills') && (
+              <div className="neu-card" id="model-card-skill-gaps" style={{ background: 'var(--neu-bg-deep)', padding: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#10B981' }}>
+                    Skill Gaps (PA_TC_004)
+                  </span>
+                  <span className="badge badge-success">
+                    {predictiveData?.skill_gaps?.length || 0} Profiles Analyzed
+                  </span>
+                </div>
+                {(predictiveData?.skill_gaps || []).slice(0, 3).map((item: any) => (
+                  <div key={item.employee_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{item.employee_name} ({item.designation})</span>
+                      <span className={`badge ${item.severity === 'HIGH' ? 'badge-danger' : item.severity === 'MEDIUM' ? 'badge-warning' : 'badge-neutral'}`}>
+                        {item.gap_count !== undefined ? `${item.gap_count} Gaps` : 'UNMAPPED'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0' }}>
+                      {item.rationale}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 4. Leadership Potential (PA_TC_008, PA_TC_009) */}
+            {(activePredTab === 'all' || activePredTab === 'leadership') && (
+              <div className="neu-card" id="model-card-leadership-potential" style={{ background: 'var(--neu-bg-deep)', padding: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#8B5CF6' }}>
+                    Leadership Potential (PA_TC_008)
+                  </span>
+                  <span className="badge badge-accent">
+                    {predictiveData?.leadership_potential?.length || 0} Evaluated
+                  </span>
+                </div>
+                {(predictiveData?.leadership_potential || []).slice(0, 3).map((item: any) => (
+                  <div key={item.employee_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{item.employee_name}</span>
+                      <span className="badge badge-accent">
+                        {item.leadership_score !== null ? `${item.leadership_score} pts` : 'UNASSESSED'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0' }}>
+                      {item.rationale}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

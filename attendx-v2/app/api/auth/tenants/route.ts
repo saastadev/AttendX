@@ -5,7 +5,7 @@
 // ============================================================
 
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseServerClient, getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServerClient, getSupabaseServiceClient, allowDemoAuthentication } from '@/lib/supabase/server'
 import type { AvailableTenant, GetAvailableTenantsResponse } from '@/types/database'
 
 export async function GET(req: NextRequest) {
@@ -26,16 +26,45 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (allowDemoAuthentication()) {
+      let demoCookie: string | undefined
+      const cookieHeader = req.headers.get('cookie') || ''
+      const match = cookieHeader.match(/attendx-demo-session=([^;]+)/)
+      if (match) demoCookie = match[1]
+      if (demoCookie) {
+        try {
+          const cleanCookie = decodeURIComponent(demoCookie.trim().replace(/^"|"$/g, ''))
+          const payload = JSON.parse(Buffer.from(cleanCookie, 'base64').toString('utf-8'))
+          if (payload?.id && payload?.role && payload?.tenant_id) {
+            user = {
+              id: payload.id,
+              email: payload.email || `${payload.role.toLowerCase()}@acme-tech.com`,
+              app_metadata: { role: payload.role, tenant_id: payload.tenant_id },
+              user_metadata: { full_name: payload.full_name || 'Demo User' },
+            } as any
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let queryUserId = user.id
+    if (user.email) {
+      const { data: p } = await serviceClient.from('profiles').select('id').eq('email', user.email).maybeSingle()
+      if (p?.id) queryUserId = p.id
     }
 
     const currentTenantClaim = (user.app_metadata as Record<string, unknown> | undefined)?.tenant_id as string | undefined
 
     // 1. Fetch user's roles, profiles, and all system tenants
     const [roleRows, profileRows, allTenants] = await Promise.all([
-      serviceClient.from('user_roles').select('tenant_id, role, tenants:tenant_id(id, name, slug)').eq('user_id', user.id),
-      serviceClient.from('profiles').select('tenant_id, is_active').eq('id', user.id),
+      serviceClient.from('user_roles').select('tenant_id, role, tenants:tenant_id(id, name, slug)').eq('user_id', queryUserId),
+      serviceClient.from('profiles').select('tenant_id, is_active').eq('id', queryUserId),
       serviceClient.from('tenants').select('id, name, slug, accent_color')
     ])
 
@@ -83,25 +112,28 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(response)
   } catch (err: any) {
-    const demoTenants: AvailableTenant[] = [
-      {
-        tenant_id: '11111111-0000-0000-0000-000000000001',
-        tenant_name: 'Acme Corporation',
-        tenant_slug: 'acme',
-        role: 'HR',
-        is_current: true,
-      },
-      {
-        tenant_id: '22222222-0000-0000-0000-000000000002',
-        tenant_name: 'Stark Industries',
-        tenant_slug: 'stark',
-        role: 'HR',
-        is_current: false,
-      },
-    ]
-    return NextResponse.json({
-      tenants: demoTenants,
-      requires_selection: false,
-    })
+    if (allowDemoAuthentication()) {
+      const demoTenants: AvailableTenant[] = [
+        {
+          tenant_id: '11111111-0000-0000-0000-000000000001',
+          tenant_name: 'Acme Corporation',
+          tenant_slug: 'acme',
+          role: 'HR',
+          is_current: true,
+        },
+        {
+          tenant_id: '22222222-0000-0000-0000-000000000002',
+          tenant_name: 'Stark Industries',
+          tenant_slug: 'stark',
+          role: 'HR',
+          is_current: false,
+        },
+      ]
+      return NextResponse.json({
+        tenants: demoTenants,
+        requires_selection: false,
+      })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

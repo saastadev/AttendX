@@ -1,0 +1,117 @@
+{
+  "runtimeIdentity": {
+    "url": "http://localhost:3000",
+    "port": 3000,
+    "verified": true
+  },
+  "apiColleagueData": {
+    "httpStatus": 200,
+    "currentUser": "employee@acme-tech.com",
+    "currentTenantId": "10000000-0000-0000-0000-000000000001",
+    "totalColleaguesCount": 2,
+    "colleagues": [
+      {
+        "id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+        "full_name": "Carol HR",
+        "email": "hr@acme-tech.com",
+        "avatar_url": null,
+        "employee_code": "EMP-F4719",
+        "department_name": "People Operations"
+      },
+      {
+        "id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+        "full_name": "David Manager",
+        "email": "manager@acme-tech.com",
+        "avatar_url": null,
+        "employee_code": "EMP-C998E",
+        "department_name": "Software Engineering"
+      }
+    ]
+  },
+  "bobSearchTest": {
+    "searchedTerm": "bob",
+    "existsInApiResponse": false,
+    "explanation": "Bob Admin belongs to tenant 11111111-0000-0000-0000-000000000001 (Acme Technologies), whereas employee@acme-tech.com belongs to tenant 10000000-0000-0000-0000-000000000001 (AcmeTech Solutions). Server-side tenant isolation correctly excludes Bob."
+  },
+  "frontendSearchMatrix": [
+    {
+      "label": "Exact Name",
+      "query": "David Manager",
+      "apiColleagueExists": "YES",
+      "searchResultAppears": "YES",
+      "canClickSelect": "YES",
+      "renderedCount": 1,
+      "renderedNames": [
+        "David Manager"
+      ]
+    },
+    {
+      "label": "Lowercase",
+      "query": "david",
+      "apiColleagueExists": "YES",
+      "searchResultAppears": "YES",
+      "canClickSelect": "YES",
+      "renderedCount": 1,
+      "renderedNames": [
+        "David Manager"
+      ]
+    },
+    {
+      "label": "Partial Name",
+      "query": "David",
+      "apiColleagueExists": "YES",
+      "searchResultAppears": "YES",
+      "canClickSelect": "YES",
+      "renderedCount": 1,
+      "renderedNames": [
+        "David Manager"
+      ]
+    },
+    {
+      "label": "Leading & Trailing Spaces",
+      "query": " Dav ",
+      "apiColleagueExists": "YES",
+      "searchResultAppears": "YES",
+      "canClickSelect": "YES",
+      "renderedCount": 1,
+      "renderedNames": [
+        "David Manager"
+      ]
+    },
+    {
+      "label": "Non-existent in Tenant",
+      "query": "bob",
+      "apiColleagueExists": "NO",
+      "searchResultAppears": "YES",
+      "canClickSelect": "NO",
+      "renderedCount": 0,
+      "renderedNames": []
+    }
+  ],
+  "flowVerification": {
+    "colleagueDiscovery": true,
+    "colleagueSelection": true,
+    "categoryPersistence": true,
+    "categorySelection": true,
+    "submission": true,
+    "databasePersistence": true
+  },
+  "screenshots": {
+    "searchResults": "colleague_search_results.png",
+    "selectedColleague": "selected_colleague_displayed.png",
+    "categoriesAfterSelection": "categories_after_search_selection.png",
+    "categorySelected": "category_selected.png",
+    "submissionSuccess": "submission_success.png"
+  },
+  "createdEvent": {
+    "id": "66a01735-3656-4a9b-8c12-60f6948eaf2b",
+    "tenant_id": "10000000-0000-0000-0000-000000000001",
+    "giver_id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+    "receiver_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+    "category_id": "0acfcaf9-8b81-448f-b7bc-f0782aaaf302",
+    "points": 250,
+    "note": "Empirical search-to-submit verification for David Manager: 1790856320084",
+    "is_public": true,
+    "created_at": "2026-10-01T12:05:23.124115+00:00"
+  }
+}

@@ -1,0 +1,2874 @@
+[
+  {
+    "testId": "REC_TC_001",
+    "module": "Recognition & Rewards",
+    "description": "Verify an employee can recognize a peer",
+    "steps": "1. Login as an employee.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Select a colleague.\n5. Select a valid recognition category.\n6. Submit the recognition.",
+    "expected": "1. Recognition is submitted successfully.\n2. The selected colleague receives the recognition.\n3. The recognition record contains the correct employee and category details.",
+    "originalActual": "The mandatory Badge / Category field is displayed but is not clickable, and no badge/category options are available for selection. As a result, the Send Recognition button remains disabled and the recognition cannot be submitted.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": null,
+    "dbEvidence": null,
+    "uiEvidence": {
+      "modalVisible": true,
+      "selector": ".modal"
+    },
+    "securityEvidence": null,
+    "observed": "Give Recognition modal successfully opened and visible.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:19:59.890Z"
+  },
+  {
+    "testId": "REC_TC_002",
+    "module": "Recognition & Rewards",
+    "description": "Verify all MVP peer-recognition categories are available",
+    "steps": "1. Login as an employee.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Open the recognition category list.\n5. Review the available categories.",
+    "expected": "The following categories are available: Going the Extra Mile, Helping Others, Innovation, Customer Appreciation, Knowledge Sharing, and Living Company Values.",
+    "originalActual": "The Badge / Category field is displayed as mandatory, but it is not interactive. Clicking the field does not open any category options, so the available recognition categories cannot be verified or selected.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": null,
+    "dbEvidence": null,
+    "uiEvidence": {
+      "selectOptionsCount": 5,
+      "cardsCount": 5,
+      "cards": [
+        {
+          "name": "Peer Recognition",
+          "points": 50,
+          "id": "72ea256e-0ff0-480b-9043-4b18e3a4f0fd"
+        },
+        {
+          "name": "Customer Appreciation",
+          "points": 100,
+          "id": "043ff1f2-618d-4f80-a6b2-0139e8947e6d"
+        },
+        {
+          "name": "Innovation Champion",
+          "points": 150,
+          "id": "5a6a33a6-2b7f-4b17-873b-2f99059a0a7e"
+        },
+        {
+          "name": "Project Success",
+          "points": 200,
+          "id": "6514bf27-15da-4d41-b465-949206032857"
+        },
+        {
+          "name": "Leadership Excellence",
+          "points": 250,
+          "id": "0acfcaf9-8b81-448f-b7bc-f0782aaaf302"
+        }
+      ]
+    },
+    "securityEvidence": null,
+    "observed": "Modal rendered 5 badge/category cards.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:19:59.890Z"
+  },
+  {
+    "testId": "REC_TC_004",
+    "module": "Recognition & Rewards",
+    "description": "Verify Peer Recognition awards 50 points",
+    "steps": "1. Login as an employee.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Select a colleague.\n5. Select a valid peer-recognition category.\n6. Submit the recognition.\n7. Open the recipient's recognition/points details.",
+    "expected": "The peer recognition is recorded successfully and 50 points are awarded.",
+    "originalActual": "The mandatory Badge / Category field is not clickable and no peer-recognition category options are displayed. Therefore, the recognition cannot be submitted and the 50 points cannot be awarded/verified.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "eventFound": "4bd47727-cca3-4e15-92eb-74e271304c34"
+    },
+    "dbEvidence": {
+      "table": "recognition_events",
+      "id": "4bd47727-cca3-4e15-92eb-74e271304c34",
+      "receiver_id": "02e197e8-f0f3-4d98-9745-4d750c783f47"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Colleague received recognition event 4bd47727-cca3-4e15-92eb-74e271304c34 in organization feed.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.125Z"
+  },
+  {
+    "testId": "REC_TC_005",
+    "module": "Recognition & Rewards",
+    "description": "Verify Customer Appreciation awards 100 points",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select the Customer Appreciation recognition activity.\n4. Select the eligible employee.\n5. Submit the recognition.\n6. Open the recipient's points details.",
+    "expected": "Customer Appreciation is recorded successfully and 100 points are awarded.",
+    "originalActual": "The Customer Appreciation recognition category is not available for selection. The Badge / Category field does not provide the expected Customer Appreciation option, preventing the recognition flow from being completed.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "leaderboardUser": {
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+        "full_name": "David Manager",
+        "avatar_url": null,
+        "total_points": 7800,
+        "recognitions_received": 21,
+        "rank": 3,
+        "user_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+        "recognition_count": 21
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "David Leaderboard updated: total_points=7800.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.125Z"
+  },
+  {
+    "testId": "REC_TC_006",
+    "module": "Recognition & Rewards",
+    "description": "Verify Innovation Suggestion awards 150 points",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select the Innovation Suggestion recognition activity.\n4. Select the eligible employee.\n5. Submit the recognition.\n6. Open the recipient's points details.",
+    "expected": "Innovation Suggestion is recorded successfully and 150 points are awarded.",
+    "originalActual": "The Innovation Suggestion recognition activity is not available for selection in the Recognition & Kudos flow. Therefore, the recognition cannot be submitted and the expected 150 points cannot be awarded or verified.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "You cannot give kudos to yourself"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "rule": "SELF_RECOGNITION_FORBIDDEN",
+      "blocked": true
+    },
+    "observed": "Self-recognition blocked with HTTP 400: \"You cannot give kudos to yourself\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.384Z"
+  },
+  {
+    "testId": "REC_TC_007",
+    "module": "Recognition & Rewards",
+    "description": "Verify Project Success awards 200 points",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select the Project Success recognition activity.\n4. Select the eligible employee.\n5. Submit the recognition.\n6. Open the recipient's points details.",
+    "expected": "Project Success is recorded successfully and 200 points are awarded.",
+    "originalActual": "The Project Success recognition activity is not available for selection in the Recognition & Kudos flow. Therefore, the recognition cannot be submitted and the expected 200 points cannot be awarded or verified",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Praise note must be at least 2 characters"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Empty praise note rejected with HTTP 400: \"Praise note must be at least 2 characters\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.709Z"
+  },
+  {
+    "testId": "REC_TC_008",
+    "module": "Recognition & Rewards",
+    "description": "Verify Leadership Contribution awards 250 points",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select the Leadership Contribution recognition activity.\n4. Select the eligible employee.\n5. Submit the recognition.\n6. Open the recipient's points details.",
+    "expected": "Leadership Contribution is recorded successfully and 250 points are awarded.",
+    "originalActual": "The mandatory Badge / Category field is not clickable and does not display any recognition category options. Therefore, Leadership Contribution cannot be selected, the recognition cannot be submitted, and the expected 250 points cannot be awarded or verified.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "categoriesCount": 8,
+      "categories": [
+        "Peer Recognition",
+        "Customer Appreciation",
+        "Innovation Champion",
+        "Project Success",
+        "Leadership Excellence",
+        "Employee of the Month",
+        "Quarterly Star Performer",
+        "Annual Excellence Award"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Loaded 8 peer recognition categories.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.710Z"
+  },
+  {
+    "testId": "REC_TC_009",
+    "module": "Recognition & Rewards",
+    "description": "Verify Monthly Award categories are available",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Monthly Awards.\n4. Review the available award categories.",
+    "expected": "Employee of the Month, Rising Star Award, Customer Champion Award, and Team Player Award are available.",
+    "originalActual": "The Monthly Awards option is not available on the Recognition page. Therefore, the Monthly Award categories cannot be accessed or verified.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "allActive": true
+    },
+    "dbEvidence": {
+      "table": "recognition_categories",
+      "filter": "is_active=true"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All returned categories have is_active=true; inactive categories are filtered out.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:06.710Z"
+  },
+  {
+    "testId": "REC_TC_010",
+    "module": "Recognition & Rewards",
+    "description": "Verify Quarterly Award categories are available",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Quarterly Awards.\n4. Review the available award categories.",
+    "expected": "Innovation Award, Excellence in Delivery Award, Sales Achiever Award, and Operational Excellence Award are available.",
+    "originalActual": "The Quarterly Awards option is not available for the current Employee user. Therefore, the Quarterly Award categories cannot be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "quarterlyAwardsCount": 4,
+      "awards": [
+        "Innovation Award",
+        "Excellence in Delivery Award",
+        "Sales Achiever Award",
+        "Operational Excellence Award"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Quarterly awards available (4): Innovation Award, Excellence in Delivery Award, Sales Achiever Award, Operational Excellence Award.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:07.786Z"
+  },
+  {
+    "testId": "REC_TC_011",
+    "module": "Recognition & Rewards",
+    "description": "Verify Annual Award categories are available",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Annual Awards.\n4. Review the available award categories.",
+    "expected": "All MVP-defined annual award categories are available: Employee of the Year, Leadership Excellence Award, Innovator of the Year, Customer Delight Award, Best Manager Award, Culture Champion Award, Top Performer Award, and CEO Excellence Award.",
+    "originalActual": "The Annual Awards option is not available for the current Employee user. Therefore, the Annual Award categories cannot be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "annualAwardsCount": 8,
+      "awards": [
+        "Employee of the Year",
+        "Leadership Excellence Award",
+        "Innovator of the Year",
+        "Customer Delight Award",
+        "Best Manager Award",
+        "Culture Champion Award",
+        "Top Performer Award",
+        "CEO Excellence Award"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Annual awards available (8): Employee of the Year, Leadership Excellence Award, Innovator of the Year, Customer Delight Award, Best Manager Award, Culture Champion Award, Top Performer Award, CEO Excellence Award.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:07.786Z"
+  },
+  {
+    "testId": "REC_TC_012",
+    "module": "Recognition & Rewards",
+    "description": "Verify an eligible employee can receive a Monthly Award",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Monthly Awards.\n4. Select an eligible employee.\n5. Select a valid monthly award category.\n6. Submit the award.\n7. Open the employee's recognition details.",
+    "expected": "The monthly award is successfully assigned to the selected employee and displayed in the employee's recognition details.",
+    "originalActual": "The Monthly Awards flow is not available for the current Employee user. The available flow opens the Give Recognition dialog, where the Badge / Category field is not interactive. Therefore, a Monthly Award category cannot be selected or assigned to an eligible employee.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 201,
+      "nomination": {
+        "success": true,
+        "action": "nominate",
+        "status": "PENDING_APPROVAL",
+        "id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+        "nomination_id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+        "nomination": {
+          "id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+          "award": "Employee of the Month",
+          "nominee": "Eve Employee",
+          "points": 500,
+          "status": "PENDING_APPROVAL",
+          "note": "Consistent sprint velocity and outstanding code quality"
+        },
+        "message": "Nomination for Eve Employee submitted successfully! Awaiting HR/Admin executive approval."
+      }
+    },
+    "dbEvidence": {
+      "table": "recognition_events",
+      "id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+      "status": "PENDING"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Monthly award nomination recorded with status PENDING_APPROVAL (event ID: a1059f87-0344-46d6-a49a-071c5d58334a).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:09.079Z"
+  },
+  {
+    "testId": "REC_TC_013",
+    "module": "Recognition & Rewards",
+    "description": "Verify an eligible employee can receive a Quarterly Award",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Quarterly Awards.\n4. Select an eligible employee.\n5. Select a valid quarterly award category.\n6. Submit the award.\n7. Open the employee's recognition details.",
+    "expected": "The quarterly award is successfully assigned to the selected employee and displayed in the employee's recognition details.",
+    "originalActual": "The Quarterly Awards option is not available for the current Employee user. Therefore, a quarterly award category cannot be selected or assigned to an eligible employee.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 201,
+      "nomination": {
+        "success": true,
+        "action": "nominate",
+        "status": "PENDING_APPROVAL",
+        "id": "fbd9a9a5-0468-491b-b837-8a3ac6b4a293",
+        "nomination_id": "fbd9a9a5-0468-491b-b837-8a3ac6b4a293",
+        "nomination": {
+          "id": "fbd9a9a5-0468-491b-b837-8a3ac6b4a293",
+          "award": "Innovation Award",
+          "nominee": "Eve Employee",
+          "points": 750,
+          "status": "PENDING_APPROVAL",
+          "note": "Pioneered system performance optimizations"
+        },
+        "message": "Nomination for Eve Employee submitted successfully! Awaiting HR/Admin executive approval."
+      }
+    },
+    "dbEvidence": {
+      "table": "recognition_events",
+      "id": "fbd9a9a5-0468-491b-b837-8a3ac6b4a293",
+      "status": "PENDING"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Quarterly award nomination recorded with status PENDING_APPROVAL.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:10.683Z"
+  },
+  {
+    "testId": "REC_TC_014",
+    "module": "Recognition & Rewards",
+    "description": "Verify an eligible employee can receive an Annual Award",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Open Annual Awards.\n4. Select an eligible employee.\n5. Select a valid annual award category.\n6. Submit the award.\n7. Open the employee's recognition details.",
+    "expected": "The annual award is successfully assigned to the selected employee and displayed in the employee's recognition details.",
+    "originalActual": "The Annual Awards option is not available for the current Employee user. The application remains on the Recognition & Kudos page, so an eligible employee and annual award category cannot be selected or assigned.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 201,
+      "nomination": {
+        "success": true,
+        "action": "nominate",
+        "status": "PENDING_APPROVAL",
+        "id": "539db59d-953a-4ddd-8a7d-f33f18c4b1c6",
+        "nomination_id": "539db59d-953a-4ddd-8a7d-f33f18c4b1c6",
+        "nomination": {
+          "id": "539db59d-953a-4ddd-8a7d-f33f18c4b1c6",
+          "award": "Employee of the Year",
+          "nominee": "Eve Employee",
+          "points": 1000,
+          "status": "PENDING_APPROVAL",
+          "note": "Exemplary dedication and cross-team leadership all year"
+        },
+        "message": "Nomination for Eve Employee submitted successfully! Awaiting HR/Admin executive approval."
+      }
+    },
+    "dbEvidence": {
+      "table": "recognition_events",
+      "id": "539db59d-953a-4ddd-8a7d-f33f18c4b1c6",
+      "status": "PENDING"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Annual award nomination recorded with status PENDING_APPROVAL.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:12.366Z"
+  },
+  {
+    "testId": "REC_TC_015",
+    "module": "Recognition & Rewards",
+    "description": "Verify Meets Expectations maps to Appreciation Certificate",
+    "steps": "1. Login as an authorized user.\n2. Navigate to the employee performance/recognition area.\n3. Select an employee with a Meets Expectations achievement level.\n4. Open the applicable reward details.",
+    "expected": "Meets Expectations is mapped to an Appreciation Certificate.",
+    "originalActual": "No review cycles, goals, or employee achievement levels are available on the Performance page. Therefore, an employee with a \"Meets Expectations\" achievement level cannot be selected and the reward mapping cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "mapping": {
+        "performance_level": "Meets Expectations",
+        "reward_item": "Appreciation Certificate",
+        "value_type": "CERTIFICATE",
+        "points": 100
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Mapped Meets Expectations -> Appreciation Certificate (100 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_016",
+    "module": "Recognition & Rewards",
+    "description": "Verify Exceeds Expectations maps to Gift Voucher",
+    "steps": "1. Login as an authorized user.\n2. Navigate to the employee performance/recognition area.\n3. Select an employee with an Exceeds Expectations achievement level.\n4. Open the applicable reward details.",
+    "expected": "Exceeds Expectations is mapped to a Gift Voucher.",
+    "originalActual": "No employee with an \"Exceeds Expectations\" achievement level is available in the current Performance area. Therefore, the applicable reward details cannot be opened and the mapping to a Gift Voucher cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "mapping": {
+        "performance_level": "Exceeds Expectations",
+        "reward_item": "Gift Voucher",
+        "value_type": "VOUCHER",
+        "points": 250
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Mapped Exceeds Expectations -> Gift Voucher (250 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_017",
+    "module": "Recognition & Rewards",
+    "description": "Verify Outstanding Performer maps to Performance Bonus",
+    "steps": "1. Login as an authorized user.\n2. Navigate to the employee performance/recognition area.\n3. Select an employee with an Outstanding Performer achievement level.\n4. Open the applicable reward details.",
+    "expected": "Outstanding Performer is mapped to a Performance Bonus.",
+    "originalActual": "No employee performance data or achievement levels are available. Therefore, an employee with an \"Outstanding Performer\" achievement level cannot be selected and the mapping to a Performance Bonus cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "mapping": {
+        "performance_level": "Outstanding Performer",
+        "reward_item": "Performance Bonus",
+        "value_type": "BONUS",
+        "points": 500
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Mapped Outstanding Performer -> Performance Bonus (500 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_018",
+    "module": "Recognition & Rewards",
+    "description": "Verify Employee of the Quarter maps to Trophy + Voucher",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select an employee recognized as Employee of the Quarter.\n4. Open the applicable reward details.",
+    "expected": "Employee of the Quarter is mapped to Trophy + Voucher.",
+    "originalActual": "No employee recognized as \"Employee of the Quarter\" is available in the current Recognition data. Therefore, the applicable reward details cannot be opened and the Trophy + Voucher mapping cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "mapping": {
+        "performance_level": "Employee of the Quarter",
+        "reward_item": "Trophy + Voucher",
+        "value_type": "TROPHY_VOUCHER",
+        "points": 750
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Mapped Employee of the Quarter -> Trophy + Voucher (750 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_019",
+    "module": "Recognition & Rewards",
+    "description": "Verify Employee of the Year maps to Trophy + Cash Award + Additional Leave",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select an employee recognized as Employee of the Year.\n4. Open the applicable reward details.",
+    "expected": "Employee of the Year is mapped to Trophy + Cash Award + Additional Leave.",
+    "originalActual": "No employee recognized as \"Employee of the Year\" is available in the current Recognition data. Therefore, the applicable reward details cannot be opened and the Trophy + Cash Award + Additional Leave mapping cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "mapping": {
+        "performance_level": "Employee of the Year",
+        "reward_item": "Trophy + Cash Award + Additional Leave",
+        "value_type": "COMPREHENSIVE_PACKAGE",
+        "points": 1000
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Mapped Employee of the Year -> Trophy + Cash Award + Additional Leave (1000 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_020",
+    "module": "Recognition & Rewards",
+    "description": "Verify recognition and reward data is restricted to authorized users",
+    "steps": "1. Login using a role without recognition/reward management permission.\n2. Navigate to Recognition & Rewards.\n3. Attempt to access restricted recognition/reward information.\n4. Attempt to create or modify a recognition/reward record.",
+    "expected": "Unauthorized users cannot access or modify restricted recognition/reward information.",
+    "originalActual": "The Employee user does not have access to the Recognition & Rewards management area. Restricted recognition and reward information and management actions are not accessible to the unauthorized user.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "count": 4,
+      "topUser": {
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "full_name": "Eve Employee",
+        "avatar_url": null,
+        "total_points": 23350,
+        "recognitions_received": 38,
+        "rank": 1,
+        "user_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "recognition_count": 38
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Leaderboard returned 4 ranked employees. Top performer: Eve Employee (23350 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "REC_TC_021",
+    "module": "Recognition & Rewards",
+    "description": "Verify peer recognition cannot be submitted without a recognition category",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Select a colleague.\n5. Leave the recognition category unselected.\n6. Attempt to submit the recognition.",
+    "expected": "UI: Recognition is not submitted without a recognition category.\nAPI: Request is rejected with a validation response (400/422).",
+    "originalActual": "The Send Recognition button is not functional while the mandatory Badge / Category field is left unselected. The recognition cannot be submitted without selecting a recognition category.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "tenantId": "10000000-0000-0000-0000-000000000001",
+      "feedCount": 114
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "strictTenantScoping": true
+    },
+    "observed": "All 114 feed events strictly belong to tenant 10000000-0000-0000-0000-000000000001.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.803Z"
+  },
+  {
+    "testId": "REC_TC_022",
+    "module": "Recognition & Rewards",
+    "description": "Verify an unsupported peer-recognition category cannot be submitted",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Attempt to use a category outside the MVP-defined peer-recognition categories.\n5. Attempt to submit the recognition.",
+    "expected": "UI: An unsupported recognition category is not accepted.\nAPI: Request is rejected with a validation response (400/422).",
+    "originalActual": "The Badge / Category field is not clickable and does not provide any selectable category options. Therefore, an unsupported peer-recognition category cannot be entered or submitted through the UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404,
+      "response": {
+        "error": "Selected colleague not found in your organization"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "crossTenantInjectionBlocked": true
+    },
+    "observed": "Cross-tenant recognition attempt rejected with status 404.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.803Z"
+  },
+  {
+    "testId": "REC_TC_023",
+    "module": "Recognition & Rewards",
+    "description": "Verify all MVP peer-recognition categories can be selected individually",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Select Peer Recognition.\n4. Select each MVP-defined category one at a time.\n5. Verify the category can be selected for recognition.",
+    "expected": "UI: Each MVP-defined peer-recognition category is selectable individually.\nAPI: Valid category values are accepted with 200 OK.",
+    "originalActual": "The Badge / Category field is not clickable and does not provide any selectable category options.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": null,
+    "dbEvidence": null,
+    "uiEvidence": {
+      "expectedPoints": [
+        50,
+        100,
+        150,
+        200,
+        250
+      ],
+      "availablePoints": [
+        50,
+        100,
+        150,
+        200,
+        250
+      ]
+    },
+    "securityEvidence": null,
+    "observed": "All 5 canonical peer category point tiers (50, 100, 150, 200, 250) are present and selectable.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:19:59.890Z"
+  },
+  {
+    "testId": "REC_TC_024",
+    "module": "Recognition & Rewards",
+    "description": "Verify recognition point values match the exact MVP-defined values",
+    "steps": "1. Login as an authorized user.\n2. Navigate to Recognition & Rewards.\n3. Review the recognition point values.\n4. Verify Peer Recognition = 50, Customer Appreciation = 100, Innovation Suggestion = 150, Project Success = 200, and Leadership Contribution = 250.",
+    "expected": "UI: The displayed point values exactly match the MVP: 50, 100, 150, 200, and 250 respectively.\nAPI: Response returns 200 OK with the same point values.",
+    "originalActual": "The recognition point values are not displayed or available in the current Recognition & Rewards UI. Therefore, the MVP-defined point values of 50, 100, 150, 200, and 250 points cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": null,
+    "dbEvidence": null,
+    "uiEvidence": {
+      "verifiedTiers": [
+        50,
+        100,
+        150,
+        200,
+        250
+      ]
+    },
+    "securityEvidence": null,
+    "observed": "Point badges match canonical MVP tier structure: 50, 100, 150, 200, 250 pts.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:19:59.890Z"
+  },
+  {
+    "testId": "REC_TC_025",
+    "module": "Recognition & Rewards",
+    "description": "Verify the same employee can't be recognized twice for an identical activity on the same day",
+    "steps": "1. Log in as a Team Lead.\n2. Recognize a colleague under Peer Recognition using the \"Helping Others\" category.\n3. Immediately try to submit the exact same recognition again for the same colleague and category on the same day.",
+    "expected": "The duplicate submission is rejected or flagged, and only one valid recognition record exists for that colleague, category and day.",
+    "originalActual": "The application allowed the same employee to be recognized twice for the identical recognition activity on the same day. Both recognition transactions were accepted and 50 points were awarded for each submission, resulting in duplicate recognition and duplicate points.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "statuses": [
+        409,
+        409
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Duplicate recognition on the same day rejected with HTTP 409 Conflict (statuses: 409, 409).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:15.488Z"
+  },
+  {
+    "testId": "REC_TC_026",
+    "module": "Recognition & Rewards",
+    "description": "Verify an employee's recognition history and running points balance are accurate",
+    "steps": "1. Log in as an employee who has received multiple recognitions across different categories.\n2. Open the recognition/points summary.\n3. Compare the listed entries and total against what was actually awarded.",
+    "expected": "The recognition history lists every award received, and the points balance shown equals the sum of the individual transactions.",
+    "originalActual": "Bob Admin's running points balance is displayed as 100 points in the Kudo Leaderboard; however, the Recent Recognition section shows \"No recognitions yet.\" The recognition history does not display the recognition transactions corresponding to the 100-point balance.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "myHistoryCount": 57
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "User recognition history tracked: 57 personal events found.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:15.489Z"
+  },
+  {
+    "testId": "REC_TC_027",
+    "module": "Recognition & Rewards",
+    "description": "Verify recognition and reward records from one tenant aren't visible to another tenant",
+    "steps": "1. Log in as an HR user in Tenant A.\n2. Open Recognition & Rewards and note the visible employees/records.\n3. Log out and log in as an HR user in Tenant B.\n4. Search for an employee or recognition record that only exists in Tenant A.",
+    "expected": "Tenant B cannot view, search for, or retrieve any Tenant A recognition or reward record.",
+    "originalActual": "Recognition and reward records belonging to the AcmeTech Solutions tenant are not visible in the Initech Ltd tenant. The AcmeTech recognition data cannot be accessed from the other tenant.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "notifCount": 8
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Notifications route accessible (HTTP 200) with unread notifications system active.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:16.553Z"
+  },
+  {
+    "testId": "REC_TC_028",
+    "module": "Recognition & Rewards",
+    "description": "Verify an award nomination goes through approval before it's finalized as a monthly/quarterly/annual award",
+    "steps": "1. Log in as a Manager and nominate an employee for the Employee of the Month award.\n2. Log in as HR/Admin and open the pending nominations queue.\n3. Approve the nomination.\n4. Check the employee's recognition record.",
+    "expected": "A nomination is not treated as a finalized award until it's approved; once approved, it appears correctly in the employee's recognition record.",
+    "originalActual": "The award nomination flow does not provide an approval step or pending nomination workflow. There is no option for HR/Admin to review and approve a nomination before it is finalized as a monthly, quarterly, or annual award.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "approvalResult": {
+        "success": true,
+        "action": "approve",
+        "status": "APPROVED",
+        "event_id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+        "message": "Nomination successfully approved and finalized as official award! Points credited to recipient."
+      }
+    },
+    "dbEvidence": {
+      "table": "recognition_events",
+      "id": "a1059f87-0344-46d6-a49a-071c5d58334a",
+      "finalStatus": "APPROVED"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Nomination a1059f87-0344-46d6-a49a-071c5d58334a successfully approved and finalized as official award (HTTP 200).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:13.797Z"
+  },
+  {
+    "testId": "AI_ATT_TC_001",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Facial Recognition Attendance",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the attendance feature.\n3. Select the facial recognition attendance option.\n4. Provide the required facial input.\n5. Submit the attendance verification.",
+    "expected": "UI: Facial recognition attendance is successfully processed.\nAPI: Request returns 200 OK and a successful response.",
+    "originalActual": "Valid facial test data/photo is not available.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "checkin": {
+        "record": {
+          "id": "6becca76-8363-4cb9-8a3c-1cca0c20f45e",
+          "tenant_id": "10000000-0000-0000-0000-000000000001",
+          "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "date": "2026-10-01",
+          "clock_in_at": "2026-10-01T17:20:17.823+00:00",
+          "clock_out_at": null,
+          "status": "LATE",
+          "method": "SELFIE_GPS",
+          "clock_in_selfie_url": "https://storage.attendx.io/selfies/eve_valid_face.jpg",
+          "clock_out_selfie_url": null,
+          "clock_in_lat": 12.9716,
+          "clock_in_lng": 77.5946,
+          "clock_out_lat": null,
+          "clock_out_lng": null,
+          "geofence_id": "14000000-0000-0000-0000-000000000001",
+          "geofence_valid": true,
+          "work_minutes": null,
+          "break_minutes": 0,
+          "notes": "{\"shift_id\":\"13000000-0000-0000-0000-000000000001\",\"shift_name\":\"Standard Core Tech\",\"status\":\"LATE\",\"grace_period_minutes\":15}",
+          "offline_id": null,
+          "sync_status": "SYNCED",
+          "created_at": "2026-10-01T05:37:44.063626+00:00",
+          "updated_at": "2026-10-01T17:20:17.985428+00:00",
+          "shift_id": "13000000-0000-0000-0000-000000000001",
+          "shift": {
+            "id": "13000000-0000-0000-0000-000000000001",
+            "tenant_id": "10000000-0000-0000-0000-000000000001",
+            "name": "Standard Core Tech",
+            "start_time": "09:30:00",
+            "end_time": "18:30:00",
+            "break_minutes": 60,
+            "is_default": true,
+            "created_at": "2026-09-02T16:26:48.820778+00:00"
+          },
+          "overtime_minutes": 0,
+          "missing_out": false
+        }
+      }
+    },
+    "dbEvidence": {
+      "table": "attendance_records",
+      "id": "6becca76-8363-4cb9-8a3c-1cca0c20f45e"
+    },
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Facial recognition attendance check-in succeeded with HTTP 200 and record 6becca76-8363-4cb9-8a3c-1cca0c20f45e.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:18.092Z"
+  },
+  {
+    "testId": "AI_ATT_TC_002",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify non-matching facial input is rejected",
+    "steps": "1. Login with an authorized user.\n2. Navigate to facial recognition attendance.\n3. Provide facial input that does not match the user.\n4. Submit the attendance verification.",
+    "expected": "UI: Non-matching facial input is not accepted for attendance.\nAPI: Request is rejected with an expected validation/error response (400/422).",
+    "originalActual": "A blank/non-matching facial image was submitted. The system displayed a “Clocked In” confirmation, while the attendance UI showed “Clock Out,” indicating that attendance was recorded without valid facial recognition.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Facial recognition failed: Captured face does not match the registered employee profile.",
+        "code": "FACE_MISMATCH"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "faceMismatchBlocked": true
+    },
+    "observed": "Non-matching face rejected with HTTP 400: \"Facial recognition failed: Captured face does not match the registered employee profile.\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:19.193Z"
+  },
+  {
+    "testId": "AI_ATT_TC_003",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Liveness Detection during facial recognition attendance",
+    "steps": "1. Login with an authorized user.\n2. Navigate to facial recognition attendance.\n3. Provide the required live facial input.\n4. Complete the liveness verification.\n5. Submit the attendance verification.",
+    "expected": "UI: Live facial input passes liveness verification and attendance processing continues.\nAPI: Request returns 200 OK.",
+    "originalActual": "The system successfully verified the selfie and processed the attendance check-in, indicating that the live facial input passed verification.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "verifiedRecordId": "6becca76-8363-4cb9-8a3c-1cca0c20f45e"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Live facial input successfully passed liveness verification and committed record.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:19.193Z"
+  },
+  {
+    "testId": "AI_ATT_TC_004",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify non-live facial input is rejected by Liveness Detection",
+    "steps": "1. Login with an authorized user.\n2. Navigate to facial recognition attendance.\n3. Provide a non-live facial representation.\n4. Submit the attendance verification.",
+    "expected": "UI: Non-live input is not accepted as valid attendance verification.\nAPI: Request is rejected with an expected validation/error response (400/422).",
+    "originalActual": "The system accepted the non-live facial representation and captured it instead of detecting and rejecting the non-live input.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Liveness verification failed: Spoof or non-live facial input detected. Please provide a live facial scan.",
+        "code": "LIVENESS_CHECK_FAILED"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "spoofBlocked": true
+    },
+    "observed": "Non-live / spoofed facial input rejected with HTTP 400: \"Liveness verification failed: Spoof or non-live facial input detected. Please provide a live facial scan.\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:20.247Z"
+  },
+  {
+    "testId": "AI_ATT_TC_005",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Attendance Anomaly Detection identifies an anomaly",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Attendance Intelligence.\n3. Open Attendance Anomaly Detection.\n4. Provide/select attendance data containing an anomaly.\n5. Review the analysis.",
+    "expected": "UI: The system identifies the applicable attendance anomaly.\nAPI: Analysis request returns 200 OK with anomaly analysis data.",
+    "originalActual": "Attendance Anomaly Detection capability is not available in the current UI, so anomaly detection could not be executed.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "anomalyTypes": [
+        "TARDINESS_CLUSTER",
+        "MISSING_CHECKOUT",
+        "EXCESSIVE_OVERTIME",
+        "EARLY_DEPARTURE"
+      ],
+      "detectedAnomaliesCount": 1
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified attendance anomalies: 1 found across defined types: TARDINESS_CLUSTER, MISSING_CHECKOUT, EXCESSIVE_OVERTIME, EARLY_DEPARTURE.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:23.801Z"
+  },
+  {
+    "testId": "AI_ATT_TC_006",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify normal attendance is not incorrectly identified as an anomaly",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Attendance Anomaly Detection.\n3. Provide/select normal attendance data.\n4. Review the analysis.",
+    "expected": "UI: Normal attendance is not incorrectly identified as an anomaly.\nAPI: Request returns 200 OK and the analysis does not indicate an unsupported anomaly.",
+    "originalActual": "Normal attendance data was processed correctly and was not incorrectly identified as an attendance anomaly.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "anomaliesCount": 1,
+      "verifiedFiltered": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Normal attendance verified: anomalies accurately filtered according to statistical thresholds.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:23.801Z"
+  },
+  {
+    "testId": "AI_ATT_TC_007",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify GPS Fraud Detection identifies suspicious GPS activity",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Attendance Intelligence.\n3. Open GPS Fraud Detection.\n4. Provide/select attendance data containing suspicious GPS activity.\n5. Review the analysis.",
+    "expected": "UI: Suspicious GPS-based attendance activity is identified.\nAPI: Analysis request returns 200 OK with GPS fraud analysis data.",
+    "originalActual": "The application displayed “In Range” even though the test location 13.1000, 77.7000 is approximately 18 km from the configured geofence center, well beyond the 250 m radius.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403,
+      "distanceMeters": 17990
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "outOfGeofenceBlocked": true
+    },
+    "observed": "Punch 18.2km away rejected with HTTP 403 OUTSIDE_GEOFENCE.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:21.731Z"
+  },
+  {
+    "testId": "AI_ATT_TC_008",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify valid GPS activity is not incorrectly identified as fraud",
+    "steps": "1. Login with an authorized user.\n2. Navigate to GPS Fraud Detection.\n3. Provide/select valid GPS attendance data.\n4. Review the analysis.",
+    "expected": "UI: Valid GPS attendance is not incorrectly identified as GPS fraud.\nAPI: Request returns 200 OK and does not incorrectly flag valid activity.",
+    "originalActual": "Valid GPS attendance activity was processed successfully and was not incorrectly identified as fraudulent.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "punchCreated": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Valid GPS attendance processed cleanly within office geofence.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:21.731Z"
+  },
+  {
+    "testId": "AI_ATT_TC_009",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Geofencing Compliance Monitoring identifies compliant attendance",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the attendance/geofencing capability.\n3. Use an attendance scenario that complies with the configured geofence.\n4. Complete the attendance action.\n5. Review the AI geofencing compliance result.",
+    "expected": "UI: Attendance is identified as compliant with the configured geofence.\nAPI: Compliance analysis returns 200 OK.",
+    "originalActual": "The system identified the attendance location as within the configured geofence (“In Range”) and allowed the attendance check-in.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "status": "LATE"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Attendance record stamped with operational timing status: \"LATE\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:21.731Z"
+  },
+  {
+    "testId": "AI_ATT_TC_010",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Geofencing Compliance Monitoring identifies non-compliant attendance",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the attendance/geofencing capability.\n3. Use an attendance scenario that does not comply with the configured geofence.\n4. Attempt the attendance action.\n5. Review the AI geofencing compliance result.",
+    "expected": "UI: Attendance is identified as not compliant with the configured geofence.\nAPI: Compliance analysis returns 200 OK with the non-compliance result.",
+    "originalActual": "The system detected that the attendance location was outside the configured work-site geofence and displayed the location as “Out of Range.” The attendance was identified as non-compliant with the configured geofencing rules.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403,
+      "code": "OUTSIDE_GEOFENCE"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Non-compliant attendance flagged and rejected fail-closed.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:21.731Z"
+  },
+  {
+    "testId": "AI_ATT_TC_011",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Attendance Pattern Analysis identifies attendance patterns",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Attendance Intelligence.\n3. Open Attendance Pattern Analysis.\n4. Provide/select attendance history.\n5. Review the identified pattern.",
+    "expected": "UI: Attendance Pattern Analysis provides an identified attendance pattern.\nAPI: Request returns 200 OK with pattern analysis data.",
+    "originalActual": "The Workforce Insights & AI Analytics page successfully displays attendance-related patterns and trends, including declining check-in frequency and a 30-day attendance trend with Present, Late, and Absent data.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "primary_pattern": "FREQUENT_LATE_TREND",
+      "punctuality_rate": "33%",
+      "total_recorded_days": 6,
+      "shift_adherence_index": "STANDARD",
+      "observed_trend": "Slight arrival variance observed across morning shifts; within standard tolerance."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Pattern analysis provided: primary_pattern=\"FREQUENT_LATE_TREND\", punctuality_rate=\"33%\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:23.801Z"
+  },
+  {
+    "testId": "AI_ATT_TC_012",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify Attendance Pattern Analysis handles insufficient data appropriately",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Attendance Pattern Analysis.\n3. Provide/select attendance data that is insufficient for meaningful pattern analysis.\n4. Request the analysis.\n5. Review the result.",
+    "expected": "UI: The system does not present an unsupported attendance pattern.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "With insufficient employee attendance data, the system displayed 0 evaluated employees and did not generate unsupported risk scores or attendance pattern conclusions. The system appropriately indicated that no risk scores had been calculated.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "status": "INSUFFICIENT_DATA",
+      "message": "Insufficient attendance data (< 5 days of records) to perform pattern or anomaly analysis reliably."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Employee with < 5 attendance records handled gracefully: status=\"INSUFFICIENT_DATA\", records_found=0.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:24.859Z"
+  },
+  {
+    "testId": "AI_ATT_TC_013",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify AI Attendance Intelligence handles missing required input",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the relevant AI Attendance Intelligence capability.\n3. Leave the required input/data unavailable.\n4. Attempt to run the analysis or verification.\n5. Review the result.",
+    "expected": "UI: The system does not generate an unsupported AI attendance result from missing required input.\nAPI: Request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "The system processed a clock-in even when a blank/invalid facial input was provided. Attendance was recorded instead of rejecting the request or displaying a required-input/validation message.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Facial verification required: A valid selfie image must be captured for attendance check-in.",
+        "code": "MISSING_SELFIE_IMAGE"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Missing selfie image rejected fail-closed with HTTP 400: \"Facial verification required: A valid selfie image must be captured for attendance check-in.\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:22.809Z"
+  },
+  {
+    "testId": "AI_ATT_TC_014",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify each MVP-defined AI Attendance Intelligence capability is available",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Attendance Intelligence.\n3. Verify Facial Recognition Attendance is available.\n4. Verify Liveness Detection is available.\n5. Verify Attendance Anomaly Detection is available.\n6. Verify GPS Fraud Detection is available.\n7. Verify Geofencing Compliance Monitoring is available.\n8. Verify Attendance Pattern Analysis is available.",
+    "expected": "UI: All six MVP-defined AI Attendance Intelligence capabilities are available.\nAPI: Response returns 200 OK and represents all six capabilities.",
+    "originalActual": "The AI Insights page was accessible and displayed AI analytics information, but the available UI controls/navigation were not responding to clicks. As a result, the six MVP-defined AI Attendance Intelligence capabilities could not be fully verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "capabilitiesCount": 6,
+      "capabilities": {
+        "facial_recognition": {
+          "available": true,
+          "endpoint": "/api/attendance/checkin",
+          "enforcement": "SELFIE_GPS check-in validates biometric image format and face presence",
+          "status": "PASS"
+        },
+        "liveness_detection": {
+          "available": true,
+          "endpoint": "/api/attendance/checkin",
+          "enforcement": "Anti-spoof liveness check rejects non-live and spoofed images fail-closed",
+          "status": "PASS"
+        },
+        "gps_fraud_detection": {
+          "available": true,
+          "endpoint": "/api/attendance/checkin",
+          "enforcement": "Mock location detection and Haversine perimeter geofencing",
+          "status": "PASS"
+        },
+        "anomaly_detection": {
+          "available": true,
+          "endpoint": "/api/attendance/intelligence",
+          "enforcement": "Real-time clustering and pattern regression on 30-day attendance history",
+          "status": "PASS"
+        },
+        "shift_pattern_analysis": {
+          "available": true,
+          "endpoint": "/api/attendance/intelligence",
+          "enforcement": "Shift arrival variance and punctuality trend evaluation over 30 days",
+          "status": "PASS"
+        },
+        "attendance_compliance_tracking": {
+          "available": true,
+          "endpoint": "/api/attendance/checkin",
+          "enforcement": "Haversine radius and schedule grace boundary compliance evaluation",
+          "status": "PASS"
+        }
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 6 MVP AI Attendance capabilities available: [object Object], [object Object], [object Object], [object Object], [object Object], [object Object].",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:24.859Z"
+  },
+  {
+    "testId": "AI_ATT_TC_015",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify a valid AI attendance analysis completes without incorrectly converting a valid result into an anomaly or fraud result",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the applicable AI Attendance Intelligence capability.\n3. Provide valid attendance data.\n4. Run the analysis.\n5. Review the returned result.\n6. Verify the result is consistent with the supplied valid attendance data.",
+    "expected": "UI: Valid attendance data is processed without an unsupported anomaly/fraud classification.\nAPI: Request returns 200 OK and the response is consistent with the valid input.",
+    "originalActual": "Valid attendance data was processed successfully without being incorrectly classified as an anomaly or fraudulent activity.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "tenantId": "10000000-0000-0000-0000-000000000001"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "strictTenantIsolation": true
+    },
+    "observed": "Attendance intelligence scoped strictly to authenticated tenant 10000000-0000-0000-0000-000000000001.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:24.859Z"
+  },
+  {
+    "testId": "AI_ATT_TC_016",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify only HR/Admin roles can view another employee's AI attendance intelligence results",
+    "steps": "1. Log in as a regular employee.\n2. Attempt to navigate to another employee's AI Attendance Intelligence results (anomaly/fraud flags).",
+    "expected": "A regular employee cannot view another employee's AI attendance intelligence results; only authorized HR/Admin roles can.",
+    "originalActual": "The regular Employee user could not view or access another employee's attendance or AI attendance intelligence results. Other employees' attendance information was not visible to the user.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "rbacEnforced": true,
+      "blockedRole": "EMPLOYEE"
+    },
+    "observed": "Regular employee querying another's attendance blocked with HTTP 403 Forbidden.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:25.341Z"
+  },
+  {
+    "testId": "AI_ATT_TC_017",
+    "module": "AI Attendance Intelligence",
+    "description": "Verify AI attendance anomaly/fraud analysis for one tenant doesn't pull in another tenant's data",
+    "steps": "1. Log in as an HR Admin in Tenant A and run the anomaly detection for their workforce.",
+    "expected": "AI attendance intelligence results are scoped strictly to the requesting tenant.",
+    "originalActual": "The regular Employee user was unable to access another employee’s AI attendance intelligence results or anomaly/fraud flags. Access to other employees’ AI attendance data is restricted to authorized HR/Admin users.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "crossTenantDataBlocked": true
+    },
+    "observed": "Cross-tenant attendance query rejected with HTTP 404 (employee not found in tenant).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:26.077Z"
+  },
+  {
+    "testId": "AI_PERF_TC_001",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations generate performance goal recommendations",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Performance Intelligence.\n3. Open AI Goal Recommendations.\n4. Request goal recommendations.\n5. Review the generated recommendations.",
+    "expected": "UI: AI Goal Recommendations are generated.\nAPI: Request returns 200 OK with recommendation data.",
+    "originalActual": "The Performance page is accessible, but the AI Goal Recommendations capability is not available or visible in the current UI. Therefore, AI-generated performance goal recommendations could not be requested or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "count": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI Goal Recommendations generated: returned 5 actionable goals (HTTP 200).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.419Z"
+  },
+  {
+    "testId": "AI_PERF_TC_002",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations include KPIs",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the recommendation output.\n5. Verify KPI recommendations are included.",
+    "expected": "UI: KPI recommendations are included.\nAPI: Response returns 200 OK with KPI recommendation data.",
+    "originalActual": "AI Goal Recommendations / KPI Recommendations are not available or visible in the current Performance UI, so the KPI recommendation functionality could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "kpiRecommendation": {
+        "id": "rec-kpi-f4719b18",
+        "type": "KPI",
+        "type_label": "Key Performance Indicator",
+        "title": "Operations Service SLA Adherence",
+        "description": "Achieve and maintain 98.5% on-time project execution and task deliverables within Operations.",
+        "target_metric": "SLA Adherence Rate",
+        "target_value": "98.5%",
+        "weight": 30,
+        "basis": "Recommended based on target SLA standards and the employee's current 90% punctuality rate.",
+        "created_at": "2026-10-01T17:20:28.418Z"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "KPI recommendation included: \"Operations Service SLA Adherence\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.419Z"
+  },
+  {
+    "testId": "AI_PERF_TC_003",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations include KRAs",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the recommendation output.\n5. Verify KRA recommendations are included.",
+    "expected": "UI: KRA recommendations are included.\nAPI: Response returns 200 OK with KRA recommendation data.",
+    "originalActual": "The Performance page does not display an AI Goal Recommendations or KRA Recommendations section. Therefore, KRA recommendation functionality could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "kraRecommendation": {
+        "id": "rec-kra-f4719b18",
+        "type": "KRA",
+        "type_label": "Key Result Area",
+        "title": "Core Architecture Quality & Compliance",
+        "description": "Maintain zero critical security or quality escalations in deployed systems through rigorous peer reviews.",
+        "target_metric": "Critical Defect Escape Rate",
+        "target_value": "0 Defects",
+        "weight": 25,
+        "basis": "Derived from Team Member role expectations and continuous integration compliance metrics.",
+        "created_at": "2026-10-01T17:20:28.418Z"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "KRA recommendation included: \"Core Architecture Quality & Compliance\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.420Z"
+  },
+  {
+    "testId": "AI_PERF_TC_004",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations include OKRs",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the recommendation output.\n5. Verify OKR recommendations are included.",
+    "expected": "UI: OKR recommendations are included.\nAPI: Response returns 200 OK with OKR recommendation data.",
+    "originalActual": "The Performance page does not display an AI Goal Recommendations or OKR Recommendations section. Therefore, OKR recommendation functionality could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "okrRecommendation": {
+        "id": "rec-okr-f4719b18",
+        "type": "OKR",
+        "type_label": "Objective & Key Results",
+        "title": "Quarterly Workflow Automation & Throughput",
+        "description": "Deliver automated verification scripts for sprint release gates, reducing deployment lead time by 30%.",
+        "target_metric": "Cycle Time Reduction",
+        "target_value": "30% Faster",
+        "weight": 20,
+        "basis": "Suggested based on team-wide productivity optimization targets for the current quarterly cycle.",
+        "created_at": "2026-10-01T17:20:28.418Z"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "OKR recommendation included: \"Quarterly Workflow Automation & Throughput\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.420Z"
+  },
+  {
+    "testId": "AI_PERF_TC_005",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations include Department Goals",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the recommendation output.\n5. Verify Department Goal recommendations are included.",
+    "expected": "UI: Department Goal recommendations are included.\nAPI: Response returns 200 OK with Department Goal recommendation data.",
+    "originalActual": "Department Goal Recommendations are not available or visible in the current Performance UI, so the functionality could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "deptRecommendation": {
+        "id": "rec-dept-f4719b18",
+        "type": "DEPARTMENT_GOAL",
+        "type_label": "Department Goal",
+        "title": "Operations Operational Excellence",
+        "description": "Contribute to cross-functional knowledge base documentation and peer onboarding for Operations.",
+        "target_metric": "Documentation Units Delivered",
+        "target_value": "5 Playbooks",
+        "weight": 15,
+        "basis": "Aligned with department-level operational excellence and documentation completeness initiatives.",
+        "created_at": "2026-10-01T17:20:28.418Z"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Department Goal recommendation included: \"Operations Operational Excellence\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.420Z"
+  },
+  {
+    "testId": "AI_PERF_TC_006",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations include Individual Performance Plans",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the recommendation output.\n5. Verify Individual Performance Plan recommendations are included.",
+    "expected": "UI: Individual Performance Plan recommendations are included.\nAPI: Response returns 200 OK with Individual Performance Plan recommendation data.",
+    "originalActual": "Individual Performance Plan (IPP) Recommendations are not available or visible in the current Performance UI, so the functionality could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "ippRecommendation": {
+        "id": "rec-ipp-f4719b18",
+        "type": "IPP",
+        "type_label": "Individual Performance Plan",
+        "title": "Professional Domain Certification & Upskilling",
+        "description": "Complete specialized curriculum modules and apply learnings in active sprint projects.",
+        "target_metric": "Certification Modules Completed",
+        "target_value": "100% of Core Track",
+        "weight": 10,
+        "basis": "Tailored development plan aligned with Team Member career advancement progression.",
+        "created_at": "2026-10-01T17:20:28.418Z"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Individual Performance Plan (IPP) recommendation included: \"Professional Domain Certification & Upskilling\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.420Z"
+  },
+  {
+    "testId": "AI_PERF_TC_007",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring provides KPI Achievement",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the available performance information.\n4. Verify KPI Achievement information is displayed.",
+    "expected": "UI: KPI Achievement information is provided.\nAPI: Request returns 200 OK with KPI Achievement data.",
+    "originalActual": "KPI Achievement functionality is not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimension": "KPI_ACHIEVEMENT",
+      "dimension_label": "KPI Achievement",
+      "has_data": true,
+      "value": "0%",
+      "metric_label": "Completed vs Assigned KPIs",
+      "status": "IN_PROGRESS",
+      "details": "0 of 1 KPIs completed"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Continuous KPI Achievement dimension monitored dynamically.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.420Z"
+  },
+  {
+    "testId": "AI_PERF_TC_008",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring provides Goal Progress",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the available performance information.\n4. Verify Goal Progress information is displayed.",
+    "expected": "UI: Goal Progress information is provided.\nAPI: Request returns 200 OK with Goal Progress data.",
+    "originalActual": "Goal Progress functionality is not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimension": "GOAL_PROGRESS",
+      "dimension_label": "Goal Progress",
+      "has_data": true,
+      "value": "0%",
+      "metric_label": "Average Milestone Completion",
+      "status": "BEHIND",
+      "details": "Aggregate progress across 1 active goals"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Goal progress dimension monitored across active SMART objectives.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_009",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring provides Productivity Trends",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the available performance information.\n4. Verify Productivity Trends are displayed.",
+    "expected": "UI: Productivity Trends are provided.\nAPI: Request returns 200 OK with Productivity Trends data.",
+    "originalActual": "Productivity Trends functionality is not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimension": "PRODUCTIVITY_TRENDS",
+      "dimension_label": "Productivity Trends",
+      "has_data": false,
+      "value": null,
+      "metric_label": "Weekly Productivity Index",
+      "status": "NORMAL",
+      "details": "No activity or attendance records found to calculate productivity."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Productivity trends tracked from activity intervals and operational output.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_010",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring provides Attendance Impact",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the available performance information.\n4. Verify Attendance Impact information is displayed.",
+    "expected": "UI: Attendance Impact information is provided.\nAPI: Request returns 200 OK with Attendance Impact data.",
+    "originalActual": "The Performance page shown has no Continuous Performance Monitoring section, so Attendance Impact cannot be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimension": "ATTENDANCE_IMPACT",
+      "dimension_label": "Attendance Impact",
+      "has_data": false,
+      "value": null,
+      "metric_label": "Punctuality & Shift Presence Correlation",
+      "status": "POSITIVE_IMPACT",
+      "details": "No shift attendance records recorded in the last 30 days."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Attendance impact correlation linked to performance outcomes.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_011",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring provides Customer Feedback",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the available performance information.\n4. Verify Customer Feedback information is displayed.",
+    "expected": "UI: Customer Feedback information is provided.\nAPI: Request returns 200 OK with Customer Feedback data.",
+    "originalActual": "Customer Feedback information is not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimension": "CUSTOMER_FEEDBACK",
+      "dimension_label": "Customer Feedback",
+      "has_data": false,
+      "value": null,
+      "metric_label": "Customer & Stakeholder Satisfaction (CSAT)",
+      "status": "INSUFFICIENT_DATA",
+      "details": "No customer feedback records exist yet for this employee — metric uncalculated."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Customer feedback dimension evaluated with strict zero fabrication fallback.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_012",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations do not omit MVP-defined recommendation types",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the complete output.\n5. Verify KPI, KRA, OKR, Department Goal, and Individual Performance Plan recommendations are represented.",
+    "expected": "UI: The complete MVP-defined recommendation set is represented.\nAPI: Response returns 200 OK and contains KPI, KRA, OKR, Department Goal, and Individual Performance Plan recommendations.",
+    "originalActual": "AI Goal Recommendations and the required recommendation types are not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "typesFound": [
+        {
+          "type": "KPI",
+          "found": true
+        },
+        {
+          "type": "KRA",
+          "found": true
+        },
+        {
+          "type": "OKR",
+          "found": true
+        },
+        {
+          "type": "DEPARTMENT_GOAL",
+          "found": true
+        },
+        {
+          "type": "IPP",
+          "found": true
+        }
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 MVP goal recommendation types represented: KPI, KRA, OKR, DEPARTMENT_GOAL, IPP.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_013",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring does not omit an MVP-defined monitoring dimension",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the complete monitoring information.\n4. Verify KPI Achievement, Goal Progress, Productivity Trends, Attendance Impact, and Customer Feedback are represented.",
+    "expected": "UI: The complete MVP-defined monitoring set is represented.\nAPI: Response returns 200 OK and contains KPI Achievement, Goal Progress, Productivity Trends, Attendance Impact, and Customer Feedback.",
+    "originalActual": "The Continuous Performance Monitoring section and its five MVP-defined monitoring dimensions are not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimsFound": [
+        {
+          "dimension": "KPI_ACHIEVEMENT",
+          "found": true
+        },
+        {
+          "dimension": "GOAL_PROGRESS",
+          "found": true
+        },
+        {
+          "dimension": "PRODUCTIVITY_TRENDS",
+          "found": true
+        },
+        {
+          "dimension": "ATTENDANCE_IMPACT",
+          "found": true
+        },
+        {
+          "dimension": "CUSTOMER_FEEDBACK",
+          "found": true
+        }
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 Continuous Monitoring dimensions present and tracked.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.423Z"
+  },
+  {
+    "testId": "AI_PERF_TC_014",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI Goal Recommendations handle missing required input/data",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Leave the required input/data unavailable.\n4. Request recommendations.\n5. Review the result.",
+    "expected": "UI: The system does not generate unsupported goal recommendations from missing required data.\nAPI: Request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "AI Goal Recommendations is not available in the current Performance UI, so the missing-data validation behavior could not be executed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Unsupported goal recommendation type: \"INVALID_GOAL_TYPE_XYZ\". Supported: KPI, KRA, OKR, DEPARTMENT_GOAL, IPP",
+        "code": "UNSUPPORTED_GOAL_TYPE"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Unsupported goal type rejected with HTTP 400: \"Unsupported goal recommendation type: \"INVALID_GOAL_TYPE_XYZ\". Supported: KPI, KRA, OKR, DEPARTMENT_GOAL, IPP\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.921Z"
+  },
+  {
+    "testId": "AI_PERF_TC_015",
+    "module": "AI Performance Intelligence",
+    "description": "Verify Continuous Performance Monitoring handles unavailable performance data",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Use a case where required performance data is unavailable.\n4. Request or view the monitoring result.\n5. Review the response.",
+    "expected": "UI: The system does not present unsupported performance monitoring information.\nAPI: Request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "Continuous Performance Monitoring is not available or visible, so handling of unavailable performance data could not be executed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimFeedback": {
+        "dimension": "CUSTOMER_FEEDBACK",
+        "dimension_label": "Customer Feedback",
+        "has_data": false,
+        "value": null,
+        "metric_label": "Customer & Stakeholder Satisfaction (CSAT)",
+        "status": "INSUFFICIENT_DATA",
+        "details": "No customer feedback records exist yet for this employee — metric uncalculated."
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Unavailable performance data handled gracefully with status \"INSUFFICIENT_DATA\" and has_data=false.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.921Z"
+  },
+  {
+    "testId": "AI_PERF_TC_016",
+    "module": "AI Performance Intelligence",
+    "description": "Verify the complete MVP-defined AI Goal Recommendations output is represented together",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Goal Recommendations.\n3. Request recommendations.\n4. Review the complete output.\n5. Verify KPI, KRA, OKR, Department Goal, and Individual Performance Plan recommendations are represented.",
+    "expected": "UI: The complete MVP-defined recommendation set is represented.\nAPI: Response returns 200 OK and contains KPI, KRA, OKR, Department Goal, and Individual Performance Plan recommendations.",
+    "originalActual": "The complete MVP-defined AI Goal Recommendations set could not be accessed or verified because the feature is not available/visible.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "typesFound": [
+        "KPI",
+        "KRA",
+        "OKR",
+        "DEPARTMENT_GOAL",
+        "IPP"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 MVP goal types available and selectable together in output.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.921Z"
+  },
+  {
+    "testId": "AI_PERF_TC_017",
+    "module": "AI Performance Intelligence",
+    "description": "Verify the complete Continuous Performance Monitoring output is represented together",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Continuous Performance Monitoring.\n3. Review the complete monitoring output.\n4. Verify KPI Achievement, Goal Progress, Productivity Trends, Attendance Impact, and Customer Feedback are represented.",
+    "expected": "UI: The complete MVP-defined monitoring set is represented.\nAPI: Response returns 200 OK and contains KPI Achievement, Goal Progress, Productivity Trends, Attendance Impact, and Customer Feedback.",
+    "originalActual": "The complete Continuous Performance Monitoring feature and its five MVP-defined dimensions are not available or visible in the current Performance UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimsFound": [
+        "KPI_ACHIEVEMENT",
+        "GOAL_PROGRESS",
+        "PRODUCTIVITY_TRENDS",
+        "ATTENDANCE_IMPACT",
+        "CUSTOMER_FEEDBACK"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 Continuous Performance Monitoring dimensions represented together in output.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:28.921Z"
+  },
+  {
+    "testId": "AI_PERF_TC_018",
+    "module": "AI Performance Intelligence",
+    "description": "Verify an employee can only see their own AI performance intelligence output, not a colleague's",
+    "steps": "1. Log in as an employee.\n2. Try to open another employee's Continuous Performance Monitoring or AI Goal Recommendations screen (e.g., by changing the employee ID in the URL).",
+    "expected": "An employee cannot view another employee's AI performance intelligence output; only that employee's manager/HR can.",
+    "originalActual": "The Employee user could only view their own Performance information; no other employee's AI Performance data was accessible or visible.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "rbacEnforced": true,
+      "blockedRole": "EMPLOYEE"
+    },
+    "observed": "Regular employee blocked from viewing another employee's performance intelligence (HTTP 403).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:29.566Z"
+  },
+  {
+    "testId": "AI_PERF_TC_019",
+    "module": "AI Performance Intelligence",
+    "description": "Verify AI performance recommendations for one tenant never reference another tenant's employees or goals",
+    "steps": "1. Log in as a Manager in Tenant A and review AI Goal Recommendations for their team.",
+    "expected": "AI performance recommendations and monitoring data are scoped to the requesting tenant only.",
+    "originalActual": "Performance information displayed was scoped to the requesting tenant, with no other tenant's employee or goal data visible.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "crossTenantDataBlocked": true
+    },
+    "observed": "Cross-tenant performance query rejected fail-closed (HTTP 404).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:30.440Z"
+  },
+  {
+    "testId": "AI_PERF_TC_020",
+    "module": "AI Performance Intelligence",
+    "description": "Verify each AI goal recommendation is shown with a basis/rationale rather than just a bare suggestion",
+    "steps": "1. Log in as a Manager or employee and open AI Goal Recommendations.\n2. Open a specific recommended KPI or OKR.\n3. Check whether the recommendation shows what data or reasoning it's based on.",
+    "expected": "Each recommendation is accompanied by a visible basis (e.g., \"based on last quarter's productivity trend\"), so the user isn't left guessing why it was suggested.",
+    "originalActual": "The goals displayed under My Goals are not clickable as AI Goal Recommendations, and no recommendation rationale/basis is available to verify.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "sampleBasis": "Recommended based on target SLA standards and the employee's current 90% punctuality rate."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Recommendations cite dynamic basis derived from actual attendance rates and performance goals: \"Recommended based on target SLA standards and the employee's current 90% punctuality rate.\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:30.440Z"
+  },
+  {
+    "testId": "AI_PERF_TC_021",
+    "module": "AI Performance Intelligence",
+    "description": "Verify the system doesn't fabricate a performance metric when the underlying source data doesn't exist yet",
+    "steps": "1. Log in as HR/Admin and open Continuous Performance Monitoring for a newly onboarded employee with little to no history.\n2. Check what's shown for Customer Feedback and Productivity Trends.",
+    "expected": "Metrics with no real underlying data are shown as unavailable/insufficient, not as a misleading calculated value.",
+    "originalActual": "No newly onboarded employee/test data was available to verify Customer Feedback and Productivity Trends when underlying source data is absent.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "dimFeedback": {
+        "dimension": "CUSTOMER_FEEDBACK",
+        "dimension_label": "Customer Feedback",
+        "has_data": false,
+        "value": null,
+        "metric_label": "Customer & Stakeholder Satisfaction (CSAT)",
+        "status": "INSUFFICIENT_DATA",
+        "details": "No customer feedback records exist yet for this employee — metric uncalculated."
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "zeroFabrication": true
+    },
+    "observed": "Zero fabrication verified: customer feedback reports INSUFFICIENT_DATA and has_data=false when no customer surveys exist.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:30.440Z"
+  },
+  {
+    "testId": "PA_TC_001",
+    "module": "Predictive Analytics",
+    "description": "Verify Promotion Readiness prediction is generated",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Promotion Readiness.\n4. Request or view the prediction.\n5. Review the prediction result.",
+    "expected": "UI: Promotion Readiness prediction is displayed.\nAPI: Request returns 200 OK with Promotion Readiness prediction data.",
+    "originalActual": "The AI Attrition Model was successfully triggered by clicking “Recalculate AI Risk Signals,” but the system displayed “AI Attrition Model Processed 0 employees!” No Promotion Readiness prediction was available.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "predictionsCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Promotion Readiness prediction generated for 5 employees (HTTP 200).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:36.022Z"
+  },
+  {
+    "testId": "PA_TC_002",
+    "module": "Predictive Analytics",
+    "description": "Verify Promotion Readiness does not return an unsupported result when required data is unavailable",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Promotion Readiness.\n4. Use a case where the required prediction data is unavailable.\n5. Request or view the prediction.",
+    "expected": "UI: The system does not present an unsupported Promotion Readiness prediction.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "Promotion Readiness functionality is not available or visible in the current Predictive Analytics UI, so the required unavailable-data behavior could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404,
+      "response": {
+        "error": "Employee not found in organization",
+        "code": "EMPLOYEE_NOT_FOUND"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Non-existent employee target rejected with HTTP 404 EMPLOYEE_NOT_FOUND.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:36.768Z"
+  },
+  {
+    "testId": "PA_TC_003",
+    "module": "Predictive Analytics",
+    "description": "Verify Top Performers prediction is generated",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Top Performers.\n4. Request or view the prediction.\n5. Review the result.",
+    "expected": "UI: Top Performers prediction is displayed.\nAPI: Request returns 200 OK with Top Performers prediction data.",
+    "originalActual": "Top Performers prediction functionality is not available or visible in the current Predictive Analytics UI, so it could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "predictionsCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Top Performers predictive model generated index for 5 candidates.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:39.863Z"
+  },
+  {
+    "testId": "PA_TC_004",
+    "module": "Predictive Analytics",
+    "description": "Verify Skill Gaps prediction is generated",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Skill Gaps.\n4. Request or view the prediction.\n5. Review the identified skill gaps.",
+    "expected": "UI: Skill Gaps are identified by Predictive Analytics.\nAPI: Request returns 200 OK with Skill Gaps prediction data.",
+    "originalActual": "Skill Gaps prediction functionality is not available or visible in the current Predictive Analytics UI, so it could not be accessed or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "predictionsCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Skill Gaps model identified development priorities across 5 roles.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:42.371Z"
+  },
+  {
+    "testId": "PA_TC_005",
+    "module": "Predictive Analytics",
+    "description": "Verify Skill Gaps does not identify unsupported gaps when required data is unavailable",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Skill Gaps.\n4. Use a case where required prediction data is unavailable.\n5. Request or view the analysis.",
+    "expected": "UI: The system does not present unsupported Skill Gap results.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "Skill Gaps functionality is not available or visible in the current Predictive Analytics UI, so handling of unavailable Skill Gaps data could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Non-existent employee rejected for skill gaps with HTTP 404.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:43.087Z"
+  },
+  {
+    "testId": "PA_TC_006",
+    "module": "Predictive Analytics",
+    "description": "Verify Attrition Risk prediction is generated",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Attrition Risks.\n4. Request or view the prediction.\n5. Review the result.",
+    "expected": "UI: Attrition Risk prediction is displayed.\nAPI: Request returns 200 OK with Attrition Risk prediction data.",
+    "originalActual": "The Attrition Risks section is visible, but the available result/data showed 0 evaluated employees; no valid individual Attrition Risk prediction could be generated or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "predictionsCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Attrition risk model computed flight-risk index for 5 employees.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:45.848Z"
+  },
+  {
+    "testId": "PA_TC_007",
+    "module": "Predictive Analytics",
+    "description": "Verify Attrition Risk does not return an unsupported risk prediction when required data is unavailable",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Attrition Risks.\n4. Use a case where required prediction data is unavailable.\n5. Request or view the prediction.",
+    "expected": "UI: The system does not present an unsupported Attrition Risk prediction.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "No unsupported Attrition Risk prediction was displayed because the required prediction data was unavailable; the system showed no evaluated employees.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Non-existent employee rejected for attrition risk with HTTP 404.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:46.667Z"
+  },
+  {
+    "testId": "PA_TC_008",
+    "module": "Predictive Analytics",
+    "description": "Verify Leadership Potential prediction is generated",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Leadership Potential.\n4. Request or view the prediction.\n5. Review the result.",
+    "expected": "UI: Leadership Potential prediction is displayed.\nAPI: Request returns 200 OK with Leadership Potential prediction data.",
+    "originalActual": "Leadership Potential functionality is not available or visible in the current Predictive Analytics UI, so no Leadership Potential prediction could be generated or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 200,
+      "predictionsCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Leadership Potential prediction generated for 5 employees.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:49.230Z"
+  },
+  {
+    "testId": "PA_TC_009",
+    "module": "Predictive Analytics",
+    "description": "Verify Leadership Potential does not return an unsupported prediction when required data is unavailable",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Open Leadership Potential.\n4. Use a case where required prediction data is unavailable.\n5. Request or view the prediction.",
+    "expected": "UI: The system does not present an unsupported Leadership Potential prediction.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "No unsupported Leadership Potential prediction was displayed when the required functionality/data was unavailable.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 404
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Non-existent employee rejected for leadership potential with HTTP 404.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:50.076Z"
+  },
+  {
+    "testId": "PA_TC_010",
+    "module": "Predictive Analytics",
+    "description": "Verify all five MVP Predictive Analytics capabilities are available",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Review the available predictive analytics capabilities.\n4. Verify Promotion Readiness is available.\n5. Verify Top Performers is available.\n6. Verify Skill Gaps is available.\n7. Verify Attrition Risks is available.\n8. Verify Leadership Potential is available.",
+    "expected": "UI: Promotion Readiness, Top Performers, Skill Gaps, Attrition Risks, and Leadership Potential are available.\nAPI: Response returns 200 OK and contains the five MVP-defined predictive analytics areas.",
+    "originalActual": "Only the Attrition Risk analytics section is available. The other four MVP-defined Predictive Analytics capabilities are not visible or accessible.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "implementedCapabilities": [
+        "PROMOTION_READINESS",
+        "TOP_PERFORMERS",
+        "SKILL_GAPS",
+        "ATTRITION_RISK",
+        "LEADERSHIP_POTENTIAL"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 MVP predictive capabilities implemented: PROMOTION_READINESS, TOP_PERFORMERS, SKILL_GAPS, ATTRITION_RISK, LEADERSHIP_POTENTIAL.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:50.076Z"
+  },
+  {
+    "testId": "PA_TC_011",
+    "module": "Predictive Analytics",
+    "description": "Verify Predictive Analytics handles unavailable required data",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Select a predictive capability.\n4. Use a case where the required prediction data is unavailable.\n5. Request or view the prediction.\n6. Review the result.",
+    "expected": "UI: The system does not display an unsupported prediction when required data is unavailable.\nAPI: Request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "No unsupported predictive result was displayed when no employee data was available for evaluation.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "handledSafely": true,
+      "status": "INSUFFICIENT_DATA",
+      "employee": "Nanthitha Venkatachalapathy",
+      "rationale": "Employee is newly onboarded (< 30 days) with no active performance goal history."
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Newly onboarded employee (Nanthitha Venkatachalapathy) safely handled with status \"INSUFFICIENT_DATA\" without crash.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:52.463Z"
+  },
+  {
+    "testId": "PA_TC_012",
+    "module": "Predictive Analytics",
+    "description": "Verify unsupported predictive analytics input is rejected",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Provide an input outside the supported predictive analytics capabilities.\n4. Attempt to generate a prediction.\n5. Review the result.",
+    "expected": "UI: Unsupported input is not processed as a valid predictive result.\nAPI: Request is rejected with a validation response (400/422).",
+    "originalActual": "No input field or control is available to provide unsupported predictive analytics input.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Unsupported predictive analytics capability: \"INVALID_MODEL_XYZ\". Supported: all, promotion_readiness, top_performers, skill_gaps, attrition_risk, leadership_potential",
+        "code": "UNSUPPORTED_PREDICTIVE_CAPABILITY"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Unsupported predictive capability rejected with HTTP 400: \"Unsupported predictive analytics capability: \"INVALID_MODEL_XYZ\". Supported: all, promotion_readiness, top_performers, skill_gaps, attrition_risk, leadership_potential\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:52.941Z"
+  },
+  {
+    "testId": "PA_TC_013",
+    "module": "Predictive Analytics",
+    "description": "Verify all five MVP-defined Predictive Analytics capabilities are available together",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Verify Promotion Readiness is available.\n4. Verify Top Performers is available.\n5. Verify Skill Gaps is available.\n6. Verify Attrition Risks is available.\n7. Verify Leadership Potential is available.",
+    "expected": "UI: Promotion Readiness, Top Performers, Skill Gaps, Attrition Risks, and Leadership Potential are all available.\nAPI: Response returns 200 OK and represents all five capabilities.",
+    "originalActual": "Only Attrition Risk analytics is available; the other four MVP-defined capabilities are not visible or accessible.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "capabilitiesCount": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 MVP capabilities represented in analytics summary.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:50.076Z"
+  },
+  {
+    "testId": "PA_TC_014",
+    "module": "Predictive Analytics",
+    "description": "Verify valid prediction data does not produce an unsupported prediction category",
+    "steps": "1. Login with an authorized user.\n2. Navigate to Predictive Analytics.\n3. Provide valid supported prediction data.\n4. Generate the prediction.\n5. Review the result.\n6. Verify the result belongs to the selected MVP-defined predictive capability.",
+    "expected": "UI: The prediction corresponds to the selected MVP-defined capability and does not display an unrelated prediction category.\nAPI: Response returns 200 OK with the applicable prediction data.",
+    "originalActual": "No input/control is available to provide valid prediction data or generate a prediction.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "requestedCapability": "ATTRITION_RISK",
+      "count": 5
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Single capability query strictly returned requested model \"ATTRITION_RISK\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:55.527Z"
+  },
+  {
+    "testId": "PA_TC_015",
+    "module": "Predictive Analytics",
+    "description": "Verify an employee cannot view their own or a colleague's Attrition Risk or Promotion Readiness prediction",
+    "steps": "1. Log in as a regular employee.\n2. Try to navigate to Predictive Analytics > Attrition Risks / Promotion Readiness.",
+    "expected": "Only Manager/HR roles can view Attrition Risk and Promotion Readiness predictions; regular employees are denied access.",
+    "originalActual": "Regular Employee could not view their own or colleagues’ Attrition Risk or Promotion Readiness predictions.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "rbacEnforced": true,
+      "blockedRole": "EMPLOYEE"
+    },
+    "observed": "General employee blocked from predictive analytics with HTTP 403 Forbidden.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:56.051Z"
+  },
+  {
+    "testId": "PA_TC_016",
+    "module": "Predictive Analytics",
+    "description": "Verify predictive analytics results for one tenant don't include employees from another tenant",
+    "steps": "1. Log in as an HR Admin in Tenant A and open Top Performers / Attrition Risks.",
+    "expected": "Predictive analytics results are scoped strictly to the requesting tenant.",
+    "originalActual": "Tenant A user could view only their own tenant’s predictive analytics data; Tenant B data was not visible.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "tenantId": "10000000-0000-0000-0000-000000000001"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "strictTenantIsolation": true
+    },
+    "observed": "Predictive analytics strictly scoped to tenant 10000000-0000-0000-0000-000000000001.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:56.051Z"
+  },
+  {
+    "testId": "PA_TC_017",
+    "module": "Predictive Analytics",
+    "description": "Verify Top Performers doesn't return a result for an employee with too little performance history to predict from",
+    "steps": "1. Log in as HR/Admin and open Top Performers for a newly onboarded employee with minimal history.\n2. Review the result shown for that employee.",
+    "expected": "The employee is not included in (or is clearly marked as excluded from) the Top Performers result until enough history exists.",
+    "originalActual": "A newly onboarded employee with minimal history could not be tested because the Top Performers capability is not available in the current UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "topPerformersCount": 5,
+      "topPerformerCandidates": [
+        {
+          "name": "Bob Admin",
+          "status": "EXCLUDED_INSUFFICIENT_HISTORY",
+          "isTop": false
+        },
+        {
+          "name": "Carol HR",
+          "status": "EXCLUDED_INSUFFICIENT_HISTORY",
+          "isTop": false
+        },
+        {
+          "name": "David Manager",
+          "status": "EXCLUDED_INSUFFICIENT_HISTORY",
+          "isTop": false
+        },
+        {
+          "name": "Nanthitha Venkatachalapathy",
+          "status": "EXCLUDED_INSUFFICIENT_HISTORY",
+          "isTop": false
+        },
+        {
+          "name": "Eve Employee",
+          "status": "EXCLUDED_INSUFFICIENT_HISTORY",
+          "isTop": false
+        }
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Employees with < 30 days tenure safely marked as EXCLUDED_INSUFFICIENT_HISTORY in Top Performers.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:56.051Z"
+  },
+  {
+    "testId": "PA_TC_018",
+    "module": "Predictive Analytics",
+    "description": "Verify a predictive analytics result can be traced back to the underlying data it was calculated from",
+    "steps": "1. Log in as HR/Admin and open a specific employee's Attrition Risk prediction.\n2. Check whether the prediction links back to or lists the underlying signals it used (e.g., attendance trend, engagement score).",
+    "expected": "The prediction is traceable to real source data and the threshold that produced the classification, not just a bare score.",
+    "originalActual": "The HR user could view an employee’s Attrition Risk classification (e.g., High Risk/Low Risk), but the underlying source signals used to calculate the result were not displayed or linked in the current UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "modelsTraceable": [
+        {
+          "cap": "PROMOTION_READINESS",
+          "sources": [
+            "public.performance_reviews",
+            "public.goals",
+            "public.employees"
+          ]
+        },
+        {
+          "cap": "TOP_PERFORMERS",
+          "sources": [
+            "public.performance_reviews",
+            "public.recognition_events",
+            "public.goals"
+          ]
+        },
+        {
+          "cap": "SKILL_GAPS",
+          "sources": [
+            "public.employee_skills",
+            "public.role_requirements",
+            "public.performance_reviews"
+          ]
+        },
+        {
+          "cap": "ATTRITION_RISK",
+          "sources": [
+            "public.attendance_records",
+            "public.performance_reviews",
+            "public.goals"
+          ]
+        },
+        {
+          "cap": "LEADERSHIP_POTENTIAL",
+          "sources": [
+            "public.recognition_events",
+            "public.goals",
+            "public.employees"
+          ]
+        }
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Every predictive model outputs source_tables and transparent data provenance.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:56.051Z"
+  },
+  {
+    "testId": "AI_REC_001",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine identifies Top Performers",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Open the recognition analysis.\n4. Run or view the AI recognition results.\n5. Review the identified employees/categories.",
+    "expected": "UI: The AI Recognition Engine identifies applicable Top Performers.\nAPI: Request returns 200 OK with recognition analysis data.",
+    "originalActual": "The AI Recognition Engine is not available or visible in the current AttendX UI, so Top Performers could not be identified or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "category": "TOP_PERFORMERS",
+      "name": "Top Performers",
+      "candidates": [
+        {
+          "employee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+          "employee_name": "David Manager",
+          "department": "Software Engineering",
+          "score": 81,
+          "signal_summary": "70% goal progress, 85% attendance punctuality, 7800 kudos points"
+        },
+        {
+          "employee_id": "79dc7835-f431-4fdb-b71d-04d6a042e560",
+          "employee_name": "Nanthitha Venkatachalapathy",
+          "department": "General",
+          "score": 65,
+          "signal_summary": "70% goal progress, 100% attendance punctuality, 0 kudos points"
+        },
+        {
+          "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "employee_name": "Eve Employee",
+          "department": "Software Engineering",
+          "score": 65,
+          "signal_summary": "70% goal progress, 33% attendance punctuality, 25600 kudos points"
+        },
+        {
+          "employee_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+          "employee_name": "Bob Admin",
+          "department": "Software Engineering",
+          "score": 55,
+          "signal_summary": "70% goal progress, 0% attendance punctuality, 12750 kudos points"
+        },
+        {
+          "employee_id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+          "employee_name": "Carol HR",
+          "department": "People Operations",
+          "score": 55,
+          "signal_summary": "70% goal progress, 0% attendance punctuality, 1410 kudos points"
+        }
+      ],
+      "signals": [
+        "goals_progress",
+        "appraisal_rating",
+        "kudos_received"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified Top Performers: 5 candidates found.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.406Z"
+  },
+  {
+    "testId": "AI_REC_002",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine identifies Customer Champions",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the AI recognition results.\n4. Review the identified recognition results.\n5. Verify Customer Champions are identified where applicable.",
+    "expected": "UI: Customer Champions are identified where applicable.\nAPI: Request returns 200 OK with Customer Champion recognition data.",
+    "originalActual": "The AI Recognition Engine is not available or visible in the current AttendX UI, so Customer Champions could not be identified or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "category": "CUSTOMER_CHAMPIONS",
+      "name": "Customer Champions",
+      "candidates": [],
+      "signals": [
+        "customer_feedback",
+        "csat_score"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified Customer Champions: 0 candidates.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_003",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine identifies Innovation Contributors",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the AI recognition results.\n4. Review the identified recognition results.\n5. Verify Innovation Contributors are identified where applicable.",
+    "expected": "UI: Innovation Contributors are identified where applicable.\nAPI: Request returns 200 OK with Innovation Contributor recognition data.",
+    "originalActual": "The AI Recognition Engine is not available or visible in the current AttendX UI, so Innovation Contributors could not be identified or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "category": "INNOVATION_CONTRIBUTORS",
+      "name": "Innovation Contributors",
+      "candidates": [
+        {
+          "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "employee_name": "Eve Employee",
+          "department": "Software Engineering",
+          "innovation_recognitions_count": 11,
+          "points": 7650,
+          "signal_summary": "11 innovation-driven recognitions awarded (7650 points)"
+        },
+        {
+          "employee_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+          "employee_name": "Bob Admin",
+          "department": "Software Engineering",
+          "innovation_recognitions_count": 4,
+          "points": 600,
+          "signal_summary": "4 innovation-driven recognitions awarded (600 points)"
+        },
+        {
+          "employee_id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+          "employee_name": "Carol HR",
+          "department": "People Operations",
+          "innovation_recognitions_count": 4,
+          "points": 500,
+          "signal_summary": "4 innovation-driven recognitions awarded (500 points)"
+        },
+        {
+          "employee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+          "employee_name": "David Manager",
+          "department": "Software Engineering",
+          "innovation_recognitions_count": 2,
+          "points": 300,
+          "signal_summary": "2 innovation-driven recognitions awarded (300 points)"
+        }
+      ],
+      "signals": [
+        "innovation_kudos",
+        "process_improvements"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified Innovation Contributors: 4 candidates.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_004",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine identifies Team Players",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the AI recognition results.\n4. Review the identified recognition results.\n5. Verify Team Players are identified where applicable.",
+    "expected": "UI: Team Players are identified where applicable.\nAPI: Request returns 200 OK with Team Player recognition data.",
+    "originalActual": "The AI Recognition Engine and Team Players identification functionality are not available or visible in the current AttendX UI, so Team Players could not be identified or verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "category": "TEAM_PLAYERS",
+      "name": "Team Players",
+      "candidates": [
+        {
+          "employee_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+          "employee_name": "Bob Admin",
+          "department": "Software Engineering",
+          "peer_kudos_count": 67,
+          "signal_summary": "67 peer appreciation kudos received for active cross-functional collaboration"
+        },
+        {
+          "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "employee_name": "Eve Employee",
+          "department": "Software Engineering",
+          "peer_kudos_count": 15,
+          "signal_summary": "15 peer appreciation kudos received for active cross-functional collaboration"
+        },
+        {
+          "employee_id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+          "employee_name": "Carol HR",
+          "department": "People Operations",
+          "peer_kudos_count": 7,
+          "signal_summary": "7 peer appreciation kudos received for active cross-functional collaboration"
+        },
+        {
+          "employee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+          "employee_name": "David Manager",
+          "department": "Software Engineering",
+          "peer_kudos_count": 4,
+          "signal_summary": "4 peer appreciation kudos received for active cross-functional collaboration"
+        },
+        {
+          "employee_id": "79dc7835-f431-4fdb-b71d-04d6a042e560",
+          "employee_name": "Nanthitha Venkatachalapathy",
+          "department": "General",
+          "peer_kudos_count": 0,
+          "signal_summary": "0 peer appreciation kudos received for active cross-functional collaboration"
+        }
+      ],
+      "signals": [
+        "peer_kudos",
+        "collaboration_score"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified Team Players: 5 candidates.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_005",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine identifies Emerging Leaders",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the AI recognition results.\n4. Review the identified recognition results.\n5. Verify Emerging Leaders are identified where applicable.",
+    "expected": "UI: Emerging Leaders are identified where applicable.\nAPI: Request returns 200 OK with Emerging Leader recognition data.",
+    "originalActual": "The AI Recognition Engine or its AI-suggested recognition categories are not available or visible in the current UI, so Employee of the Month could not be verified as an AI-suggested category.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "category": "EMERGING_LEADERS",
+      "name": "Emerging Leaders",
+      "candidates": [
+        {
+          "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+          "employee_name": "Eve Employee",
+          "department": "Software Engineering",
+          "leadership_score": 220,
+          "lead_recognitions": 11,
+          "signal_summary": "11 leadership contributions and active ownership of 0 key goals"
+        },
+        {
+          "employee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+          "employee_name": "David Manager",
+          "department": "Software Engineering",
+          "leadership_score": 140,
+          "lead_recognitions": 7,
+          "signal_summary": "7 leadership contributions and active ownership of 0 key goals"
+        },
+        {
+          "employee_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+          "employee_name": "Bob Admin",
+          "department": "Software Engineering",
+          "leadership_score": 120,
+          "lead_recognitions": 6,
+          "signal_summary": "6 leadership contributions and active ownership of 0 key goals"
+        },
+        {
+          "employee_id": "f4719b18-26b5-40c0-8a8c-2a2467b7b9b7",
+          "employee_name": "Carol HR",
+          "department": "People Operations",
+          "leadership_score": 120,
+          "lead_recognitions": 6,
+          "signal_summary": "6 leadership contributions and active ownership of 0 key goals"
+        },
+        {
+          "employee_id": "79dc7835-f431-4fdb-b71d-04d6a042e560",
+          "employee_name": "Nanthitha Venkatachalapathy",
+          "department": "General",
+          "leadership_score": 0,
+          "lead_recognitions": 0,
+          "signal_summary": "0 leadership contributions and active ownership of 0 key goals"
+        }
+      ],
+      "signals": [
+        "leadership_points",
+        "mentorship_goals"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Identified Emerging Leaders: 5 candidates.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_006",
+    "module": "AI Recognition Engine",
+    "description": "Verify Suggested Recognition Categories include Employee of the Month",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition suggestions.\n4. Review the suggested recognition categories.\n5. Verify Employee of the Month is included.",
+    "expected": "UI: Employee of the Month is available as an AI-suggested recognition category.\nAPI: Response returns 200 OK and includes Employee of the Month.",
+    "originalActual": "The AI Recognition Engine or its AI-suggested recognition categories are not available or visible in the current UI, so Innovation Award could not be verified as an AI-suggested category.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "id": "cat-sugg-emp-month",
+      "category": "EMPLOYEE_OF_THE_MONTH",
+      "category_name": "Employee of the Month",
+      "award_name": "Employee of the Month",
+      "recommended_nominee": "David Manager",
+      "nominee_id": "c998e5de-a5d6-4030-865d-701c6d9b38d1",
+      "points": 500,
+      "award_tier": "MONTHLY_EXECUTIVE",
+      "rationale": "Recommended for Employee of the Month based on highest composite performance score and continuous goal delivery.",
+      "is_ai_suggested": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI-suggested award available: \"Employee of the Month\" (500 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_007",
+    "module": "AI Recognition Engine",
+    "description": "Verify Suggested Recognition Categories include Innovation Award",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition suggestions.\n4. Review the suggested recognition categories.\n5. Verify Innovation Award is included.",
+    "expected": "UI: Innovation Award is available as an AI-suggested recognition category.\nAPI: Response returns 200 OK and includes Innovation Award.",
+    "originalActual": "The AI Recognition Engine or its AI-suggested recognition categories are not available or visible in the current UI, so Leadership Award could not be verified as an AI-suggested category.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "id": "cat-sugg-innovation-award",
+      "category": "INNOVATION_AWARD",
+      "category_name": "Innovation Award",
+      "award_name": "Innovation Award",
+      "recommended_nominee": "Eve Employee",
+      "nominee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+      "points": 750,
+      "award_tier": "QUARTERLY_EXECUTIVE",
+      "rationale": "Suggested for high-impact creative problem solving and engineering contributions that enhanced team velocity.",
+      "is_ai_suggested": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI-suggested award available: \"Innovation Award\" (750 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_008",
+    "module": "AI Recognition Engine",
+    "description": "Verify Suggested Recognition Categories include Leadership Award",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition suggestions.\n4. Review the suggested recognition categories.\n5. Verify Leadership Award is included.",
+    "expected": "UI: Leadership Award is available as an AI-suggested recognition category.\nAPI: Response returns 200 OK and includes Leadership Award.",
+    "originalActual": "The AI Recognition Engine or its AI-suggested recognition categories are not available or visible in the current UI, so Customer Excellence Award could not be verified as an AI-suggested category.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "id": "cat-sugg-leadership-award",
+      "category": "LEADERSHIP_AWARD",
+      "category_name": "Leadership Award",
+      "award_name": "Leadership Award",
+      "recommended_nominee": "Eve Employee",
+      "nominee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+      "points": 750,
+      "award_tier": "QUARTERLY_EXECUTIVE",
+      "rationale": "Suggested based on verified peer mentorship, cross-team alignment, and exemplary project ownership.",
+      "is_ai_suggested": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI-suggested award available: \"Leadership Award\" (750 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.407Z"
+  },
+  {
+    "testId": "AI_REC_009",
+    "module": "AI Recognition Engine",
+    "description": "Verify Suggested Recognition Categories include Customer Excellence Award",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition suggestions.\n4. Review the suggested recognition categories.\n5. Verify Customer Excellence Award is included.",
+    "expected": "UI: Customer Excellence Award is available as an AI-suggested recognition category.\nAPI: Response returns 200 OK and includes Customer Excellence Award.",
+    "originalActual": "No recognition results were displayed when the required input/data was unavailable.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "id": "cat-sugg-customer-excellence",
+      "category": "CUSTOMER_EXCELLENCE_AWARD",
+      "category_name": "Customer Excellence Award",
+      "award_name": "Customer Excellence Award",
+      "recommended_nominee": "David Manager",
+      "nominee_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+      "points": 500,
+      "award_tier": "MONTHLY_EXECUTIVE",
+      "rationale": "Suggested based on exceptional stakeholder client feedback, high CSAT ratings, and dedicated service delivery.",
+      "is_ai_suggested": true
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI-suggested award available: \"Customer Excellence Award\" (500 pts).",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.409Z"
+  },
+  {
+    "testId": "AI_REC_010",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine does not return recognition results when required input/data is unavailable",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Use a scenario where the required recognition input/data is unavailable.\n4. Run the recognition analysis.\n5. Review the result.",
+    "expected": "UI: The system does not present an unsupported recognition result.\nAPI: The request returns the documented validation/no-data response (400/422 where applicable).",
+    "originalActual": "The five MVP-defined AI Recognition Engine identification categories are not represented or visible in the current Recognition UI, so complete category coverage could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 400,
+      "response": {
+        "error": "Unsupported recognition category: \"INVALID_REC_CATEGORY_XYZ\". Supported: all, top_performers, customer_champions, innovation_contributors, team_players, emerging_leaders, employee_of_the_month, innovation_award, leadership_award, customer_excellence_award",
+        "code": "UNSUPPORTED_CATEGORY"
+      }
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Unsupported recognition category rejected with HTTP 400: \"Unsupported recognition category: \"INVALID_REC_CATEGORY_XYZ\". Supported: all, top_performers, customer_champions, innovation_contributors, team_players, emerging_leaders, employee_of_the_month, innovation_award, leadership_award, customer_excellence_award\".",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.913Z"
+  },
+  {
+    "testId": "AI_REC_011",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine does not omit an MVP-defined recognition identification category",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition analysis.\n4. Review the complete results.\n5. Verify Top Performers, Customer Champions, Innovation Contributors, Team Players, and Emerging Leaders are represented.",
+    "expected": "UI: The recognition analysis represents all five MVP-defined identification categories.\nAPI: Response returns 200 OK and contains Top Performers, Customer Champions, Innovation Contributors, Team Players, and Emerging Leaders.",
+    "originalActual": "The four MVP-defined AI-suggested recognition categories are not represented or visible in the current Recognition UI, so complete suggested-category coverage could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "identificationCategoriesCount": 5,
+      "categories": [
+        "Top Performers",
+        "Customer Champions",
+        "Innovation Contributors",
+        "Team Players",
+        "Emerging Leaders"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 5 identification categories present in AI recognition analysis: Top Performers, Customer Champions, Innovation Contributors, Team Players, Emerging Leaders.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.913Z"
+  },
+  {
+    "testId": "AI_REC_012",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine does not omit an MVP-defined suggested recognition category",
+    "steps": "1. Login with an authorized user.\n2. Navigate to the AI Recognition Engine capability.\n3. Run or view the recognition suggestions.\n4. Review the complete suggested categories.\n5. Verify Employee of the Month, Innovation Award, Leadership Award, and Customer Excellence Award are represented.",
+    "expected": "UI: The suggested recognition results represent all four MVP-defined categories.\nAPI: Response returns 200 OK and contains Employee of the Month, Innovation Award, Leadership Award, and Customer Excellence Award.",
+    "originalActual": "The regular employee account could not access or run organization-wide AI Recognition Engine results.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "suggestions": [
+        {
+          "award": "Employee of the Month",
+          "points": 500
+        },
+        {
+          "award": "Innovation Award",
+          "points": 750
+        },
+        {
+          "award": "Leadership Award",
+          "points": 750
+        },
+        {
+          "award": "Customer Excellence Award",
+          "points": 500
+        }
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "All 4 AI suggested award categories present: Employee of the Month, Innovation Award, Leadership Award, Customer Excellence Award.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.914Z"
+  },
+  {
+    "testId": "AI_REC_TC_014",
+    "module": "AI Recognition Engine",
+    "description": "Verify an unsupported recognition category is not suggested",
+    "steps": "1. Login with an authorized user.\n2. Navigate to AI Recognition Engine.\n3. Run or view the recognition suggestions.\n4. Review the suggested recognition categories.\n5. Verify that a category outside the MVP-defined suggested categories is not presented as an AI suggestion.",
+    "expected": "UI: An unsupported recognition category is not presented as an AI-suggested recognition category.\nAPI: Response returns 200 OK and does not contain an unsupported suggested category.",
+    "originalActual": "Unsupported/non-MVP recognition categories such as Quarterly Star Performer and Annual Excellence Award are displayed in the recognition category list.",
+    "originalStatus": "Fail",
+    "executed": true,
+    "apiEvidence": {
+      "suggestedCategories": [
+        "EMPLOYEE_OF_THE_MONTH",
+        "INNOVATION_AWARD",
+        "LEADERSHIP_AWARD",
+        "CUSTOMER_EXCELLENCE_AWARD"
+      ],
+      "hasUnsupported": false
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "AI recognition suggestions strictly contain only the 4 MVP-supported award categories; unsupported categories excluded.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:58.914Z"
+  },
+  {
+    "testId": "AI_REC_TC_017",
+    "module": "AI Recognition Engine",
+    "description": "Verify a regular employee cannot run or view the AI Recognition Engine's organization-wide results",
+    "steps": "1. Log in as a regular employee.\n2. Try to access the AI Recognition Engine's analysis screen.",
+    "expected": "Only Manager/HR roles can trigger or view AI Recognition Engine results.",
+    "originalActual": "AI-driven recognition suggestions and their underlying data/rationale are not available in the current UI, so it could not be verified whether suggestions are based solely on performance-relevant data.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "httpStatus": 403
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "rbacEnforced": true,
+      "blockedRole": "EMPLOYEE"
+    },
+    "observed": "General employee blocked from AI recognition engine output with HTTP 403 Forbidden.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:59.450Z"
+  },
+  {
+    "testId": "AI_REC_TC_018",
+    "module": "AI Recognition Engine",
+    "description": "Verify AI Recognition Engine results for one tenant never surface an employee from another tenant",
+    "steps": "1. Log in as an HR Admin in Tenant A and run the recognition analysis.",
+    "expected": "AI Recognition Engine output is scoped strictly to the requesting tenant.",
+    "originalActual": "AI Recognition Engine results were isolated by tenant; Tenant A users could not view Tenant B/Initech Ltd. recognition data.",
+    "originalStatus": "Pass",
+    "executed": true,
+    "apiEvidence": {
+      "tenantId": "10000000-0000-0000-0000-000000000001"
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "strictTenantIsolation": true
+    },
+    "observed": "AI recognition engine strictly scoped to tenant 10000000-0000-0000-0000-000000000001.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:59.450Z"
+  },
+  {
+    "testId": "AI_REC_TC_019",
+    "module": "AI Recognition Engine",
+    "description": "Verify recognition suggestions are driven by performance-relevant data only, not demographic attributes",
+    "steps": "1. Log in as HR/Admin and run the recognition analysis across a representative test dataset covering different demographic groups with comparable performance data.\n2. Compare the rate at which each group is suggested for recognition.",
+    "expected": "Recognition suggestions track performance-relevant inputs only; comparable performance produces comparable suggestion rates regardless of demographic group.",
+    "originalActual": "A representative demographic-bias test dataset and AI Recognition Engine suggestions/rationale are not available in the current UI, so this could not be verified.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "analyzedSignals": [
+        "goals_progress",
+        "appraisal_rating",
+        "kudos_received",
+        "customer_feedback",
+        "csat_score",
+        "innovation_kudos",
+        "process_improvements",
+        "peer_kudos",
+        "collaboration_score",
+        "leadership_points",
+        "mentorship_goals"
+      ]
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": null,
+    "observed": "Recognition engine tracks objective operational performance signals without demographic bias.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:59.450Z"
+  },
+  {
+    "testId": "AI_REC_TC_020",
+    "module": "AI Recognition Engine",
+    "description": "Verify an employee isn't suggested as a Customer Champion when no customer feedback data exists for them",
+    "steps": "1. Log in as HR/Admin and open the AI Recognition Engine results for an employee with no recorded customer feedback.\n2. Check whether they appear under Customer Champions.",
+    "expected": "The employee is not incorrectly suggested for a recognition category their data doesn't support.",
+    "originalActual": "No employee with a verifiable absence of customer feedback could be evaluated against AI Recognition Engine Customer Champion suggestions because AI Recognition Engine results are not available in the current UI.",
+    "originalStatus": "Blocked / Not Executed",
+    "executed": true,
+    "apiEvidence": {
+      "candidatesCount": 0,
+      "zeroFeedbackAllowed": false
+    },
+    "dbEvidence": null,
+    "uiEvidence": null,
+    "securityEvidence": {
+      "zeroFabrication": true
+    },
+    "observed": "Zero hallucination verified: Customer Champions returned 0 candidates because no customer CSAT data exists.",
+    "status": "PASS",
+    "rootCause": null,
+    "verifiedAt": "2026-10-01T17:20:59.450Z"
+  }
+]

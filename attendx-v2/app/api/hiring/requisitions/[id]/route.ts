@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { RequisitionService } from '@/lib/hiring/requisition-service'
 
 export async function GET(
@@ -16,13 +16,22 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const requisition = mockHiringStore.getRequisitionById(caller.tenantId, id)
+      if (requisition) {
+        return NextResponse.json({ success: true, data: requisition })
+      }
+      return NextResponse.json({ error: 'Requisition not found' }, { status: 404 })
+    }
 
     const serviceClient = getSupabaseServiceClient()
     const requisition = await RequisitionService.getById(serviceClient, caller.tenantId, id)
-
+    if (!requisition) {
+      return NextResponse.json({ error: 'Requisition not found' }, { status: 404 })
+    }
     return NextResponse.json({ success: true, data: requisition })
   } catch (err: any) {
     const status = err.status || 500
@@ -36,9 +45,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
@@ -67,9 +74,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const serviceClient = getSupabaseServiceClient()
     const { error } = await serviceClient

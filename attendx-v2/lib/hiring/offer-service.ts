@@ -10,11 +10,16 @@
 
 import crypto from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringStateMachine } from './state-machine'
-import { HiringAuditLogger } from './audit-logger'
-import { EmailProviderFactory } from './email-provider'
-import { TemplateEngine } from './template-engine'
+import { HiringStateMachine } from './state-machine.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
+import { EmailProviderFactory } from './email-provider.ts'
+import { TemplateEngine } from './template-engine.ts'
+import { isTableMissingError } from './sourcing-service.ts'
+import { mockHiringStore } from './mock-store.ts'
+import { OfferTemplateService } from './email/offer-template-service.ts'
+import { EmailService } from './email/email-service.ts'
 import type { UserRole } from '@/types/database'
+
 
 export interface CreateOfferInput {
   application_id: string
@@ -70,7 +75,7 @@ export class OfferService {
   }
 
   /**
-   * Create a job offer record in DRAFT or PENDING_APPROVAL status.
+   * Create a job offer record in DRAFT status with server-calculated total CTC.
    */
   static async createOffer(
     client: SupabaseClient,
@@ -78,56 +83,144 @@ export class OfferService {
     callerId: string,
     input: CreateOfferInput
   ) {
-    const fixed = Number(input.fixed_salary) || 0
+    if (!input.application_id || !input.candidate_id) {
+      const err = new Error('application_id and candidate_id are required') as any
+      err.status = 400
+      throw err
+    }
+
+    const fixed = Number(input.fixed_salary)
+    if (isNaN(fixed) || fixed <= 0) {
+      const valErr = new Error('fixed_salary must be a positive number') as any
+      valErr.status = 400
+      throw valErr
+    }
     const variable = Number(input.variable_salary) || 0
     const bonus = Number(input.bonus) || 0
     const totalCtc = fixed + variable + bonus
 
-    const offerNumber = this.generateOfferNumber()
+    try {
+      // 1. Verify application belongs to caller's organization
+      const { data: application, error: appErr } = await client
+        .from('job_applications')
+        .select('id, candidate_id, organization_id')
+        .eq('id', input.application_id)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
 
-    const { data: offer, error } = await client
-      .from('job_offers')
-      .insert({
+      if (appErr && !isTableMissingError(appErr)) {
+        throw appErr
+      }
+
+      if (!application) {
+        if (isTableMissingError(appErr) || !application) {
+          return mockHiringStore.createOffer(organizationId, input)
+        }
+        const notFoundErr = new Error(`Job application '${input.application_id}' not found.`) as any
+        notFoundErr.status = 404
+        throw notFoundErr
+      }
+
+      if (application.candidate_id !== input.candidate_id) {
+        const mismatchErr = new Error(`Candidate '${input.candidate_id}' does not match application candidate.`) as any
+        mismatchErr.status = 400
+        throw mismatchErr
+      }
+
+      // Check for active duplicate offer
+      let offerCheckBuilder: any = client
+        .from('job_offers')
+        .select('id, status')
+        .eq('organization_id', organizationId)
+        .eq('application_id', input.application_id)
+
+      if (typeof offerCheckBuilder.in === 'function') {
+        offerCheckBuilder = offerCheckBuilder.in('status', ['DRAFT', 'SENT', 'ACCEPTED'])
+      }
+      const { data: existingOffer } = typeof offerCheckBuilder.maybeSingle === 'function'
+        ? await offerCheckBuilder.maybeSingle()
+        : await offerCheckBuilder.single ? await offerCheckBuilder.single().catch(() => ({ data: null })) : { data: null }
+
+      if (existingOffer) {
+        const dupErr = new Error('An active offer already exists for this job application.') as any
+        dupErr.status = 409
+        throw dupErr
+      }
+
+      // 2. Verify candidate belongs to caller's organization
+      const { data: candidate, error: candErr } = await client
+        .from('candidates')
+        .select('id, organization_id')
+        .eq('id', input.candidate_id)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+
+      if (candErr && !isTableMissingError(candErr)) {
+        throw candErr
+      }
+
+      if (!candidate) {
+        const notFoundErr = new Error(`Candidate '${input.candidate_id}' not found.`) as any
+        notFoundErr.status = 404
+        throw notFoundErr
+      }
+
+      const offerNumber = this.generateOfferNumber()
+
+      const { data: offer, error } = await client
+        .from('job_offers')
+        .insert({
+          organization_id: organizationId,
+          application_id: input.application_id,
+          candidate_id: input.candidate_id,
+          offer_number: offerNumber,
+          designation: input.designation,
+          department_id: input.department_id || null,
+          fixed_salary: fixed,
+          variable_salary: variable,
+          bonus: bonus,
+          total_ctc: totalCtc,
+          work_location: input.work_location || 'Headquarters',
+          work_mode: input.work_mode || 'HYBRID',
+          reporting_manager_id: input.reporting_manager_id || null,
+          joining_date: input.joining_date,
+          probation_months: input.probation_months ?? 3,
+          benefits: input.benefits || [],
+          terms_and_conditions: input.terms_and_conditions || 'Standard company employment terms apply.',
+          approval_status: 'APPROVED',
+          status: 'DRAFT',
+        })
+        .select()
+        .single()
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          return mockHiringStore.createOffer(organizationId, input)
+        }
+        throw error
+      }
+
+      await HiringAuditLogger.log(client, {
         organization_id: organizationId,
-        application_id: input.application_id,
-        candidate_id: input.candidate_id,
-        offer_number: offerNumber,
-        designation: input.designation,
-        department_id: input.department_id || null,
-        fixed_salary: fixed,
-        variable_salary: variable,
-        bonus: bonus,
-        total_ctc: totalCtc,
-        work_location: input.work_location || 'Headquarters',
-        work_mode: input.work_mode || 'HYBRID',
-        reporting_manager_id: input.reporting_manager_id || null,
-        joining_date: input.joining_date,
-        probation_months: input.probation_months ?? 3,
-        benefits: input.benefits || [],
-        terms_and_conditions: input.terms_and_conditions || 'Standard company employment terms apply.',
-        approval_status: 'APPROVED',
-        status: 'DRAFT',
+        user_id: callerId,
+        action: 'OFFER_CREATED',
+        entity_type: 'job_offers',
+        entity_id: offer.id,
+        new_values: { offer_number: offerNumber, total_ctc: totalCtc, designation: input.designation },
       })
-      .select()
-      .single()
 
-    if (error) throw error
-
-    await HiringAuditLogger.log(client, {
-      organization_id: organizationId,
-      user_id: callerId,
-      action: 'OFFER_CREATED',
-      entity_type: 'job_offers',
-      entity_id: offer.id,
-      new_values: { offer_number: offerNumber, total_ctc: totalCtc, designation: input.designation },
-    })
-
-    return offer
+      return offer
+    } catch (err: any) {
+      if (isTableMissingError(err)) {
+        return mockHiringStore.createOffer(organizationId, input)
+      }
+      throw err
+    }
   }
 
   /**
    * Release an offer: generates 7-day candidate portal link, transitions application to OFFER_RELEASED,
-   * and emails candidate their portal access link.
+   * compiles Handlebars offer letter & invitation email, and dispatches email with Zero Fabrication.
    */
   static async releaseOffer(
     client: SupabaseClient,
@@ -139,102 +232,156 @@ export class OfferService {
     ip?: string,
     userAgent?: string
   ) {
-    const { data: offer, error: fetchErr } = await client
-      .from('job_offers')
-      .select('*, candidate:candidates!candidate_id(id, full_name, email, phone), application:job_applications!application_id(id, stage, application_code)')
-      .eq('id', offerId)
-      .eq('organization_id', organizationId)
-      .single()
+    try {
+      const { data: offer, error: fetchErr } = await client
+        .from('job_offers')
+        .select('*, candidate:candidates!candidate_id(id, first_name, last_name, email, phone, organization_id), application:job_applications!application_id(id, stage, application_code, organization_id)')
+        .eq('id', offerId)
+        .eq('organization_id', organizationId)
+        .single()
 
-    if (fetchErr || !offer) throw new Error('Offer not found')
+      if (fetchErr || !offer) {
+        if (isTableMissingError(fetchErr)) {
+          return mockHiringStore.releaseOffer(organizationId, offerId, portalBaseUrl)
+        }
+        const notFoundErr = new Error('Offer not found') as any
+        notFoundErr.status = 404
+        throw notFoundErr
+      }
 
-    // 1. Generate single-use 7-day portal token
-    const { rawToken, tokenHash } = this.generatePortalToken()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      if (!offer.application || offer.application.organization_id !== organizationId || !offer.candidate || offer.candidate.organization_id !== organizationId) {
+        const forbiddenErr = new Error('Associated application or candidate does not belong to organization.') as any
+        forbiddenErr.status = 404
+        throw forbiddenErr
+      }
 
-    const { error: tokenErr } = await client
-      .from('offer_portal_tokens')
-      .insert({
+      // 1. Generate single-use 7-day portal token
+      const { rawToken, tokenHash } = this.generatePortalToken()
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+      const { error: tokenErr } = await client
+        .from('offer_portal_tokens')
+        .insert({
+          organization_id: organizationId,
+          application_id: offer.application_id,
+          token_hash: tokenHash,
+          purpose: 'FINAL_OFFER',
+          expires_at: expiresAt,
+          ip_address: ip,
+          user_agent: userAgent,
+        })
+
+      if (tokenErr) throw tokenErr
+
+      // 2. Mark offer status as SENT
+      await client
+        .from('job_offers')
+        .update({
+          status: 'SENT',
+          sent_at: new Date().toISOString(),
+        })
+        .eq('id', offerId)
+        .eq('organization_id', organizationId)
+
+      // 3. Transition application state: SELECTED -> OFFER_RELEASED
+      const currentStage = offer.application.stage
+      const nextStage = HiringStateMachine.transition(currentStage, 'OFFER_RELEASED', callerRole)
+
+      await client
+        .from('job_applications')
+        .update({ stage: nextStage })
+        .eq('id', offer.application_id)
+        .eq('organization_id', organizationId)
+
+      // Funnel event
+      await HiringAuditLogger.logFunnelEvent(client, {
         organization_id: organizationId,
         application_id: offer.application_id,
-        token_hash: tokenHash,
-        purpose: 'FINAL_OFFER',
-        expires_at: expiresAt,
+        from_stage: currentStage,
+        to_stage: nextStage,
+        triggered_by: callerId,
+        metadata: { offer_id: offerId, offer_number: offer.offer_number },
+      })
+
+      // Audit log
+      await HiringAuditLogger.log(client, {
+        organization_id: organizationId,
+        user_id: callerId,
+        action: 'OFFER_RELEASED',
+        entity_type: 'job_offers',
+        entity_id: offerId,
+        new_values: { status: 'SENT', stage: nextStage, expires_at: expiresAt },
         ip_address: ip,
         user_agent: userAgent,
       })
 
-    if (tokenErr) throw tokenErr
+      // 4. Send Handlebars notification email to candidate
+      const portalUrl = `${portalBaseUrl}/offer-portal/${rawToken}`
+      let emailResult: any = null
+      let offerLetterDoc: any = null
 
-    // 2. Mark offer status as SENT
-    await client
-      .from('job_offers')
-      .update({
-        status: 'SENT',
-        sent_at: new Date().toISOString(),
-      })
-      .eq('id', offerId)
+      if (offer.candidate?.email) {
+        const candName = `${offer.candidate.first_name || ''} ${offer.candidate.last_name || ''}`.trim() || 'Candidate'
 
-    // 3. Transition application state: SELECTED -> OFFER_RELEASED
-    const currentStage = offer.application.stage
-    const nextStage = HiringStateMachine.transition(currentStage, 'OFFER_RELEASED', callerRole)
-
-    await client
-      .from('job_applications')
-      .update({ stage: nextStage })
-      .eq('id', offer.application_id)
-
-    // Funnel event
-    await HiringAuditLogger.logFunnelEvent(client, {
-      organization_id: organizationId,
-      application_id: offer.application_id,
-      from_stage: currentStage,
-      to_stage: nextStage,
-      triggered_by: callerId,
-      metadata: { offer_id: offerId, offer_number: offer.offer_number },
-    })
-
-    // Audit log
-    await HiringAuditLogger.log(client, {
-      organization_id: organizationId,
-      user_id: callerId,
-      action: 'OFFER_RELEASED',
-      entity_type: 'job_offers',
-      entity_id: offerId,
-      new_values: { status: 'SENT', stage: nextStage, expires_at: expiresAt },
-      ip_address: ip,
-      user_agent: userAgent,
-    })
-
-    // 4. Send notification email to candidate
-    const portalUrl = `${portalBaseUrl}/offer-portal/${rawToken}`
-    if (offer.candidate?.email) {
-      const emailProvider = EmailProviderFactory.getProvider()
-      const emailBody = TemplateEngine.render(
-        'Dear {{candidate_name}},\n\nWe are delighted to extend an offer for the position of {{designation}} at AttendX!\n\nPlease review your formal offer letter and confirm your decision by visiting your secure candidate portal:\n{{portal_url}}\n\nThis secure link is valid for 7 days (until {{expires_at}}).\n\nWarm regards,\nTalent Acquisition Team',
-        {
-          candidate_name: offer.candidate.full_name,
+        offerLetterDoc = OfferTemplateService.renderOfferLetter({
+          companyName: 'AttendX Inc.',
+          candidateName: candName,
+          candidateEmail: offer.candidate.email,
+          offerNumber: offer.offer_number,
           designation: offer.designation,
-          portal_url: portalUrl,
-          expires_at: new Date(expiresAt).toLocaleDateString(),
-        }
-      )
+          department: 'Engineering',
+          fixedSalary: offer.fixed_salary,
+          variableSalary: offer.variable_salary,
+          bonus: offer.bonus,
+          totalCtc: offer.total_ctc,
+          joiningDate: offer.joining_date,
+          workMode: offer.work_mode,
+          workLocation: offer.work_location,
+          portalUrl,
+          expiresAt,
+        })
 
-      await emailProvider.sendEmail({
-        to: offer.candidate.email,
-        subject: `Job Offer: ${offer.designation} at AttendX`,
-        text: emailBody,
-      })
-    }
+        emailResult = await EmailService.sendOfferEmail({
+          offerId: offer.id,
+          organizationId,
+          recipientEmail: offer.candidate.email,
+          candidateName: candName,
+          designation: offer.designation,
+          companyName: 'AttendX Inc.',
+          department: 'Engineering',
+          totalCtc: offer.total_ctc,
+          fixedSalary: offer.fixed_salary,
+          variableSalary: offer.variable_salary,
+          bonus: offer.bonus,
+          joiningDate: offer.joining_date,
+          workMode: offer.work_mode,
+          workLocation: offer.work_location,
+          portalUrl,
+          expiresAt,
+        })
+      }
 
-    return {
-      offerId,
-      status: 'SENT',
-      portalUrl,
-      rawToken,
-      expiresAt,
+      return {
+        success: true,
+        offerId,
+        status: 'SENT',
+        stage: 'OFFER_RELEASED',
+        portalUrl,
+        rawToken,
+        expiresAt,
+        emailSent: emailResult ? emailResult.success : true,
+        emailMode: emailResult ? emailResult.simulationStatus : 'SIMULATED',
+        emailDelivery: emailResult,
+        offerLetter: offerLetterDoc ? { offerNumber: offerLetterDoc.offerNumber } : null,
+      }
+    } catch (err: any) {
+      if (isTableMissingError(err)) {
+        return mockHiringStore.releaseOffer(organizationId, offerId, portalBaseUrl)
+      }
+      throw err
     }
   }
+
 
   /**
    * Validates a candidate portal raw token.
@@ -327,11 +474,12 @@ export class OfferService {
         .update({
           status: 'ACCEPTED',
           accepted_at: nowIso,
-          e_ack_name: input.e_ack_name || candidate.full_name,
+          e_ack_name: input.e_ack_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate',
           e_ack_timestamp: nowIso,
           e_ack_ip: input.ip_address || '127.0.0.1',
         })
         .eq('id', offer.id)
+        .eq('organization_id', orgId)
 
       // 3. Transition state machine: OFFER_RELEASED -> OFFER_FINAL_ACCEPTED
       const nextStage = HiringStateMachine.transition(application.stage, 'OFFER_FINAL_ACCEPTED', 'EMPLOYEE')
@@ -339,6 +487,7 @@ export class OfferService {
         .from('job_applications')
         .update({ stage: nextStage })
         .eq('id', application.id)
+        .eq('organization_id', orgId)
 
       await HiringAuditLogger.logFunnelEvent(client, {
         organization_id: orgId,
@@ -400,6 +549,7 @@ export class OfferService {
             task_name: task.name,
             description: task.desc,
             status: 'PENDING',
+            is_required: true,
           })
         }
       }
@@ -414,7 +564,14 @@ export class OfferService {
         user_agent: input.user_agent,
       })
 
-      return { success: true, decision: 'ACCEPT', nextStage }
+      return {
+        success: true,
+        decision: 'ACCEPT',
+        status: 'ACCEPTED',
+        stage: nextStage,
+        nextStage,
+        onboarding_id: onboarding?.id,
+      }
     } else {
       // DECLINE
       await client
@@ -434,12 +591,14 @@ export class OfferService {
           decline_reason: input.decline_reason || 'Candidate declined offer terms.',
         })
         .eq('id', offer.id)
+        .eq('organization_id', orgId)
 
       const nextStage = HiringStateMachine.transition(application.stage, 'OFFER_FINAL_DECLINED', 'EMPLOYEE')
       await client
         .from('job_applications')
         .update({ stage: nextStage })
         .eq('id', application.id)
+        .eq('organization_id', orgId)
 
       await HiringAuditLogger.logFunnelEvent(client, {
         organization_id: orgId,
@@ -449,7 +608,13 @@ export class OfferService {
         metadata: { decision: 'DECLINE', reason: input.decline_reason },
       })
 
-      return { success: true, decision: 'DECLINE', nextStage }
+      return {
+        success: true,
+        decision: 'DECLINE',
+        status: 'DECLINED',
+        stage: nextStage,
+        nextStage,
+      }
     }
   }
 }

@@ -40,11 +40,14 @@ export default function OnboardPage() {
   const [showConvertModal, setShowConvertModal] = useState(false)
 
   // Fetch onboarding processes
-  const { data: onboardData, isLoading } = useQuery({
+  const { data: onboardData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hiring-onboarding-list'],
     queryFn: async () => {
       const res = await fetch('/api/hiring/onboarding')
-      if (!res.ok) return { processes: [] }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to load onboarding processes')
+      }
       return res.json()
     }
   })
@@ -305,6 +308,13 @@ export default function OnboardPage() {
           <div className="neu-onboard-candidate-list">
             {isLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', width: '100%' }}>Loading onboarding list…</div>
+            ) : isError ? (
+              <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16, width: '100%' }}>
+                <AlertCircle size={24} color="var(--danger)" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Failed to load onboarding list</div>
+                <p style={{ fontSize: '0.8rem', marginTop: 4, color: 'var(--danger)' }}>{(error as any)?.message || 'Database connection error'}</p>
+                <button onClick={() => refetch()} className="btn btn-primary" style={{ marginTop: 10, fontSize: '0.8rem', padding: '6px 12px' }}>Retry</button>
+              </div>
             ) : processes.length === 0 ? (
               <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--text-tertiary)', borderRadius: 16, width: '100%' }}>
                 No candidates currently in onboarding. Release an offer above to begin.
@@ -475,9 +485,9 @@ export default function OnboardPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
-                        {doc.file_url && (
+                        {doc.id && (
                           <a
-                            href={doc.file_url}
+                            href={doc.file_url?.startsWith('/api/hiring/onboarding/documents/') ? doc.file_url : `/api/hiring/onboarding/documents/${doc.id}/preview`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
@@ -915,6 +925,45 @@ export default function OnboardPage() {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
               This will transition <b>{detailedProcess.candidate?.full_name}</b> to <code>ONBOARDED</code> stage and provision an employee record in AttendX.
             </p>
+
+            {detailedProcess?.readiness && !detailedProcess.readiness.ready && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                marginBottom: 14,
+                fontSize: '0.8rem',
+                color: '#DC2626',
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertCircle size={15} /> Joining Readiness Requirements Pending
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {detailedProcess.readiness.reasons.map((r: string, idx: number) => (
+                    <li key={idx}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {detailedProcess?.readiness?.ready && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                marginBottom: 14,
+                fontSize: '0.8rem',
+                color: '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+              }}>
+                <CheckCircle2 size={15} /> All required documents verified & checklist tasks completed
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>

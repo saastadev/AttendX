@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PAN Card Copy (Demo Specimen)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; margin: 0; padding: 32px 16px; display: flex; flex-direction: column; align-items: center; }
+    .watermark-banner { background: #dc2626; color: #ffffff; padding: 10px 24px; font-weight: 800; font-size: 13px; letter-spacing: 1px; border-radius: 8px; margin-bottom: 24px; text-align: center; max-width: 600px; width: 100%; box-sizing: border-box; }
+    .pan-card { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); width: 100%; max-width: 600px; border: 2px solid #3b82f6; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; padding: 28px; box-sizing: border-box; }
+    .pan-card::before { content: "DEMO DOCUMENT — NOT VALID FOR OFFICIAL USE"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 26px; font-weight: 900; color: rgba(220, 38, 38, 0.12); white-space: nowrap; pointer-events: none; z-index: 10; }
+    .header-bar { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .dept-title { font-weight: 800; font-size: 15px; color: #1e3a8a; }
+    .body-grid { display: flex; gap: 20px; }
+    .photo-area { width: 100px; height: 120px; background: #bfdbfe; border: 1px solid #60a5fa; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #1e40af; font-weight: 700; flex-shrink: 0; }
+    .details { flex: 1; font-size: 13px; line-height: 1.8; color: #1e293b; }
+    .pan-badge { margin-top: 18px; background: #1e3a8a; color: #ffffff; padding: 10px; border-radius: 8px; text-align: center; font-family: monospace; font-size: 20px; letter-spacing: 4px; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="watermark-banner">⚠️ DEMO DOCUMENT &mdash; NOT VALID FOR OFFICIAL OR LEGAL USE</div>
+  <div class="pan-card">
+    <div class="header-bar">
+      <div>
+        <div class="dept-title">आयकर विभाग | INCOME TAX DEPARTMENT</div>
+        <div style="font-size: 12px; color: #3b82f6;">GOVERNMENT OF INDIA &mdash; DEMO SPECIMEN</div>
+      </div>
+      <div style="font-size: 24px;">🏛️</div>
+    </div>
+    <div class="body-grid">
+      <div class="photo-area">DEMO PHOTO</div>
+      <div class="details">
+        <div>Name: <strong>Rohan Verma</strong></div>
+        <div>Father's Name: <strong>Suresh Verma (Demo)</strong></div>
+        <div>Date of Birth: <strong>15/08/1994</strong></div>
+        <div>Category: <strong>Individual</strong></div>
+      </div>
+    </div>
+    <div class="pan-badge">ABCDE1234F</div>
+    <div style="margin-top: 14px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+      <div>Permanent Account Number Card</div>
+      <div style="font-family: cursive; font-size: 16px; color: #1e3a8a;">Rohan Verma</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -26,15 +26,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      let token = session?.access_token
+      if (session) {
+        const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
+        if (expiresAt > 0 && Date.now() >= expiresAt - 60000) {
+          const { data: refreshData } = await supabase.auth.refreshSession()
+          if (refreshData?.session?.access_token) {
+            token = refreshData.session.access_token
+          }
+        }
+      }
+
       const headers: Record<string, string> = {}
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
-      const res = await fetch('/api/auth/profile', { headers, credentials: 'include', signal: controller.signal })
+      let res = await fetch('/api/auth/profile', { headers, credentials: 'include', signal: controller.signal })
       clearTimeout(timeoutId)
+
+      if (res.status === 401) {
+        const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession()
+        if (!refreshErr && refreshData?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${refreshData.session.access_token}`
+          res = await fetch('/api/auth/profile', { headers, credentials: 'include' })
+        }
+      }
+
       if (res.ok) {
         const json = await res.json()
         if (json.user) return json.user
@@ -54,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roleRows = roleRes.data ?? []
 
       if (!profile) {
-        console.error('[Auth] Failed to load profile for user', userId)
+        console.warn('[Auth] No profile found for user:', userId)
         return null
       }
 

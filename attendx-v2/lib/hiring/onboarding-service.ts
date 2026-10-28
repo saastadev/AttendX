@@ -8,9 +8,10 @@
 // - Stage transition to ONBOARDED with atomic audit & funnel logs
 // ============================================================
 
+import crypto from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringStateMachine } from './state-machine'
-import { HiringAuditLogger } from './audit-logger'
+import { HiringStateMachine } from './state-machine.ts'
+import { HiringAuditLogger } from './audit-logger.ts'
 import type { UserRole } from '@/types/database'
 
 export interface SubmitDocumentInput {
@@ -31,20 +32,71 @@ export interface ConvertEmployeeInput {
   role?: UserRole
 }
 
+export interface JoiningReadinessDocument {
+  id: string
+  document_type: string
+  document_name: string
+  status: string
+}
+
+export interface JoiningReadinessTask {
+  id: string
+  task_name: string
+  category: string
+  status: string
+}
+
+export interface JoiningReadinessResult {
+  ready: boolean
+  total_required_documents: number
+  verified_required_documents: number
+  unverified_documents: JoiningReadinessDocument[]
+  total_required_tasks: number
+  completed_required_tasks: number
+  incomplete_tasks: JoiningReadinessTask[]
+  reasons: string[]
+}
+
+export class JoiningReadinessError extends Error {
+  public readonly status = 400
+  public readonly code = 'JOINING_READINESS_INCOMPLETE'
+  public readonly readiness: JoiningReadinessResult
+
+  constructor(message: string, readiness: JoiningReadinessResult) {
+    super(message)
+    this.name = 'JoiningReadinessError'
+    this.readiness = readiness
+  }
+}
+
 export class OnboardingService {
   /**
    * Recalculates and updates the completion percentage of an onboarding process.
    */
-  static async recalculateProgress(client: SupabaseClient, onboardingId: string): Promise<number> {
-    const { data: docs } = await client
+  static async recalculateProgress(client: SupabaseClient, onboardingId: string, organizationId?: string): Promise<number> {
+    let docsQuery = client
       .from('onboarding_documents')
       .select('status, is_required')
       .eq('onboarding_id', onboardingId)
 
-    const { data: tasks } = await client
+    if (organizationId) {
+      docsQuery = docsQuery.eq('organization_id', organizationId)
+    }
+
+    const { data: docs, error: dErr } = await docsQuery
+    if (dErr) throw dErr
+
+    let tasksQuery = client
       .from('onboarding_tasks')
-      .select('status')
+      .select('status, is_required')
       .eq('onboarding_id', onboardingId)
+
+    if (organizationId) {
+      tasksQuery = tasksQuery.eq('organization_id', organizationId)
+    }
+
+    const { data: tasks, error: tErr } = await tasksQuery
+    if (tErr) throw tErr
 
     const docList = docs || []
     const taskList = tasks || []
@@ -57,10 +109,17 @@ export class OnboardingService {
 
     const percentage = Math.round(((verifiedDocs + completedTasks) / totalItems) * 100)
 
-    await client
+    let updateQuery = client
       .from('onboarding_processes')
       .update({ completion_percentage: percentage })
       .eq('id', onboardingId)
+
+    if (organizationId) {
+      updateQuery = updateQuery.eq('organization_id', organizationId)
+    }
+
+    const { error: uErr } = await updateQuery
+    if (uErr) throw uErr
 
     return percentage
   }
@@ -73,7 +132,7 @@ export class OnboardingService {
       .from('onboarding_processes')
       .select(`
         *,
-        candidate:candidates!candidate_id(id, full_name, email, phone),
+        candidate:candidates!candidate_id(id, first_name, last_name, email, phone),
         offer:job_offers!offer_id(id, offer_number, designation, fixed_salary, total_ctc, joining_date, work_mode),
         application:job_applications!application_id(id, stage, application_code)
       `)
@@ -86,11 +145,18 @@ export class OnboardingService {
 
     const { data, error } = await query
     if (error) throw error
-    return data || []
+    const formatted = (data || []).map((item: any) => ({
+      ...item,
+      candidate: item.candidate ? {
+        ...item.candidate,
+        full_name: `${item.candidate.first_name || ''} ${item.candidate.last_name || ''}`.trim(),
+      } : null,
+    }))
+    return formatted
   }
 
   /**
-   * Get single onboarding details with documents and tasks.
+   * Get single onboarding details with documents, tasks, and joining readiness evaluation.
    */
   static async getById(client: SupabaseClient, organizationId: string, onboardingId: string) {
     const { data: process, error } = await client
@@ -108,7 +174,13 @@ export class OnboardingService {
       .single()
 
     if (error) throw error
-    return process
+
+    const readiness = await this.getJoiningReadiness(client, organizationId, onboardingId)
+
+    return {
+      ...process,
+      readiness,
+    }
   }
 
   /**
@@ -119,14 +191,37 @@ export class OnboardingService {
     organizationId: string,
     input: SubmitDocumentInput
   ) {
-    // Check if placeholder exists for this document type
-    const { data: existing } = await client
+    // 1. Authoritative ownership verification: ensure onboarding process exists in caller's tenant
+    const { data: process, error: pErr } = await client
+      .from('onboarding_processes')
+      .select('id')
+      .eq('id', input.onboarding_id)
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    if (pErr) {
+      throw new Error(`Failed to verify onboarding process: ${pErr.message}`)
+    }
+
+    if (!process) {
+      const notFoundErr = new Error(`Onboarding process '${input.onboarding_id}' not found`) as any
+      notFoundErr.status = 404
+      throw notFoundErr
+    }
+
+    // 2. Check if placeholder exists for this document type within caller's tenant
+    const { data: existing, error: findErr } = await client
       .from('onboarding_documents')
       .select('id')
+      .eq('organization_id', organizationId)
       .eq('onboarding_id', input.onboarding_id)
       .eq('document_type', input.document_type)
       .limit(1)
       .maybeSingle()
+
+    if (findErr) {
+      throw new Error(`Failed to check existing document: ${findErr.message}`)
+    }
 
     let docResult
     if (existing) {
@@ -141,6 +236,7 @@ export class OnboardingService {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
+        .eq('organization_id', organizationId)
         .select()
         .single()
       if (error) throw error
@@ -165,7 +261,7 @@ export class OnboardingService {
       docResult = data
     }
 
-    await this.recalculateProgress(client, input.onboarding_id)
+    await this.recalculateProgress(client, input.onboarding_id, organizationId)
     return docResult
   }
 
@@ -204,13 +300,14 @@ export class OnboardingService {
     if (error) throw error
 
     // Recalculate progress
-    await this.recalculateProgress(client, doc.onboarding_id)
+    await this.recalculateProgress(client, doc.onboarding_id, organizationId)
 
     // Check if all required documents are now verified
     const { data: allDocs } = await client
       .from('onboarding_documents')
       .select('status, is_required')
       .eq('onboarding_id', doc.onboarding_id)
+      .eq('organization_id', organizationId)
 
     const allRequiredVerified = (allDocs || [])
       .filter(d => d.is_required)
@@ -221,12 +318,14 @@ export class OnboardingService {
         .from('onboarding_processes')
         .update({ status: 'DOCUMENTS_VERIFIED' })
         .eq('id', doc.onboarding_id)
+        .eq('organization_id', organizationId)
 
       // Transition application stage to DOCUMENTS_VERIFIED if not already
       const { data: app } = await client
         .from('job_applications')
         .select('stage')
         .eq('id', doc.onboarding.application_id)
+        .eq('organization_id', organizationId)
         .single()
 
       if (app && app.stage !== 'DOCUMENTS_VERIFIED') {
@@ -235,6 +334,7 @@ export class OnboardingService {
           .from('job_applications')
           .update({ stage: nextStage })
           .eq('id', doc.onboarding.application_id)
+          .eq('organization_id', organizationId)
 
         await HiringAuditLogger.logFunnelEvent(client, {
           organization_id: organizationId,
@@ -279,12 +379,111 @@ export class OnboardingService {
 
     if (error) throw error
 
-    await this.recalculateProgress(client, task.onboarding_id)
+    await this.recalculateProgress(client, task.onboarding_id, organizationId)
     return task
   }
 
   /**
+   * Authoritatively evaluates candidate joining readiness.
+   * Enforces:
+   * 1. Every required onboarding document exists and has status VERIFIED.
+   * 2. Every required onboarding task has status COMPLETED.
+   * 3. Optional documents (is_required: false) do NOT block conversion.
+   * 4. Optional tasks (is_required: false) do NOT block conversion.
+   * 5. Missing / unverified / rejected / submitted required documents block conversion.
+   * 6. Pending / in-progress / skipped required tasks block conversion.
+   */
+  static async getJoiningReadiness(
+    client: SupabaseClient,
+    organizationId: string,
+    onboardingId: string
+  ): Promise<JoiningReadinessResult> {
+    // 1. Fetch documents
+    const { data: docs, error: docErr } = await client
+      .from('onboarding_documents')
+      .select('id, document_type, document_name, status, is_required')
+      .eq('onboarding_id', onboardingId)
+      .eq('organization_id', organizationId)
+
+    if (docErr) throw docErr
+
+    // 2. Fetch tasks
+    const { data: tasks, error: taskErr } = await client
+      .from('onboarding_tasks')
+      .select('id, task_name, category, status, is_required')
+      .eq('onboarding_id', onboardingId)
+      .eq('organization_id', organizationId)
+
+    if (taskErr) throw taskErr
+
+    const docList = docs || []
+    const taskList = tasks || []
+
+    const requiredDocs = docList.filter(d => d.is_required !== false)
+    const verifiedDocs = requiredDocs.filter(d => d.status === 'VERIFIED')
+    const unverifiedDocs: JoiningReadinessDocument[] = requiredDocs
+      .filter(d => d.status !== 'VERIFIED')
+      .map(d => ({
+        id: d.id,
+        document_type: d.document_type,
+        document_name: d.document_name,
+        status: d.status,
+      }))
+
+    const requiredTasks = taskList.filter(t => t.is_required !== false)
+    const completedTasks = requiredTasks.filter(t => t.status === 'COMPLETED')
+    const incompleteTasks: JoiningReadinessTask[] = requiredTasks
+      .filter(t => t.status !== 'COMPLETED')
+      .map(t => ({
+        id: t.id,
+        task_name: t.task_name,
+        category: t.category,
+        status: t.status,
+      }))
+
+    if (requiredDocs.length === 0) {
+      unverifiedDocs.push({
+        id: 'missing-required-documents',
+        document_type: 'REQUIRED',
+        document_name: 'Required onboarding documents',
+        status: 'MISSING',
+      })
+    }
+
+    if (requiredTasks.length === 0) {
+      incompleteTasks.push({
+        id: 'missing-required-tasks',
+        task_name: 'Required onboarding tasks',
+        category: 'GENERAL',
+        status: 'MISSING',
+      })
+    }
+
+    const ready = unverifiedDocs.length === 0 && incompleteTasks.length === 0
+
+    const reasons: string[] = []
+    if (unverifiedDocs.length > 0) {
+      reasons.push(`${unverifiedDocs.length} required document(s) are unverified or missing.`)
+    }
+    if (incompleteTasks.length > 0) {
+      reasons.push(`${incompleteTasks.length} required onboarding task(s) are incomplete.`)
+    }
+
+    return {
+      ready,
+      total_required_documents: requiredDocs.length,
+      verified_required_documents: verifiedDocs.length,
+      unverified_documents: unverifiedDocs,
+      total_required_tasks: requiredTasks.length,
+      completed_required_tasks: completedTasks.length,
+      incomplete_tasks: incompleteTasks,
+      reasons,
+    }
+  }
+
+  /**
    * "Convert to Employee" CTA:
+   * - Enforces Server-Side Joining Readiness Guard.
    * - Atomically creates or connects an employee record in `employees` / `profiles`.
    * - Sets onboarding status to COMPLETED and completion percentage to 100%.
    * - Transitions application stage to ONBOARDED.
@@ -312,19 +511,42 @@ export class OnboardingService {
       .single()
 
     if (pErr || !process) {
-      throw new Error('Onboarding process not found')
+      const err: any = new Error('Onboarding process not found')
+      err.status = 404
+      throw err
     }
 
     const { candidate, offer, application } = process
+    const emailToUse = input.work_email || candidate?.email
 
-    // 1. Transition state machine: DOCUMENTS_VERIFIED -> ONBOARDED (or from current stage)
-    const nextStage = HiringStateMachine.transition(application.stage, 'ONBOARDED', callerRole)
+    // Idempotency: If process is already COMPLETED and employee linked, return cleanly
+    if (process.status === 'COMPLETED' && process.employee_id) {
+      return {
+        success: true,
+        already_completed: true,
+        onboardingId: process.id,
+        stage: application?.stage || 'ONBOARDED',
+        employeeId: process.employee_id,
+        email: emailToUse,
+      }
+    }
+
+    // Server-Side Joining Readiness Guard
+    const readiness = await this.getJoiningReadiness(client, organizationId, input.onboarding_id)
+    if (!readiness.ready) {
+      throw new JoiningReadinessError(
+        `Cannot convert candidate to employee: joining readiness criteria not met (${readiness.reasons.join(' ')}).`,
+        readiness
+      )
+    }
+
+    // 1. Transition state machine: DOCUMENTS_VERIFIED / OFFER_FINAL_ACCEPTED -> ONBOARDED
+    const nextStage = HiringStateMachine.transition(application?.stage || 'DOCUMENTS_VERIFIED', 'ONBOARDED', callerRole)
 
     // 2. Check if employee already exists in profiles / employees table
-    const emailToUse = input.work_email || candidate.email
     let employeeRecordId = process.employee_id
 
-    if (!employeeRecordId) {
+    if (!employeeRecordId && emailToUse) {
       // Look up existing profile with email & tenant
       const { data: existingProfile } = await client
         .from('profiles')
@@ -336,22 +558,78 @@ export class OnboardingService {
       if (existingProfile) {
         employeeRecordId = existingProfile.id
       } else {
-        // Create an employee profile record
-        const { data: newProfile, error: profErr } = await client
+        // Try creating auth user via admin API if available
+        if (client.auth?.admin?.createUser) {
+          try {
+            const securePassword = 'TempPassword' + Math.random().toString(36).slice(-8) + '!'
+            const { data: newAuthUser } = await client.auth.admin.createUser({
+              email: emailToUse.toLowerCase(),
+              password: securePassword,
+              email_confirm: true,
+              app_metadata: {
+                tenant_id: organizationId,
+                role: input.role || 'EMPLOYEE',
+              },
+              user_metadata: {
+                full_name: `${candidate?.first_name || ''} ${candidate?.last_name || ''}`.trim() || 'Employee',
+              },
+            })
+            if (newAuthUser?.user?.id) {
+              employeeRecordId = newAuthUser.user.id
+            }
+          } catch {
+            // Service admin auth not available or user exists
+          }
+        }
+
+        if (!employeeRecordId) {
+          employeeRecordId = crypto.randomUUID()
+        }
+
+        // Create profile and user_roles records
+        await client
           .from('profiles')
-          .insert({
+          .upsert({
+            id: employeeRecordId,
             tenant_id: organizationId,
             email: emailToUse.toLowerCase(),
-            full_name: candidate.full_name,
-            phone: candidate.phone,
-            role: input.role || 'EMPLOYEE',
+            full_name: `${candidate?.first_name || ''} ${candidate?.last_name || ''}`.trim() || 'Employee',
+            phone: candidate?.phone || null,
+            is_active: true,
+            onboarding_completed: true,
           })
-          .select('id')
-          .maybeSingle()
 
-        if (!profErr && newProfile) {
-          employeeRecordId = newProfile.id
-        }
+        await client
+          .from('user_roles')
+          .upsert({
+            user_id: employeeRecordId,
+            tenant_id: organizationId,
+            role: input.role || 'EMPLOYEE',
+          }, { onConflict: 'user_id,tenant_id' })
+      }
+    }
+
+    if (employeeRecordId) {
+      // Ensure employee record exists in employees table
+      const { data: existingEmp } = await client
+        .from('employees')
+        .select('id')
+        .eq('id', employeeRecordId)
+        .maybeSingle()
+
+      if (!existingEmp) {
+        const empCode = 'EMP-' + Math.floor(10000 + Math.random() * 90000)
+        await client
+          .from('employees')
+          .insert({
+            id: employeeRecordId,
+            tenant_id: organizationId,
+            employee_code: empCode,
+            department_id: input.department_id || null,
+            join_date: input.joining_date || offer?.joining_date || new Date().toISOString().split('T')[0],
+            employment_type: 'FULL_TIME',
+            status: 'ACTIVE',
+          })
       }
     }
 
@@ -365,29 +643,33 @@ export class OnboardingService {
         updated_at: new Date().toISOString(),
       })
       .eq('id', process.id)
+      .eq('organization_id', organizationId)
 
     // 4. Update application stage
-    await client
-      .from('job_applications')
-      .update({
-        stage: nextStage,
-        current_decision: 'ONBOARDING',
-      })
-      .eq('id', application.id)
+    if (application?.id) {
+      await client
+        .from('job_applications')
+        .update({
+          stage: nextStage,
+          current_decision: 'ONBOARDING',
+        })
+        .eq('id', application.id)
+        .eq('organization_id', organizationId)
 
-    // 5. Funnel event
-    await HiringAuditLogger.logFunnelEvent(client, {
-      organization_id: organizationId,
-      application_id: application.id,
-      from_stage: application.stage,
-      to_stage: nextStage,
-      triggered_by: callerId,
-      metadata: {
-        employee_id: employeeRecordId,
-        work_email: emailToUse,
-        joining_date: input.joining_date || offer?.joining_date,
-      },
-    })
+      // 5. Funnel event
+      await HiringAuditLogger.logFunnelEvent(client, {
+        organization_id: organizationId,
+        application_id: application.id,
+        from_stage: application.stage,
+        to_stage: nextStage,
+        triggered_by: callerId,
+        metadata: {
+          employee_id: employeeRecordId,
+          work_email: emailToUse,
+          joining_date: input.joining_date || offer?.joining_date,
+        },
+      })
+    }
 
     // 6. Audit log
     await HiringAuditLogger.log(client, {
@@ -411,6 +693,7 @@ export class OnboardingService {
       stage: nextStage,
       employeeId: employeeRecordId,
       email: emailToUse,
+      readiness,
     }
   }
 }

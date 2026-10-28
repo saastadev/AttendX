@@ -29,9 +29,14 @@ yarn-error.log*
 # agent & local documentation artifacts
 .agents/
 docs/
+graphify-out/
+**/graphify-out/
 
 # extracted temp files & artifacts
 extracted_db_design_*.txt
 extracted_pdf_images/
 AttendX_Comprehensive_E2E_Test_Report.xlsx
 AttendX_Supabase_Full_Database.sql
+MODULE_4_*.md
+scratch/
+

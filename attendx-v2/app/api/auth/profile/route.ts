@@ -46,6 +46,22 @@ export async function GET(request: NextRequest) {
   let profile = profileRes.data
   let roleRows = roleRes.data ?? []
 
+  if (!profile && user.email) {
+    const byEmailRes = await admin
+      .from('profiles')
+      .select('*, tenant:tenants(*)')
+      .eq('email', user.email)
+      .maybeSingle()
+    if (byEmailRes?.data) {
+      profile = byEmailRes.data
+      const rolesByProfile = await admin
+        .from('user_roles')
+        .select('role, tenant_id')
+        .eq('user_id', profile.id)
+      roleRows = rolesByProfile?.data ?? []
+    }
+  }
+
   // Auto-provision profile if missing.
   //
   // Tenant comes ONLY from app_metadata, which is server-controlled and set by

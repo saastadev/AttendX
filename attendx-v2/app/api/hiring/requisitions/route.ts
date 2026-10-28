@@ -6,15 +6,12 @@
 
 import { NextResponse } from 'next/server'
 import { ServerIdentity } from '@/lib/auth/server-identity'
-import { getSupabaseServiceClient } from '@/lib/supabase/server'
+import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { RequisitionService } from '@/lib/hiring/requisition-service'
-import { mockHiringStore } from '@/lib/hiring/mock-store'
 
 export async function GET(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const { searchParams } = new URL(request.url)
     const filters = {
@@ -25,6 +22,18 @@ export async function GET(request: Request) {
       search: searchParams.get('search') || undefined,
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+    }
+
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listRequisitions(caller.tenantId, filters)
+      return NextResponse.json({
+        requisitions: mockResult.data,
+        data: mockResult.data,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
+      })
     }
 
     try {
@@ -38,14 +47,15 @@ export async function GET(request: Request) {
         page: result.page ?? 1,
         limit: result.limit ?? 20,
       })
-    } catch {
-      const result = mockHiringStore.listRequisitions(caller.tenantId, filters)
+    } catch (listErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const mockResult = mockHiringStore.listRequisitions(caller.tenantId, filters)
       return NextResponse.json({
-        requisitions: result.data,
-        data: result.data,
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
+        requisitions: mockResult.data,
+        data: mockResult.data,
+        total: mockResult.total,
+        page: mockResult.page,
+        limit: mockResult.limit,
       })
     }
   } catch (err: any) {
@@ -56,9 +66,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const caller = await ServerIdentity.getAuthoritativeCaller([
-      'SUPERADMIN', 'ADMIN', 'HR'
-    ], request)
+    const caller = await ServerIdentity.getAuthoritativeCaller(['HR'], request)
 
     const body = await request.json()
     if (!body.title?.trim() || !body.requisition_code?.trim()) {
@@ -71,6 +79,12 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
 
+    if (isDevMockSupabase()) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const requisition = mockHiringStore.createRequisition(caller.tenantId, body)
+      return NextResponse.json(requisition, { status: 201 })
+    }
+
     try {
       const serviceClient = getSupabaseServiceClient()
       const requisition = await RequisitionService.create(
@@ -81,7 +95,8 @@ export async function POST(request: Request) {
         { ip, userAgent }
       )
       return NextResponse.json(requisition, { status: 201 })
-    } catch {
+    } catch (createErr: any) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
       const requisition = mockHiringStore.createRequisition(caller.tenantId, body)
       return NextResponse.json(requisition, { status: 201 })
     }

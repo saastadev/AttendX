@@ -1,0 +1,161 @@
+{
+  "step1_inspection": {
+    "pageHasEmployeeId": true,
+    "modalHasParamFetch": true,
+    "modalHasHeading": true,
+    "apiHandlesTargetEmp": true
+  },
+  "step2_telemetry": {
+    "targetEmpId": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+    "insertedIds": [
+      "2fe7eb5b-e2b4-49a7-875c-98f14b9c2702",
+      "21094637-7727-43f7-a075-64b7bab2e602",
+      "ac96e47f-a056-4b59-b2aa-0e2f7f4b2748"
+    ],
+    "t1": "2026-09-24T10:28:43.718Z",
+    "t2": "2026-09-24T10:28:58.718Z",
+    "t3": "2026-09-24T10:29:13.718Z",
+    "statuses": [
+      201,
+      201,
+      201
+    ]
+  },
+  "step3_db_verify": {
+    "rowCount": 3,
+    "isChronological": true,
+    "allSameEmployee": true,
+    "allAcmeTenant": true,
+    "offlineDiff": 0,
+    "rows": [
+      {
+        "gps_log_id": "2fe7eb5b-e2b4-49a7-875c-98f14b9c2702",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "latitude": 12.9716,
+        "longitude": 77.5946,
+        "speed": 0,
+        "timestamp": "2026-09-24T10:28:43.718+00:00"
+      },
+      {
+        "gps_log_id": "21094637-7727-43f7-a075-64b7bab2e602",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "latitude": 12.9725,
+        "longitude": 77.5955,
+        "speed": 12.5,
+        "timestamp": "2026-09-24T10:28:58.718+00:00"
+      },
+      {
+        "gps_log_id": "ac96e47f-a056-4b59-b2aa-0e2f7f4b2748",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "latitude": 12.974,
+        "longitude": 77.597,
+        "speed": 21,
+        "timestamp": "2026-09-24T10:29:13.718+00:00"
+      }
+    ]
+  },
+  "step4_api_verify": {
+    "status": 200,
+    "count": 3,
+    "getPointsCorrectOrder": true,
+    "waypoints": [
+      {
+        "gps_log_id": "2fe7eb5b-e2b4-49a7-875c-98f14b9c2702",
+        "id": "2fe7eb5b-e2b4-49a7-875c-98f14b9c2702",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "lat": 12.9716,
+        "lng": 77.5946,
+        "latitude": 12.9716,
+        "longitude": 77.5946,
+        "speed": 0,
+        "timestamp": "2026-09-24T10:28:43.718+00:00"
+      },
+      {
+        "gps_log_id": "21094637-7727-43f7-a075-64b7bab2e602",
+        "id": "21094637-7727-43f7-a075-64b7bab2e602",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "lat": 12.9725,
+        "lng": 77.5955,
+        "latitude": 12.9725,
+        "longitude": 77.5955,
+        "speed": 12.5,
+        "timestamp": "2026-09-24T10:28:58.718+00:00"
+      },
+      {
+        "gps_log_id": "ac96e47f-a056-4b59-b2aa-0e2f7f4b2748",
+        "id": "ac96e47f-a056-4b59-b2aa-0e2f7f4b2748",
+        "tenant_id": "10000000-0000-0000-0000-000000000001",
+        "employee_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "lat": 12.974,
+        "lng": 77.597,
+        "latitude": 12.974,
+        "longitude": 77.597,
+        "speed": 21,
+        "timestamp": "2026-09-24T10:29:13.718+00:00"
+      }
+    ]
+  },
+  "step5_ui_verify": {
+    "uiVerificationSuccess": true,
+    "screenshotPath": "/Users/nanthithavenkatachapathy/.gemini/antigravity-cli/brain/c1d24729-2687-4326-948e-10d09f13caf7/tc_loc_010_modal_verified.png",
+    "modalInspection": {
+      "heading": "Team Members",
+      "hasModalTitle": true,
+      "hasEveEmployee": true,
+      "hasCarolHR": false,
+      "hasDavidManager": false,
+      "hasNoTelemetry": false,
+      "hasSvg": true,
+      "polylinePoints": "40.0,240.0 220.0,165.0 520.0,40.0",
+      "circleCount": 4,
+      "svgTexts": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "tableRows": [
+        [
+          "T1",
+          "15:58:43",
+          "12.97160, 77.59460",
+          "0.0 km/h"
+        ],
+        [
+          "T2",
+          "15:58:58",
+          "12.97250, 77.59550",
+          "12.5 km/h"
+        ],
+        [
+          "T3",
+          "15:59:13",
+          "12.97400, 77.59700",
+          "21.0 km/h"
+        ]
+      ],
+      "bodyTextSnippet": "AcmeTech Workspace\nMANAGER\nAcmeTech Solutions\nMANAGER\nSearch…\n⌘K\n4\nDashboard\nAttendance\nLeave\nPerformance\nEmployee 360°\nRecognition\nCases\nNotifications\n4\nHR Copilot\nTEAM\nMy Team\nApprovals\nHR & ADMIN\nACCOUNT\nProfile\nD\nDavid\nmanager@acme-tech.com\nMy Team\n\nMonitor team members' real-time attendance, punches, and pending requests\n\nClock In / Out\nYou have not clocked in yet today.\nClock In Now\n2\nDirect Reports & Self\n0\nPresent Today\n2\nNot Clocked In\n0\nPending Leaves\nTeam Members\nAll (2)\nPresent (0)\nNot Clocked In (2)\nD\nDavid Manager\nYOU\nmanager@acme-tech.com · EMP-C998E · Software Engineering\nNOT CLOCKED IN\nNo check-in today\nView Route\nE\nEve Employee\nemployee@acme-tech.com · EMP-02E19 · Software Engineering\nNOT CLOCKED IN\nNo check-in today\nView Route\nPending Leave Requests\nNo pending leave requests\nAll team leave requests are up to date\nRoute Telemetry\n\nSequential GPS breadcrumbs for Eve Employee\n\nTotal Waypoints\n3\nRoute Start (T₁)\n3:58:43 PM\nLatest Ping (Tₙ)\n3:59:13 PM\nCHRONOLOGICAL PATH VISUALIZATION\nSequential T₁ → Tₙ\nT1\nT2\nT3\n#\tTime\tCoordinates\tSpeed\nT1\t15:58:43\t12.97160, 77.59460\t0.0 km/h\nT2\t15:58:58\t12.97250, 77.59550\t12.5 km/h\nT3\t15:59:13\t12.97400, 77.59700\t21.0 km/h\nAuthoritative Store:\npublic.gps_tracking\nClose"
+    }
+  },
+  "step6_isolation_verify": {
+    "status": 403,
+    "isCrossTenantBlocked": true,
+    "response": {
+      "error": "Forbidden: Target employee not found in your organization"
+    }
+  },
+  "step7_cleanup": {
+    "deletedIds": [
+      "2fe7eb5b-e2b4-49a7-875c-98f14b9c2702",
+      "21094637-7727-43f7-a075-64b7bab2e602",
+      "ac96e47f-a056-4b59-b2aa-0e2f7f4b2748"
+    ],
+    "residualCount": 0,
+    "cleanedUp": true
+  },
+  "final_verdict": "PASS"
+}

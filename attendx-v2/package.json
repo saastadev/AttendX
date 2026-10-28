@@ -18,8 +18,11 @@
     "ci": "npm run scan:secrets && npm run typecheck && npm run lint && npm run test && npm run test:security && ./scripts/ci-guardrails.sh",
     "lint:strict": "eslint . --max-warnings=0",
     "db:test:setup": "bash scripts/db-test-setup.sh",
-    "test:rls": "node --experimental-strip-types --test tests/db/rls-real.test.js",
-    "test:rls:meta": "bash scripts/ci-rls-metatest.sh"
+    "test:rls": "node --experimental-strip-types --test --test-concurrency=1 tests/db/rls-real.test.js tests/db/hiring-voice-real-db.test.js tests/db/hiring-rls-hardening.test.js",
+    "test:rls:hiring": "node --experimental-strip-types --test tests/db/hiring-rls-hardening.test.js",
+    "test:rls:meta": "bash scripts/ci-rls-metatest.sh",
+    "test:sec01": "node --test tests/sec01-demo-cookie-hardening.test.mjs",
+    "test:api:auth": "node --test tests/hiring-api-auth-http-integration.test.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -37,6 +40,7 @@
     "@types/react-dom": "^19.0.0",
     "date-fns": "^4.4.0",
     "framer-motion": "^13.1.0",
+    "handlebars": "^4.7.10",
     "idb": "^8.0.3",
     "lucide-react": "^1.32.0",
     "next": "16.3.1",
@@ -52,6 +56,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@types/handlebars": "^4.0.40",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.1",
     "puppeteer-core": "^25.12.0"

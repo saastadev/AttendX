@@ -1,0 +1,210 @@
+{
+  "recognition": {
+    "TC-REC-001": {
+      "title": "Open Give Recognition Modal",
+      "status": "PASS",
+      "evidence": "Modal backdrop and container rendered visibly"
+    },
+    "TC-REC-002": {
+      "title": "Colleague Selection",
+      "status": "PASS",
+      "evidence": "Selected colleague, Change button rendered"
+    },
+    "TC-REC-003": {
+      "title": "Badge / Category Selector Rendered",
+      "status": "PASS",
+      "evidence": {
+        "selectId": "badge-category-select",
+        "categoriesCount": 8,
+        "sampleCategories": [
+          {
+            "value": "72ea256e-0ff0-480b-9043-4b18e3a4f0fd",
+            "text": "Peer Recognition (+50 pts)"
+          },
+          {
+            "value": "043ff1f2-618d-4f80-a6b2-0139e8947e6d",
+            "text": "Customer Appreciation (+100 pts)"
+          },
+          {
+            "value": "5a6a33a6-2b7f-4b17-873b-2f99059a0a7e",
+            "text": "Innovation Champion (+150 pts)"
+          }
+        ]
+      }
+    },
+    "TC-REC-004": {
+      "title": "Badge Selection & Visual Reflection",
+      "status": "PASS",
+      "evidence": {
+        "selectedCategory": "Innovation Champion (+150 pts)",
+        "previewRendered": "Innovation Champion+150 pts"
+      }
+    },
+    "TC-REC-005": {
+      "title": "Praise Note Validation",
+      "status": "PASS",
+      "evidence": {
+        "disabledWithoutNote": true,
+        "enabledWithNote": true
+      }
+    },
+    "TC-REC-012": {
+      "title": "Negative Validation",
+      "status": "PASS",
+      "evidence": "Submit button disabled when note is cleared"
+    },
+    "TC-REC-006": {
+      "title": "Submit Recognition",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 201,
+        "response": {
+          "success": true,
+          "event": {
+            "id": "d775ecbe-ebb6-495b-a3b3-3e424986980d",
+            "tenant_id": "10000000-0000-0000-0000-000000000001",
+            "giver_id": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+            "receiver_id": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+            "category_id": "5a6a33a6-2b7f-4b17-873b-2f99059a0a7e",
+            "points": 150,
+            "note": "Outstanding architectural leadership on the multi-tenant system! Empirical verification is rock solid. 1790833037770",
+            "is_public": true,
+            "created_at": "2026-10-01T05:37:21.624795+00:00"
+          },
+          "message": "Kudos sent to Bob Admin! 🎉"
+        }
+      }
+    },
+    "TC-REC-007": {
+      "title": "Database Verification",
+      "status": "PASS",
+      "evidence": {
+        "eventId": "d775ecbe-ebb6-495b-a3b3-3e424986980d",
+        "points": 150,
+        "giverId": "02e197e8-f0f3-4d98-9745-4d750c783f47",
+        "receiverId": "7aec3932-b823-4dfd-9d5b-693a437482eb",
+        "createdAt": "2026-10-01T05:37:21.624795+00:00"
+      }
+    },
+    "TC-REC-008": {
+      "title": "Points Balance Verification",
+      "status": "PASS",
+      "evidence": {
+        "initialPoints": 12250,
+        "updatedPoints": 12400,
+        "delta": 150,
+        "expectedDelta": 150
+      }
+    },
+    "TC-REC-009": {
+      "title": "Recipient Visibility",
+      "status": "PASS",
+      "evidence": "Recognition event visible on recipient feed"
+    },
+    "TC-REC-010": {
+      "title": "Recognition History",
+      "status": "PASS",
+      "evidence": "Transaction appears in Received feed history"
+    },
+    "TC-REC-011": {
+      "title": "Refresh Persistence",
+      "status": "PASS",
+      "evidence": "Recognition remains rendered and persisted after browser reload"
+    }
+  },
+  "p0_workflows": {
+    "P0-WF-AUTH-RBAC": {
+      "title": "Authentication & RBAC Boundary Enforcement",
+      "status": "PASS",
+      "evidence": {
+        "employeeAdminAccess": 403,
+        "adminAdminAccess": 200
+      }
+    },
+    "P0-WF-ATTENDANCE": {
+      "title": "Employee Attendance Punch & State Tracking",
+      "status": "PASS",
+      "evidence": {
+        "status": 200,
+        "punchStatus": "LATE",
+        "date": "2026-10-01"
+      }
+    },
+    "P0-WF-LEAVE-E2E": {
+      "title": "Leave Lifecycle (Apply -> Manager Review -> Approved)",
+      "status": "PASS",
+      "evidence": {
+        "leaveTypeId": "15000000-0000-0000-0000-000000000001",
+        "applyStatus": 201,
+        "approved": true
+      }
+    },
+    "P0-WF-MGR-TEAM": {
+      "title": "Manager Team Visibility & Cross-Tenant Isolation",
+      "status": "PASS",
+      "evidence": {
+        "leakedCrossTenantRows": 0
+      }
+    },
+    "P0-WF-USER-MGMT": {
+      "title": "Admin User Lifecycle (Deactivate -> Fail-Closed -> Reactivate)",
+      "status": "FAIL",
+      "evidence": {
+        "deactivateStatus": 403,
+        "dbIsActiveAfterDeactivate": true,
+        "reactivateStatus": 200,
+        "dbIsActiveAfterReactivate": true
+      }
+    }
+  },
+  "ai_mvp": {
+    "AI-COPILOT-VALID": {
+      "title": "AI Copilot Valid Intent Query",
+      "status": "PASS",
+      "evidence": {
+        "status": 200,
+        "hasResponse": true
+      }
+    },
+    "AI-COPILOT-INJECTION-DEFENSE": {
+      "title": "AI Prompt Injection Defense & Data Protection",
+      "status": "PASS",
+      "evidence": {
+        "status": 200,
+        "injectionNeutralized": true
+      }
+    },
+    "AI-COPILOT-INPUT-VALIDATION": {
+      "title": "AI Controlled Error on Empty Input",
+      "status": "PASS",
+      "evidence": {
+        "status": 400
+      }
+    }
+  },
+  "reports": {
+    "REP-WORKFORCE-ANALYTICS": {
+      "title": "Workforce Demographic & Attendance Aggregation",
+      "status": "PASS",
+      "evidence": {
+        "status": 200,
+        "summary": {
+          "totalRecords": 11,
+          "presentCount": 2,
+          "lateCount": 1,
+          "absentCount": 0,
+          "averageWorkMinutes": 395,
+          "attendanceRate": 27
+        }
+      }
+    },
+    "REP-PAYROLL-CSV-EXPORT": {
+      "title": "Payroll CSV Export Generation & Column Schema",
+      "status": "PASS",
+      "evidence": {
+        "status": 200,
+        "csvHeaderDetected": true
+      }
+    }
+  }
+}

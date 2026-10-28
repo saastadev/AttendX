@@ -5,8 +5,8 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { HiringAuditLogger } from './audit-logger'
-import { PiiEncryption } from './encryption'
+import { HiringAuditLogger } from './audit-logger.ts'
+import { PiiEncryption } from './encryption.ts'
 import type { Candidate, CandidateConsentStatus } from '../../types/hiring'
 
 export interface CreateCandidateInput {
@@ -127,9 +127,12 @@ export class CandidateService {
       throw new Error(`Failed to list candidates: ${error.message}`)
     }
 
-    // Role-based masking of CTC & phone
+    // Role-based masking of CTC & phone and presentation formatting
     const sanitized = (data || []).map((cand: any) => ({
       ...cand,
+      full_name: `${cand.first_name || ''} ${cand.last_name || ''}`.trim(),
+      experience_years: Number(cand.total_experience_years) || 0,
+      resume_text: cand.raw_resume_text || null,
       current_ctc: PiiEncryption.filterCtcForRole(cand.current_ctc, userRole),
       expected_ctc: PiiEncryption.filterCtcForRole(cand.expected_ctc, userRole),
     }))
@@ -170,6 +173,9 @@ export class CandidateService {
 
     return {
       ...data,
+      full_name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+      experience_years: Number(data.total_experience_years) || 0,
+      resume_text: data.raw_resume_text || null,
       current_ctc: PiiEncryption.filterCtcForRole(data.current_ctc, userRole),
       expected_ctc: PiiEncryption.filterCtcForRole(data.expected_ctc, userRole),
     } as Candidate

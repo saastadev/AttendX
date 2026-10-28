@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert'
 import { Client } from 'pg'
 
-const DB_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/attendx_db'
+const DB_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/attendx_test'
 
 test('RLS Integrity, Positive Controls & Anti-Regression Suite', async (t) => {
   const client = new Client({ connectionString: DB_URL, connectionTimeoutMillis: 1500 })
