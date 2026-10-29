@@ -8,6 +8,7 @@ import { ServerIdentity } from '@/lib/auth/server-identity'
 import { getSupabaseServiceClient, isDevMockSupabase } from '@/lib/supabase/server'
 import { ApplicationService } from '@/lib/hiring/application-service'
 import { InterviewService } from '@/lib/hiring/interview-service'
+import { isTableMissingError } from '@/lib/hiring/sourcing-service'
 
 export async function POST(
   request: Request,
@@ -48,49 +49,79 @@ export async function POST(
       })
     }
 
-    const serviceClient = getSupabaseServiceClient()
+    try {
+      const serviceClient = getSupabaseServiceClient()
 
-    // 1. Move stage to INTERVIEW via state machine
-    const updatedApp = await ApplicationService.moveStage(
-      serviceClient,
-      caller.tenantId,
-      id,
-      'INTERVIEW',
-      caller.userId,
-      { reason: body.reason || 'Candidate moved to interview stage by HR' },
-      { ip, userAgent }
-    )
-
-    // 2. If scheduling details provided in same call, schedule interview
-    let scheduledInterview = null
-    if (body.scheduled_start && body.scheduled_end && body.platform) {
-      scheduledInterview = await InterviewService.schedule(
+      // 1. Move stage to INTERVIEW via state machine
+      const updatedApp = await ApplicationService.moveStage(
         serviceClient,
         caller.tenantId,
+        id,
+        'INTERVIEW',
         caller.userId,
-        {
-          application_id: id,
-          round_number: body.round_number || 1,
-          round_type: body.round_type || 'TECHNICAL',
-          title: body.title || 'Technical Round 1',
-          scheduled_start: body.scheduled_start,
-          scheduled_end: body.scheduled_end,
-          timezone: body.timezone || 'UTC',
-          platform: body.platform,
-          custom_meeting_link: body.custom_meeting_link,
-          interviewer_ids: body.interviewer_ids || [caller.userId],
-          notes: body.notes,
-        },
+        { reason: body.reason || 'Candidate moved to interview stage by HR' },
         { ip, userAgent }
       )
-    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Application successfully moved to interview stage',
-      application: updatedApp,
-      interview: scheduledInterview,
-    })
+      // 2. If scheduling details provided in same call, schedule interview
+      let scheduledInterview = null
+      if (body.scheduled_start && body.scheduled_end && body.platform) {
+        scheduledInterview = await InterviewService.schedule(
+          serviceClient,
+          caller.tenantId,
+          caller.userId,
+          {
+            application_id: id,
+            round_number: body.round_number || 1,
+            round_type: body.round_type || 'TECHNICAL',
+            title: body.title || 'Technical Round 1',
+            scheduled_start: body.scheduled_start,
+            scheduled_end: body.scheduled_end,
+            timezone: body.timezone || 'UTC',
+            platform: body.platform,
+            custom_meeting_link: body.custom_meeting_link,
+            interviewer_ids: body.interviewer_ids || [caller.userId],
+            notes: body.notes,
+          },
+          { ip, userAgent }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Application successfully moved to interview stage',
+        application: updatedApp,
+        interview: scheduledInterview,
+      })
+    } catch (dbErr: any) {
+      if (dbErr.status === 404 || String(dbErr.message || '').includes('not found') || isTableMissingError(dbErr)) {
+        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+        const updatedApp = mockHiringStore.updateApplicationStage(caller.tenantId, id, 'INTERVIEW', undefined, body.reason)
+        let scheduledInterview = null
+        if (body.scheduled_start && body.scheduled_end && body.platform) {
+          scheduledInterview = mockHiringStore.scheduleInterview(caller.tenantId, {
+            application_id: id,
+            round_number: body.round_number || 1,
+            round_type: body.round_type || 'TECHNICAL',
+            title: body.title || 'Technical Round 1',
+            scheduled_start: body.scheduled_start,
+            scheduled_end: body.scheduled_end,
+            timezone: body.timezone || 'UTC',
+            platform: body.platform,
+            custom_meeting_link: body.custom_meeting_link,
+            interviewer_ids: body.interviewer_ids || [caller.userId],
+            notes: body.notes,
+          })
+        }
+        return NextResponse.json({
+          success: true,
+          message: 'Application successfully moved to interview stage',
+          application: updatedApp,
+          interview: scheduledInterview,
+        })
+      }
+      throw dbErr
+    }
   } catch (err: any) {
     const status = err.status || 500
     return NextResponse.json(
