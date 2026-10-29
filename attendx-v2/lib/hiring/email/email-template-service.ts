@@ -467,29 +467,7 @@ export class EmailTemplateService {
 
     const subject = subjectDelegate(normalized).trim()
     const body = bodyDelegate(normalized).trim()
-
-    // Generate safe HTML representation with paragraph breaks and escaped characters
-    const htmlBody = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${Handlebars.escapeExpression(subject)}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 24px; }
-    .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; max-width: 600px; margin: 0 auto; }
-    .header { font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
-    .content { font-size: 14px; white-space: pre-wrap; word-break: break-word; color: #334155; }
-    .footer { margin-top: 24px; font-size: 12px; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 12px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">${Handlebars.escapeExpression(subject)}</div>
-    <div class="content">${body}</div>
-    <div class="footer">AttendX Hiring Platform — Candidate Communication</div>
-  </div>
-</body>
-</html>`
+    const htmlBody = this.wrapHtml(body, subject)
 
     return {
       templateKey,
@@ -497,6 +475,38 @@ export class EmailTemplateService {
       body,
       htmlBody,
     }
+  }
+
+  /**
+   * Generates a safe, responsive HTML container for plain text email bodies
+   */
+  static wrapHtml(bodyText: string, subjectText: string): string {
+    const escapedSubject = Handlebars.escapeExpression(subjectText || '')
+    const safeBody = bodyText.includes('&lt;') || bodyText.includes('&quot;') || bodyText.includes('&amp;')
+      ? bodyText
+      : Handlebars.escapeExpression(bodyText || '')
+    const formattedBody = safeBody.replace(/\n/g, '<br/>')
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapedSubject}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 24px; }
+    .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; max-width: 600px; margin: 0 auto; }
+    .header { font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+    .content { font-size: 14px; line-height: 1.6; color: #334155; }
+    .footer { margin-top: 24px; font-size: 12px; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">${escapedSubject}</div>
+    <div class="content">${formattedBody}</div>
+    <div class="footer">AttendX Hiring Platform — Candidate Communication</div>
+  </div>
+</body>
+</html>`
   }
 
   /**

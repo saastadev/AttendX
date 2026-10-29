@@ -77,6 +77,7 @@ export class EmailService {
     // 2. Render content via Handlebars or use custom previewed content
     let subject = customSubject || ''
     let body = customBody || ''
+    let htmlBody = ''
 
     if (templateKey && templateData && (!subject || !body)) {
       const rendered: RenderedTemplateResult = EmailTemplateService.render(
@@ -85,6 +86,9 @@ export class EmailService {
       )
       if (!subject) subject = rendered.subject
       if (!body) body = rendered.body
+      htmlBody = rendered.htmlBody
+    } else if (body) {
+      htmlBody = EmailTemplateService.wrapHtml(body, subject)
     }
 
     if (!subject || !subject.trim()) {
@@ -114,12 +118,13 @@ export class EmailService {
 
     // 4. Dispatch via Email Provider
     const emailProvider = EmailProviderFactory.getProvider()
-    const sender = process.env.ATTENDX_EMAIL_FROM || 'hiring@attendx.io'
+    const sender = process.env.EMAIL_FROM_ADDRESS || process.env.ATTENDX_EMAIL_FROM || 'AttendX Hiring <onboarding@resend.dev>'
 
     const sendResult: SendEmailResult = await emailProvider.sendEmail({
       to: recipientEmail,
       subject,
       text: body,
+      html: htmlBody || undefined,
       from: sender,
       isDraft,
     })
@@ -217,6 +222,7 @@ export class EmailService {
 
     const subject = rendered.subject
     const body = rendered.body
+    const htmlBody = rendered.htmlBody || EmailTemplateService.wrapHtml(body, subject)
 
     // 3. Idempotency Check
     const idempotencyId = idempotencyKey || `offer-${offerId}-release`
@@ -238,12 +244,13 @@ export class EmailService {
 
     // 4. Dispatch via Email Provider (Zero Fabrication)
     const emailProvider = EmailProviderFactory.getProvider()
-    const sender = process.env.ATTENDX_EMAIL_FROM || 'hiring@attendx.io'
+    const sender = process.env.EMAIL_FROM_ADDRESS || process.env.ATTENDX_EMAIL_FROM || 'AttendX Hiring <onboarding@resend.dev>'
 
     const sendResult: SendEmailResult = await emailProvider.sendEmail({
       to: recipientEmail,
       subject,
       text: body,
+      html: htmlBody || undefined,
       from: sender,
       isDraft,
     })

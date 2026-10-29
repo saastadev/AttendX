@@ -42,6 +42,7 @@ export default function InterviewStatusPage() {
   const [invitationModalOpen, setInvitationModalOpen] = useState(false)
   const [selectedInterviewForInvite, setSelectedInterviewForInvite] = useState<any | null>(null)
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('interview-round-1')
+  const [inviteRecipient, setInviteRecipient] = useState('')
   const [inviteSubject, setInviteSubject] = useState('')
   const [inviteBody, setInviteBody] = useState('')
   const [inviteStatus, setInviteStatus] = useState<string>('PENDING_DELIVERY')
@@ -322,11 +323,11 @@ export default function InterviewStatusPage() {
 
   // Send Invitation Mutation
   const sendInvitationMutation = useMutation({
-    mutationFn: async ({ interviewId, subject, body, isDraft }: { interviewId: string; subject: string; body: string; isDraft?: boolean }) => {
+    mutationFn: async ({ interviewId, recipient, subject, body, isDraft }: { interviewId: string; recipient?: string; subject: string; body: string; isDraft?: boolean }) => {
       const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, body, is_draft: isDraft })
+        body: JSON.stringify({ recipient, subject, body, is_draft: isDraft })
       })
       if (!res.ok) {
         const err = await res.json()
@@ -339,7 +340,7 @@ export default function InterviewStatusPage() {
       setInvitationModalOpen(false)
       const delivery = data.data?.delivery_status || 'PENDING_DELIVERY'
       if (delivery === 'SENT' || delivery === 'DELIVERED') {
-        success('Interview invitation sent via SendGrid!')
+        success('Interview invitation sent successfully!')
       } else {
         success(`Interview invitation recorded with status: ${delivery}`)
       }
@@ -421,8 +422,11 @@ export default function InterviewStatusPage() {
       const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation${q}`)
       if (res.ok) {
         const d = await res.json()
-        setInviteSubject(d.data?.subject || '')
-        setInviteBody(d.data?.body || '')
+        if (d.data?.recipient) {
+          setInviteRecipient(d.data.recipient)
+        }
+        setInviteSubject((d.data?.subject || '').replace(/&amp;/g, '&'))
+        setInviteBody((d.data?.body || '').replace(/&amp;/g, '&'))
         setInviteStatus(d.data?.status || 'PENDING_DELIVERY')
         if (d.data?.template_key) {
           setSelectedTemplateKey(d.data.template_key)
@@ -439,6 +443,7 @@ export default function InterviewStatusPage() {
   const openInvitationModal = async (interview: any) => {
     setSelectedInterviewForInvite(interview)
     setInvitationModalOpen(true)
+    setInviteRecipient(activeApp?.candidate?.email || '')
     const initialKey = interview.round_number === 2
       ? 'interview-round-2'
       : interview.round_number === 3
@@ -1608,7 +1613,7 @@ export default function InterviewStatusPage() {
                   Interview Invitation Email
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Recipient: <b>{activeApp?.candidate?.email}</b>
+                  Candidate: <b>{activeApp?.candidate?.full_name || 'Candidate'}</b>
                 </p>
               </div>
               <button
@@ -1626,6 +1631,31 @@ export default function InterviewStatusPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Recipient Email:
+                  </label>
+                  <input
+                    type="email"
+                    value={inviteRecipient}
+                    onChange={e => setInviteRecipient(e.target.value)}
+                    placeholder="candidate@example.com or delivered@resend.dev"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      background: 'var(--neu-bg-deep)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                    }}
+                  />
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                    💡 <b>Resend Test Delivery:</b> Fixture domains (like <code>@example.com</code>) are automatically delivered via Resend test mailbox. You can also specify your own email address here.
+                  </div>
+                </div>
+
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                     Email Template (Handlebars):
@@ -1713,7 +1743,7 @@ export default function InterviewStatusPage() {
                 }}>
                   <AlertCircle size={15} style={{ flexShrink: 0 }} />
                   <span>
-                    <b>Zero Fabrication:</b> If SENDGRID_API_KEY is not configured in environment, status will be recorded as <code>PENDING_DELIVERY</code>.
+                    <b>Zero Fabrication:</b> If RESEND_API_KEY / SENDGRID_API_KEY is not configured in environment, status will be recorded as <code>PENDING_DELIVERY</code>.
                   </span>
                 </div>
 
@@ -1730,6 +1760,7 @@ export default function InterviewStatusPage() {
                     type="button"
                     onClick={() => sendInvitationMutation.mutate({
                       interviewId: selectedInterviewForInvite.id,
+                      recipient: inviteRecipient,
                       subject: inviteSubject,
                       body: inviteBody,
                       isDraft: true,
@@ -1744,6 +1775,7 @@ export default function InterviewStatusPage() {
                     type="button"
                     onClick={() => sendInvitationMutation.mutate({
                       interviewId: selectedInterviewForInvite.id,
+                      recipient: inviteRecipient,
                       subject: inviteSubject,
                       body: inviteBody,
                       isDraft: false,

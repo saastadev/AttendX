@@ -262,7 +262,7 @@ The AttendX Talent Acquisition Team
             ],
           })
 
-          const deliveryStatus = emailRes.status || (process.env.SENDGRID_API_KEY ? 'SENT' : 'PENDING_DELIVERY')
+          const deliveryStatus = emailRes.status || (process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY ? 'SENT' : 'PENDING_DELIVERY')
 
           // Send SMS notification if phone is present
           if (application.candidate.phone) {

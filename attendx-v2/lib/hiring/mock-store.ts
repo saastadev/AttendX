@@ -21,10 +21,16 @@ const BASE_FIXTURE_PREFIXES = ['c1000000-', 'a1000000-', 'app-10000000-', 'req-1
 function getDeterministicScopedIds(orgId: string, id: string): string[] {
   if (!id) return []
   const ids = [id]
+  if (id.includes('_')) {
+    const base = id.split('_')[0]
+    if (!ids.includes(base)) ids.push(base)
+  }
   if (orgId && orgId !== ACME_ORG_ID && BASE_FIXTURE_PREFIXES.some(p => id.startsWith(p))) {
     const suffix = `_${orgId.slice(0, 8)}`
-    if (!id.endsWith(suffix)) {
-      ids.push(`${id}${suffix}`)
+    const base = id.split('_')[0]
+    const scoped = `${base}${suffix}`
+    if (!ids.includes(scoped)) {
+      ids.push(scoped)
     }
   }
   return ids
@@ -340,6 +346,57 @@ class MockStore {
   ]
 
   public interviews: any[] = [
+    {
+      id: 'default-int-1',
+      organization_id: ACME_ORG_ID,
+      application_id: 'app-001',
+      round_number: 1,
+      round_type: 'TECHNICAL',
+      title: 'Round 1 — Introductory / Quick Hello',
+      scheduled_start: '2026-10-30T11:00:00+05:30',
+      scheduled_end: '2026-10-30T11:20:00+05:30',
+      timezone: 'Asia/Kolkata',
+      platform: 'GOOGLE_MEET',
+      meeting_link: 'https://meet.google.com/abc-defg-hij',
+      status: 'COMPLETED',
+      decision: 'PASS',
+      invitation_status: 'SENT',
+      created_at: '2026-10-25T10:00:00Z',
+    },
+    {
+      id: 'default-int-2',
+      organization_id: ACME_ORG_ID,
+      application_id: 'app-001',
+      round_number: 2,
+      round_type: 'TECHNICAL',
+      title: 'Round 2 — Technical / Coding Assessment',
+      scheduled_start: '2026-10-30T11:00:00+05:30',
+      scheduled_end: '2026-10-30T12:00:00+05:30',
+      timezone: 'Asia/Kolkata',
+      platform: 'GOOGLE_MEET',
+      meeting_link: 'https://meet.google.com/abc-defg-hij',
+      status: 'COMPLETED',
+      decision: 'PASS',
+      invitation_status: 'SENT',
+      created_at: '2026-10-26T10:00:00Z',
+    },
+    {
+      id: 'default-int-3',
+      organization_id: ACME_ORG_ID,
+      application_id: 'app-001',
+      round_number: 3,
+      round_type: 'TECHNICAL',
+      title: 'Round 3 — Technical Deep Dive & HR',
+      scheduled_start: '2026-10-30T11:00:00+05:30',
+      scheduled_end: '2026-10-30T12:00:00+05:30',
+      timezone: 'Asia/Kolkata',
+      platform: 'GOOGLE_MEET',
+      meeting_link: 'https://meet.google.com/abc-defg-hij',
+      status: 'PENDING',
+      decision: 'PENDING',
+      invitation_status: 'PENDING_DELIVERY',
+      created_at: '2026-10-27T10:00:00Z',
+    },
     {
       id: 'int-001',
       organization_id: ACME_ORG_ID,
@@ -990,7 +1047,10 @@ class MockStore {
   getApplicationById(orgId: string, id: string) {
     this.ensureTenantSeeded(orgId)
     const validAppIds = getDeterministicScopedIds(orgId, id)
-    const app = this.applications.find(a => validAppIds.includes(a.id) && (a.organization_id === orgId || !orgId))
+    let app = this.applications.find(a => validAppIds.includes(a.id) && (a.organization_id === orgId || !orgId))
+    if (!app) {
+      app = this.applications.find(a => validAppIds.includes(a.id))
+    }
     if (!app) return null
     const validCandIds = getDeterministicScopedIds(orgId, app.candidate_id)
     const candidate = this.candidates.find(c => validCandIds.includes(c.id) && (c.organization_id === app.organization_id || !c.organization_id))
@@ -1006,7 +1066,10 @@ class MockStore {
   updateApplicationStage(orgId: string, id: string, targetStage: string, decision?: string, notes?: string) {
     this.ensureTenantSeeded(orgId)
     const validAppIds = getDeterministicScopedIds(orgId, id)
-    const app = this.applications.find(a => validAppIds.includes(a.id) && (a.organization_id === orgId || !orgId))
+    let app = this.applications.find(a => validAppIds.includes(a.id) && (a.organization_id === orgId || !orgId))
+    if (!app) {
+      app = this.applications.find(a => validAppIds.includes(a.id))
+    }
     if (!app) {
       const err = new Error('Application not found') as any
       err.status = 404
@@ -1019,7 +1082,23 @@ class MockStore {
     app.stage = targetStage
     if (decision) app.current_decision = decision
     app.updated_at = new Date().toISOString()
-    return app
+
+    const validCandIds = getDeterministicScopedIds(orgId, app.candidate_id)
+    const candidate = this.candidates.find(
+      c => (c.organization_id === app.organization_id || (!app.organization_id && c.organization_id === ACME_ORG_ID)) &&
+           validCandIds.includes(c.id)
+    )
+    const validReqIds = getDeterministicScopedIds(orgId, app.requisition_id)
+    const requisition = this.requisitions.find(
+      r => (r.organization_id === app.organization_id || (!app.organization_id && r.organization_id === ACME_ORG_ID)) &&
+           validReqIds.includes(r.id)
+    )
+
+    return {
+      ...app,
+      candidate: candidate || null,
+      requisition: requisition || null,
+    }
   }
 
   createApplication(orgId: string, input: any) {

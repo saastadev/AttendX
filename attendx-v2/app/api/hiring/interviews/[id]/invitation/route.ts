@@ -13,19 +13,57 @@ import { EmailService } from '@/lib/hiring/email/email-service'
 import { getStructuredRoundConfig } from '@/lib/hiring/interview-rounds'
 import { isTableMissingError } from '@/lib/hiring/sourcing-service'
 
+function resolveMockInterviewDetails(tenantId: string, interviewId: string) {
+  let interview = mockHiringStore.interviews.find(
+    i => i.id === interviewId && (i.organization_id === tenantId || !tenantId)
+  )
+
+  if (!interview && interviewId.startsWith('default-int-')) {
+    const roundNum = parseInt(interviewId.replace('default-int-', ''), 10) || 1
+    const app =
+      mockHiringStore.applications.find(
+        a => a.organization_id === tenantId || !tenantId
+      ) || mockHiringStore.applications[0]
+    const defaultTitles: Record<number, string> = {
+      1: 'Round 1 — Introductory / Quick Hello',
+      2: 'Round 2 — Technical / Coding Assessment',
+      3: 'Round 3 — Technical Deep Dive & HR',
+    }
+    interview = {
+      id: interviewId,
+      organization_id: tenantId || (app ? app.organization_id : '11111111-0000-0000-0000-000000000001'),
+      application_id: app ? app.id : 'app-001',
+      round_number: roundNum,
+      round_type: 'TECHNICAL',
+      title: defaultTitles[roundNum] || `Round ${roundNum}`,
+      scheduled_start: '2026-10-30T11:00:00+05:30',
+      scheduled_end: '2026-10-30T12:00:00+05:30',
+      timezone: 'Asia/Kolkata',
+      platform: 'GOOGLE_MEET',
+      meeting_link: 'https://meet.google.com/abc-defg-hij',
+      status: roundNum === 3 ? 'PENDING' : 'COMPLETED',
+      decision: roundNum === 3 ? 'PENDING' : 'PASS',
+      invitation_status: 'PENDING_DELIVERY',
+      created_at: new Date().toISOString(),
+    }
+    mockHiringStore.interviews.push(interview)
+  }
+
+  if (!interview) return null
+  const app = mockHiringStore.applications.find(a => a.id === interview.application_id)
+  const cand = app ? mockHiringStore.candidates.find(c => c.id === app.candidate_id) : null
+  const req = app ? mockHiringStore.requisitions.find(r => r.id === app.requisition_id) : null
+  return {
+    interview,
+    application: app,
+    candidate: cand,
+    requisition: req,
+  }
+}
+
 async function resolveInterviewDetails(tenantId: string, interviewId: string) {
   if (isDevMockSupabase()) {
-    const interview = mockHiringStore.interviews.find(i => i.id === interviewId && (i.organization_id === tenantId || !tenantId))
-    if (!interview) return null
-    const app = mockHiringStore.applications.find(a => a.id === interview.application_id)
-    const cand = app ? mockHiringStore.candidates.find(c => c.id === app.candidate_id) : null
-    const req = app ? mockHiringStore.requisitions.find(r => r.id === app.requisition_id) : null
-    return {
-      interview,
-      application: app,
-      candidate: cand,
-      requisition: req,
-    }
+    return resolveMockInterviewDetails(tenantId, interviewId)
   }
 
   try {
@@ -42,16 +80,7 @@ async function resolveInterviewDetails(tenantId: string, interviewId: string) {
       .single()
 
     if (error || !interview) {
-      if (isTableMissingError(error)) {
-        const mockInt = mockHiringStore.interviews.find(i => i.id === interviewId && (i.organization_id === tenantId || !tenantId))
-        if (mockInt) {
-          const app = mockHiringStore.applications.find(a => a.id === mockInt.application_id)
-          const cand = app ? mockHiringStore.candidates.find(c => c.id === app.candidate_id) : null
-          const req = app ? mockHiringStore.requisitions.find(r => r.id === app.requisition_id) : null
-          return { interview: mockInt, application: app, candidate: cand, requisition: req }
-        }
-      }
-      return null
+      return resolveMockInterviewDetails(tenantId, interviewId)
     }
 
     return {
@@ -61,17 +90,16 @@ async function resolveInterviewDetails(tenantId: string, interviewId: string) {
       requisition: interview.application?.requisition,
     }
   } catch (err: any) {
-    if (isTableMissingError(err)) {
-      const mockInt = mockHiringStore.interviews.find(i => i.id === interviewId && (i.organization_id === tenantId || !tenantId))
-      if (mockInt) {
-        const app = mockHiringStore.applications.find(a => a.id === mockInt.application_id)
-        const cand = app ? mockHiringStore.candidates.find(c => c.id === app.candidate_id) : null
-        const req = app ? mockHiringStore.requisitions.find(r => r.id === app.requisition_id) : null
-        return { interview: mockInt, application: app, candidate: cand, requisition: req }
-      }
-    }
-    return null
+    return resolveMockInterviewDetails(tenantId, interviewId)
   }
+}
+
+function hasRealEmailCredentials(): boolean {
+  const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase()
+  if (provider === 'mock') return false
+  if (provider === 'resend') return Boolean(process.env.RESEND_API_KEY)
+  if (provider === 'sendgrid') return Boolean(process.env.SENDGRID_API_KEY)
+  return Boolean(process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY)
 }
 
 export async function GET(
@@ -136,6 +164,7 @@ export async function GET(
     }
 
     const rendered = EmailTemplateService.render(templateKey, templateData)
+    const hasCredentials = hasRealEmailCredentials()
 
     return NextResponse.json({
       success: true,
@@ -146,12 +175,12 @@ export async function GET(
         round_number: roundNumber,
         round_title: roundConfig.title,
         template_key: templateKey,
-        subject: rendered.subject,
-        body: rendered.body,
+        subject: rendered.subject.replace(/&amp;/g, '&'),
+        body: rendered.body.replace(/&amp;/g, '&'),
         html_body: rendered.htmlBody,
         meeting_url: interview.meeting_link,
-        status: interview.invitation_status || (process.env.SENDGRID_API_KEY ? 'PENDING_DELIVERY' : 'PENDING_CONFIGURATION'),
-        has_real_credentials: Boolean(process.env.SENDGRID_API_KEY),
+        status: interview.invitation_status || (hasCredentials ? 'PENDING_DELIVERY' : 'PENDING_CONFIGURATION'),
+        has_real_credentials: hasCredentials,
       }
     })
   } catch (err: any) {
@@ -175,17 +204,32 @@ export async function POST(
       return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
     }
 
-    const { interview, candidate, requisition } = details
-    const recipientEmail = candidate?.email
+    const { interview, candidate, requisition, application } = details
 
-    if (!recipientEmail) {
+    // Strict candidate eligibility check: terminal stage candidates cannot receive invitations
+    if (application && (application.status === 'REJECTED' || application.status === 'WITHDRAWN')) {
       return NextResponse.json(
-        { error: 'Candidate email address is missing. Cannot send interview invitation.' },
+        { error: `Candidate application is ${application.status}. Cannot send interview invitations to terminal-stage candidates.` },
         { status: 400 }
       )
     }
 
     const body = await request.json().catch(() => ({}))
+    let recipientEmail = (body.recipient && typeof body.recipient === 'string' && EmailService.validateEmail(body.recipient.trim()))
+      ? body.recipient.trim()
+      : candidate?.email
+
+    if (!recipientEmail || !EmailService.validateEmail(recipientEmail)) {
+      return NextResponse.json(
+        { error: 'Valid candidate email address is missing from database records. Cannot send interview invitation.' },
+        { status: 400 }
+      )
+    }
+
+    if (candidate && body.recipient && EmailService.validateEmail(body.recipient.trim())) {
+      candidate.email = body.recipient.trim()
+    }
+
     const subject = body.subject || `Interview Invitation: ${requisition?.title || 'AttendX'}`
     const emailBody = body.body || `Your interview is scheduled.`
     const isDraft = Boolean(body.is_draft)
@@ -200,6 +244,31 @@ export async function POST(
       isDraft,
       idempotencyKey,
     })
+
+    // Fail gracefully with explicit diagnostic error if provider failed or key is missing
+    if (!sendResult.success) {
+      return NextResponse.json(
+        {
+          error: sendResult.error || 'Failed to dispatch email via configured provider.',
+          data: {
+            interview_id: id,
+            recipient: recipientEmail,
+            delivery_status: sendResult.deliveryStatus,
+            provider_message_id: sendResult.messageId || null,
+            is_simulated: sendResult.simulationStatus === 'SIMULATED',
+            simulation_status: sendResult.simulationStatus,
+            has_real_credentials: hasRealEmailCredentials(),
+          }
+        },
+        { status: sendResult.deliveryStatus === 'PENDING_CONFIGURATION' ? 422 : 400 }
+      )
+    }
+
+    // Advance shortlisted candidate to interview stage upon invitation
+    if (application && (application.status === 'SHORTLISTED' || application.status === 'APPLIED')) {
+      application.status = 'INTERVIEW'
+      application.updated_at = new Date().toISOString()
+    }
 
     // Update interview invitation status in local model
     interview.invitation_status = sendResult.deliveryStatus
@@ -230,7 +299,7 @@ export async function POST(
         provider_message_id: sendResult.messageId,
         is_simulated: sendResult.simulationStatus === 'SIMULATED',
         simulation_status: sendResult.simulationStatus,
-        has_real_credentials: Boolean(process.env.SENDGRID_API_KEY),
+        has_real_credentials: hasRealEmailCredentials(),
       }
     })
   } catch (err: any) {
