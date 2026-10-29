@@ -211,7 +211,7 @@ export default function OutreachPage() {
         gap: 16
       }}>
         <div>
-          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800 }}>AI Outreach & Engagement</h1>
+          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800 }}>Email Outreach & Engagement</h1>
           <p className="page-subtitle" style={{ color: 'var(--text-secondary)' }}>
             Personalized candidate outreach campaigns, dynamic templates, and response tracking.
           </p>
