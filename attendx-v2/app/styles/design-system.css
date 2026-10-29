@@ -2874,16 +2874,19 @@ p { color: var(--text-secondary); }
 }
 
 .neu-interview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   width: 100%;
   max-width: 100%;
 }
 @media (min-width: 769px) {
   .neu-interview-grid {
-    grid-template-columns: 340px minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 24px;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -2892,6 +2895,7 @@ p { color: var(--text-secondary); }
   border-radius: 16px;
   background: var(--neu-base);
   box-shadow: var(--elev-1);
+  width: 100%;
 }
 @media (min-width: 769px) {
   .neu-interview-card {
@@ -2904,34 +2908,41 @@ p { color: var(--text-secondary); }
   display: flex;
   flex-direction: row;
   overflow-x: auto;
-  gap: 12px;
+  gap: 14px;
   padding-bottom: 8px;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
+  width: 100%;
 }
 .neu-interview-candidates-list::-webkit-scrollbar {
-  height: 4px;
+  height: 6px;
+}
+.neu-interview-candidates-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 .neu-interview-candidates-list::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 180, 0.2);
+  background: rgba(128, 128, 180, 0.25);
   border-radius: 4px;
 }
+.neu-interview-candidates-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 180, 0.4);
+}
 .neu-interview-candidate-item {
-  min-width: 220px;
-  max-width: 280px;
-  flex-shrink: 0;
+  min-width: 240px;
+  max-width: 320px;
+  flex: 0 0 auto;
   scroll-snap-align: start;
 }
 @media (min-width: 769px) {
   .neu-interview-candidates-list {
-    flex-direction: column;
-    overflow-x: visible;
-    padding-bottom: 0;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 10px;
   }
   .neu-interview-candidate-item {
-    min-width: 0;
-    max-width: none;
-    flex-shrink: 1;
+    min-width: 260px;
+    max-width: 340px;
+    flex: 0 0 auto;
   }
 }
 
