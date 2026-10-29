@@ -274,7 +274,7 @@ export class SourcingService {
           .select()
 
         if (insertErr) {
-          if (isDevMockSupabase()) {
+          if (isDevMockSupabase() || isTableMissingError(insertErr)) {
             insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
           } else {
             throw new Error(`Failed to persist sourced candidates: ${insertErr.message}`)
@@ -283,7 +283,7 @@ export class SourcingService {
           insertedRows = inserted
         }
       } catch (err: any) {
-        if (isDevMockSupabase()) {
+        if (isDevMockSupabase() || isTableMissingError(err)) {
           insertedRows = rowsToInsert.map((r, idx) => ({ ...r, id: `sourced_cand_${Date.now()}_${idx + 1}` }))
         } else {
           throw err
@@ -771,7 +771,7 @@ export class SourcingService {
     }
 
     if (reqErr || !req) {
-      if (isDevMockSupabase()) {
+      if (isDevMockSupabase() || isTableMissingError(reqErr)) {
         const mockReq = mockHiringStore.requisitions.find(
           r => r.id === requisitionId && (r.organization_id === organizationId || r.organization_id === '11111111-0000-0000-0000-000000000001' || !r.organization_id)
         )
@@ -841,7 +841,7 @@ export class SourcingService {
           context
         )
       } catch (candErr: any) {
-        if (isDevMockSupabase() && (isTableMissingError(candErr) || candErr?.message?.includes('Failed to create candidate'))) {
+        if (isDevMockSupabase() || isTableMissingError(candErr) || candErr?.message?.includes('Failed to create candidate')) {
           candidate = {
             id: `cand-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             organization_id: organizationId,
