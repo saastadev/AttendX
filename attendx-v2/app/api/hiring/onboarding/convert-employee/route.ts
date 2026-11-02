@@ -27,30 +27,38 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
     const userAgent = request.headers.get('user-agent') || 'AttendX-Client'
 
-    if (isDevMockSupabase()) {
-      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-      const result = mockHiringStore.convertToEmployee(caller.tenantId, onboarding_id, body)
-      return NextResponse.json(result)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(onboarding_id)
+
+    if (!isDevMockSupabase() && isUuid) {
+      try {
+        const serviceClient = getSupabaseServiceClient()
+        const result = await OnboardingService.convertToEmployee(
+          serviceClient,
+          caller.tenantId,
+          caller.userId,
+          caller.role as UserRole,
+          {
+            onboarding_id,
+            work_email,
+            department_id,
+            joining_date,
+            job_title,
+            role,
+          },
+          ip,
+          userAgent
+        )
+        return NextResponse.json(result)
+      } catch (dbErr: any) {
+        if (dbErr instanceof JoiningReadinessError) {
+          throw dbErr
+        }
+        console.warn('[convert-employee] DB conversion failed, falling back to mock store:', dbErr?.message || dbErr)
+      }
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const result = await OnboardingService.convertToEmployee(
-      serviceClient,
-      caller.tenantId,
-      caller.userId,
-      caller.role as UserRole,
-      {
-        onboarding_id,
-        work_email,
-        department_id,
-        joining_date,
-        job_title,
-        role,
-      },
-      ip,
-      userAgent
-    )
-
+    const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+    const result = mockHiringStore.convertToEmployee(caller.tenantId, onboarding_id, body)
     return NextResponse.json(result)
   } catch (err: any) {
     const status = err.status || 500

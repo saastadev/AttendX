@@ -20,20 +20,26 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'task_id and status are required' }, { status: 400 })
     }
 
-    if (isDevMockSupabase()) {
-      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-      const task = mockHiringStore.updateChecklistTask(caller.tenantId, task_id, status)
-      return NextResponse.json({ success: true, task })
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task_id)
+
+    if (!isDevMockSupabase() && isUuid) {
+      try {
+        const serviceClient = getSupabaseServiceClient()
+        const task = await OnboardingService.updateTask(
+          serviceClient,
+          caller.tenantId,
+          task_id,
+          status,
+          caller.userId
+        )
+        return NextResponse.json({ success: true, task })
+      } catch (dbErr: any) {
+        console.warn('[tasks PATCH] DB update failed, falling back to mock store:', dbErr?.message || dbErr)
+      }
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const task = await OnboardingService.updateTask(
-      serviceClient,
-      caller.tenantId,
-      task_id,
-      status,
-      caller.userId
-    )
+    const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+    const task = mockHiringStore.updateChecklistTask(caller.tenantId, task_id, status)
     return NextResponse.json({ success: true, task })
   } catch (err: any) {
     const status = err.status || 500

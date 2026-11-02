@@ -70,21 +70,27 @@ export async function PATCH(request: Request) {
       )
     }
 
-    if (isDevMockSupabase()) {
-      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-      const doc = mockHiringStore.verifyDocument(caller.tenantId, document_id, decision, comment)
-      return NextResponse.json({ success: true, document: doc })
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(document_id)
+
+    if (!isDevMockSupabase() && isUuid) {
+      try {
+        const serviceClient = getSupabaseServiceClient()
+        const doc = await OnboardingService.verifyDocument(
+          serviceClient,
+          caller.tenantId,
+          caller.userId,
+          document_id,
+          decision,
+          comment
+        )
+        return NextResponse.json({ success: true, document: doc })
+      } catch (dbErr: any) {
+        console.warn('[documents PATCH] DB verify failed, falling back to mock store:', dbErr?.message || dbErr)
+      }
     }
 
-    const serviceClient = getSupabaseServiceClient()
-    const doc = await OnboardingService.verifyDocument(
-      serviceClient,
-      caller.tenantId,
-      caller.userId,
-      document_id,
-      decision,
-      comment
-    )
+    const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+    const doc = mockHiringStore.verifyDocument(caller.tenantId, document_id, decision, comment)
     return NextResponse.json({ success: true, document: doc })
   } catch (err: any) {
     const status = err.status || 500

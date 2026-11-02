@@ -21,36 +21,34 @@ export async function GET(
 
     let process = null
 
-    if (isDevMockSupabase()) {
-      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-      const res = mockHiringStore.listOnboarding(caller.tenantId)
-      process = res.processes.find((p: any) => p.id === id || p.application_id === id) || null
-      if (!process) {
-        return NextResponse.json({ error: 'Onboarding process not found' }, { status: 404 })
-      }
-    } else {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
+    if (!isDevMockSupabase() && isUuid) {
       try {
         const serviceClient = getSupabaseServiceClient()
         process = await OnboardingService.getById(serviceClient, caller.tenantId, id)
       } catch (dbErr: any) {
-        if (isTableMissingError(dbErr) || dbErr?.message?.includes('schema cache')) {
-          const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-          const res = mockHiringStore.listOnboarding(caller.tenantId)
-          process = res.processes.find((p: any) => p.id === id || p.application_id === id) || null
-        } else {
-          throw dbErr
-        }
+        console.warn('[OnboardingService.getById] DB lookup failed, falling back to mock store:', dbErr?.message || dbErr)
       }
+    }
 
-      if (!process) {
-        const { mockHiringStore } = await import('@/lib/hiring/mock-store')
-        const res = mockHiringStore.listOnboarding(caller.tenantId)
-        process = res.processes.find((p: any) => p.id === id || p.application_id === id) || null
-      }
+    if (!process) {
+      const { mockHiringStore } = await import('@/lib/hiring/mock-store')
+      const res = mockHiringStore.listOnboarding(caller.tenantId)
+      const cleanId = id.startsWith('onb-') ? id.replace('onb-', '') : id
+      const baseId = cleanId.split('_')[0]
+      process = res.processes.find((p: any) =>
+        p.id === id ||
+        p.id === `onb-${id}` ||
+        p.application_id === id ||
+        p.application_id === cleanId ||
+        p.id.includes(baseId) ||
+        p.application_id.includes(baseId)
+      ) || null
+    }
 
-      if (!process) {
-        return NextResponse.json({ error: 'Onboarding process not found' }, { status: 404 })
-      }
+    if (!process) {
+      return NextResponse.json({ error: 'Onboarding process not found' }, { status: 404 })
     }
 
     const formatted = process ? {

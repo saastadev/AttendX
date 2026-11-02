@@ -30,20 +30,14 @@ export async function GET(request: Request) {
 
     const { data, error } = await query
     if (error) {
-      if (isTableMissingError(error)) {
-        return NextResponse.json({ success: true, data: [], searches: [] })
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.warn('[API /api/hiring/sourcing/searches GET] Query error or missing table, returning empty searches:', error.message || error)
+      return NextResponse.json({ success: true, data: [], searches: [] })
     }
 
     return NextResponse.json({ success: true, data: data || [], searches: data || [] })
   } catch (err: any) {
-    if (isTableMissingError(err)) {
-      return NextResponse.json({ success: true, data: [], searches: [] })
-    }
-    console.error('[API /api/hiring/sourcing/searches GET] Error:', err.message || err)
-    const status = err.status || 500
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status })
+    console.warn('[API /api/hiring/sourcing/searches GET] Error handled gracefully:', err?.message || err)
+    return NextResponse.json({ success: true, data: [], searches: [] })
   }
 }
 

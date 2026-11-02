@@ -76,4 +76,99 @@ test('Sourcing Resilience Suite', async (t) => {
     assert.ok(firstCandidate.id, 'Candidate was assigned an ID')
     assert.ok(SourcingService.memorySourcedCandidates.has(firstCandidate.id), 'Candidate stored in memory fallback')
   })
+
+  await t.test('3. SourcingService.syncApplicants synchronizes applicants when candidates/applications tables missing from schema cache', async () => {
+    const mockPgrstClient = {
+      from(tableName) {
+        if (tableName === 'job_requisitions') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  single: async () => ({
+                    data: null,
+                    error: { code: 'PGRST205', message: "Could not find the table 'public.job_requisitions' in the schema cache" }
+                  })
+                })
+              })
+            })
+          }
+        }
+        if (tableName === 'candidates') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({
+                    data: null,
+                    error: { code: 'PGRST205', message: "Could not find the table 'public.candidates' in the schema cache" }
+                  })
+                })
+              })
+            }),
+            insert: () => ({
+              select: () => ({
+                single: async () => ({
+                  data: null,
+                  error: { code: 'PGRST205', message: "Could not find the table 'public.candidates' in the schema cache" }
+                })
+              })
+            })
+          }
+        }
+        if (tableName === 'job_applications') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    maybeSingle: async () => ({
+                      data: null,
+                      error: { code: 'PGRST205', message: "Could not find the table 'public.job_applications' in the schema cache" }
+                    })
+                  }),
+                  maybeSingle: async () => ({
+                    data: null,
+                    error: { code: 'PGRST205', message: "Could not find the table 'public.job_applications' in the schema cache" }
+                  })
+                })
+              })
+            }),
+            insert: () => ({
+              select: () => ({
+                single: async () => ({
+                  data: null,
+                  error: { code: 'PGRST205', message: "Could not find the table 'public.job_applications' in the schema cache" }
+                })
+              })
+            })
+          }
+        }
+        return {
+          select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }),
+          insert: () => ({ select: () => ({ single: async () => ({ data: null }) }) }),
+        }
+      }
+    }
+
+    const orgId = '11111111-0000-0000-0000-000000000001'
+    const userId = 'u1000000-0000-0000-0000-000000000001'
+    const reqId = 'a1000000-0000-0000-0000-000000000001'
+
+    const syncResult = await SourcingService.syncApplicants(
+      mockPgrstClient,
+      orgId,
+      userId,
+      reqId,
+      ['LINKEDIN', 'INDEED'],
+      {}
+    )
+
+    assert.ok(syncResult, 'syncResult returned')
+    assert.ok(syncResult.syncedCount > 0, `Synchronized ${syncResult.syncedCount} applicants`)
+    assert.ok(syncResult.applications.length > 0, 'Applications were created')
+    assert.equal(syncResult.providerStatuses.LINKEDIN.status, 'SUCCESS')
+    assert.equal(syncResult.providerStatuses.INDEED.status, 'SUCCESS')
+  })
 })
+

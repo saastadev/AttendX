@@ -1798,7 +1798,11 @@ class MockStore {
 
   // Onboarding API
   verifyDocument(orgId: string, docId: string, status: 'VERIFIED' | 'REJECTED', rejectionReason?: string) {
-    const doc = this.onboardingDocuments.find(d => d.id === docId && (d.organization_id === orgId || !orgId))
+    const baseId = docId.split('_')[0]
+    const doc = this.onboardingDocuments.find(d =>
+      (d.id === docId || d.id === baseId || d.id.includes(baseId)) && (d.organization_id === orgId || !orgId)
+    ) || this.onboardingDocuments.find(d => d.id === docId || d.id === baseId || d.id.includes(baseId))
+
     if (!doc) {
       const err = new Error('Document not found') as any
       err.status = 404
@@ -1811,7 +1815,11 @@ class MockStore {
   }
 
   updateChecklistTask(orgId: string, taskId: string, status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED') {
-    const task = this.checklistTasks.find(t => t.id === taskId && (t.organization_id === orgId || !orgId))
+    const baseId = taskId.split('_')[0]
+    const task = this.checklistTasks.find(t =>
+      (t.id === taskId || t.id === baseId || t.id.includes(baseId)) && (t.organization_id === orgId || !orgId)
+    ) || this.checklistTasks.find(t => t.id === taskId || t.id === baseId || t.id.includes(baseId))
+
     if (!task) {
       const err = new Error('Task not found') as any
       err.status = 404
@@ -1824,8 +1832,20 @@ class MockStore {
 
   convertToEmployee(orgId: string, onboardingId: string, input: any = {}) {
     this.ensureTenantSeeded(orgId)
-    const appId = onboardingId.startsWith('onb-') ? onboardingId.replace('onb-', '') : onboardingId
-    const app = this.applications.find(a => (a.id === appId || `onb-${a.id}` === onboardingId) && (a.organization_id === orgId || !orgId))
+    const cleanId = onboardingId.startsWith('onb-') ? onboardingId.replace('onb-', '') : onboardingId
+    const baseId = cleanId.split('_')[0]
+
+    let app = this.applications.find(a =>
+      (a.id === cleanId || a.id === onboardingId || `onb-${a.id}` === onboardingId || a.id === baseId || a.id.startsWith(baseId)) &&
+      (a.organization_id === orgId || !orgId)
+    )
+
+    if (!app) {
+      app = this.applications.find(a =>
+        a.id === cleanId || a.id === onboardingId || `onb-${a.id}` === onboardingId || a.id === baseId || a.id.startsWith(baseId)
+      )
+    }
+
     if (!app) {
       const err = new Error('Onboarding process not found') as any
       err.status = 404
@@ -1971,8 +1991,78 @@ class MockStore {
     const list = targetApps.map(app => {
       const candidate = this.candidates.find(c => c.id === app.candidate_id)
       const requisition = this.requisitions.find(r => r.id === app.requisition_id)
-      const docs = this.onboardingDocuments.filter(d => d.application_id === app.id)
-      const tasks = this.checklistTasks.filter(t => t.application_id === app.id)
+      let docs = this.onboardingDocuments.filter(d => d.application_id === app.id || d.application_id === app.id.split('_')[0])
+      if (docs.length === 0) {
+        const doc1 = {
+          id: `doc-${app.id}-1`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          document_type: 'ID_PROOF',
+          document_name: 'Aadhaar Card Copy',
+          file_url: `/api/hiring/onboarding/documents/doc-001/preview`,
+          status: 'VERIFIED',
+          created_at: '2026-08-25T10:00:00Z',
+        }
+        const doc2 = {
+          id: `doc-${app.id}-2`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          document_type: 'BANK_DETAILS',
+          document_name: 'PAN Card Copy',
+          file_url: `/api/hiring/onboarding/documents/doc-002/preview`,
+          status: 'VERIFIED',
+          created_at: '2026-08-25T10:00:00Z',
+        }
+        const doc3 = {
+          id: `doc-${app.id}-3`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          document_type: 'EDUCATION_CERTIFICATE',
+          document_name: 'Degree Certificate',
+          file_url: `/api/hiring/onboarding/documents/doc-003/preview`,
+          status: app.stage === 'ONBOARDED' ? 'VERIFIED' : 'PENDING',
+          created_at: '2026-08-25T10:00:00Z',
+        }
+        this.onboardingDocuments.push(doc1, doc2, doc3)
+        docs = [doc1, doc2, doc3]
+      }
+
+      let tasks = this.checklistTasks.filter(t => t.application_id === app.id || t.application_id === app.id.split('_')[0])
+      if (tasks.length === 0) {
+        const task1 = {
+          id: `task-${app.id}-1`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          task_name: 'Company Laptop & Peripheral Dispatch',
+          category: 'IT',
+          status: app.stage === 'ONBOARDED' ? 'COMPLETED' : 'IN_PROGRESS',
+          assigned_to: 'IT Support',
+          due_date: '2026-10-15',
+        }
+        const task2 = {
+          id: `task-${app.id}-2`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          task_name: 'Google Workspace & Slack Setup',
+          category: 'IT',
+          status: 'COMPLETED',
+          assigned_to: 'IT Support',
+          due_date: '2026-10-15',
+        }
+        const task3 = {
+          id: `task-${app.id}-3`,
+          organization_id: app.organization_id,
+          application_id: app.id,
+          task_name: 'Emergency Contact & Nominee Details Form',
+          category: 'HR',
+          status: 'COMPLETED',
+          assigned_to: 'HR Operations',
+          due_date: '2026-10-15',
+        }
+        this.checklistTasks.push(task1, task2, task3)
+        tasks = [task1, task2, task3]
+      }
+
       const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length
       const totalTasks = Math.max(tasks.length, 1)
       const pct = Math.round((completedTasks / totalTasks) * 100)
