@@ -13,17 +13,42 @@ import { EmailService } from '@/lib/hiring/email/email-service'
 import { getStructuredRoundConfig } from '@/lib/hiring/interview-rounds'
 import { isTableMissingError } from '@/lib/hiring/sourcing-service'
 
-function resolveMockInterviewDetails(tenantId: string, interviewId: string) {
+function resolveMockInterviewDetails(tenantId: string, interviewId: string, explicitAppId?: string) {
+  let targetAppId = explicitAppId
+  if (!targetAppId && interviewId.startsWith('default-int-')) {
+    const parts = interviewId.split('-')
+    if (parts.length > 3) {
+      targetAppId = parts.slice(3).join('-')
+    }
+  }
+
   let interview = mockHiringStore.interviews.find(
     i => i.id === interviewId && (i.organization_id === tenantId || !tenantId)
   )
 
+  let app: any = null
+  if (targetAppId) {
+    app = mockHiringStore.applications.find(a =>
+      (a.id === targetAppId || a.application_code === targetAppId) &&
+      (a.organization_id === tenantId || !tenantId)
+    ) || mockHiringStore.applications.find(a => a.id === targetAppId || a.application_code === targetAppId)
+  }
+
+  if (!app && interview?.application_id) {
+    app = mockHiringStore.applications.find(a =>
+      a.id === interview.application_id && (a.organization_id === tenantId || !tenantId)
+    ) || mockHiringStore.applications.find(a => a.id === interview.application_id)
+  }
+
+  if (!app) {
+    app = mockHiringStore.applications.find(
+      a => a.organization_id === tenantId || !tenantId
+    ) || mockHiringStore.applications[0]
+  }
+
   if (!interview && interviewId.startsWith('default-int-')) {
-    const roundNum = parseInt(interviewId.replace('default-int-', ''), 10) || 1
-    const app =
-      mockHiringStore.applications.find(
-        a => a.organization_id === tenantId || !tenantId
-      ) || mockHiringStore.applications[0]
+    const roundPart = interviewId.replace('default-int-', '').split('-')[0]
+    const roundNum = parseInt(roundPart, 10) || 1
     const defaultTitles: Record<number, string> = {
       1: 'Round 1 — Introductory / Quick Hello',
       2: 'Round 2 — Technical / Coding Assessment',
@@ -50,7 +75,8 @@ function resolveMockInterviewDetails(tenantId: string, interviewId: string) {
   }
 
   if (!interview) return null
-  const app = mockHiringStore.applications.find(a => a.id === interview.application_id)
+
+  // Ensure candidate and requisition match the actual application being targeted
   const cand = app ? mockHiringStore.candidates.find(c => c.id === app.candidate_id) : null
   const req = app ? mockHiringStore.requisitions.find(r => r.id === app.requisition_id) : null
   return {
@@ -61,9 +87,9 @@ function resolveMockInterviewDetails(tenantId: string, interviewId: string) {
   }
 }
 
-async function resolveInterviewDetails(tenantId: string, interviewId: string) {
+async function resolveInterviewDetails(tenantId: string, interviewId: string, applicationId?: string) {
   if (isDevMockSupabase()) {
-    return resolveMockInterviewDetails(tenantId, interviewId)
+    return resolveMockInterviewDetails(tenantId, interviewId, applicationId)
   }
 
   try {
@@ -80,7 +106,7 @@ async function resolveInterviewDetails(tenantId: string, interviewId: string) {
       .single()
 
     if (error || !interview) {
-      return resolveMockInterviewDetails(tenantId, interviewId)
+      return resolveMockInterviewDetails(tenantId, interviewId, applicationId)
     }
 
     return {
@@ -90,7 +116,7 @@ async function resolveInterviewDetails(tenantId: string, interviewId: string) {
       requisition: interview.application?.requisition,
     }
   } catch (err: any) {
-    return resolveMockInterviewDetails(tenantId, interviewId)
+    return resolveMockInterviewDetails(tenantId, interviewId, applicationId)
   }
 }
 
@@ -112,7 +138,9 @@ export async function GET(
       'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
-    const details = await resolveInterviewDetails(caller.tenantId, id)
+    const url = new URL(request.url)
+    const requestedAppId = url.searchParams.get('application_id') || undefined
+    const details = await resolveInterviewDetails(caller.tenantId, id, requestedAppId)
     if (!details || !details.interview) {
       return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
     }
@@ -122,7 +150,6 @@ export async function GET(
     const roundConfig = getStructuredRoundConfig(roundNumber)
 
     // Parse URL query parameters to support template previews (e.g., round-1, round-2, round-3, rescheduled, cancelled)
-    const url = new URL(request.url)
     const requestedTemplate = url.searchParams.get('template_key') as InterviewTemplateKey | null
     const templateKey: InterviewTemplateKey =
       requestedTemplate && ['interview-round-1', 'interview-round-2', 'interview-round-3', 'interview-rescheduled', 'interview-cancelled'].includes(requestedTemplate)
@@ -199,7 +226,12 @@ export async function POST(
       'SUPERADMIN', 'ADMIN', 'HR', 'MANAGER'
     ], request)
 
-    const details = await resolveInterviewDetails(caller.tenantId, id)
+    const url = new URL(request.url)
+    const queryAppId = url.searchParams.get('application_id') || undefined
+    const body = await request.json().catch(() => ({}))
+    const explicitAppId = body.application_id || queryAppId
+
+    const details = await resolveInterviewDetails(caller.tenantId, id, explicitAppId)
     if (!details || !details.interview) {
       return NextResponse.json({ error: 'Interview not found' }, { status: 404 })
     }
@@ -214,7 +246,6 @@ export async function POST(
       )
     }
 
-    const body = await request.json().catch(() => ({}))
     let recipientEmail = (body.recipient && typeof body.recipient === 'string' && EmailService.validateEmail(body.recipient.trim()))
       ? body.recipient.trim()
       : candidate?.email
@@ -253,6 +284,7 @@ export async function POST(
           data: {
             interview_id: id,
             recipient: recipientEmail,
+            delivered_to: sendResult.deliveredTo,
             delivery_status: sendResult.deliveryStatus,
             provider_message_id: sendResult.messageId || null,
             is_simulated: sendResult.simulationStatus === 'SIMULATED',
@@ -295,6 +327,7 @@ export async function POST(
       data: {
         interview_id: id,
         recipient: recipientEmail,
+        delivered_to: sendResult.deliveredTo || recipientEmail,
         delivery_status: sendResult.deliveryStatus,
         provider_message_id: sendResult.messageId,
         is_simulated: sendResult.simulationStatus === 'SIMULATED',

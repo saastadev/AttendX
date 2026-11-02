@@ -84,9 +84,24 @@ export default function InterviewStatusPage() {
     }
   })
 
-  const applications = (appData?.applications || []).filter(
+  const rawApplications = (appData?.applications || []).filter(
     (a: any) => ['SHORTLISTED', 'INTERVIEW', 'SELECTED', 'REJECTED'].includes(a.stage)
   )
+
+  // Deduplicate candidates so the candidate selector ribbon shows unique candidates
+  const applications = (() => {
+    const seen = new Set<string>()
+    const stageWeight: Record<string, number> = { SELECTED: 4, INTERVIEW: 3, SHORTLISTED: 2, REJECTED: 1 }
+    const sorted = [...rawApplications].sort((a: any, b: any) => {
+      return (stageWeight[b.stage] || 0) - (stageWeight[a.stage] || 0)
+    })
+    return sorted.filter((app: any) => {
+      const key = app.candidate?.email || app.candidate_id || app.id
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  })()
 
   const activeApp = applications.find((a: any) => a.id === selectedApplicationId) || applications[0]
 
@@ -108,9 +123,11 @@ export default function InterviewStatusPage() {
   // Default structured scheduled interviews matching spec & screenshots
   const displayInterviews = (() => {
     if (interviews.length > 0) return interviews
+    const appId = activeApp?.id || 'default'
     return [
       {
-        id: 'default-int-3',
+        id: `default-int-3-${appId}`,
+        application_id: appId,
         round_number: 3,
         title: 'Round 3 — Technical Deep Dive & HR',
         status: 'PENDING',
@@ -122,7 +139,8 @@ export default function InterviewStatusPage() {
         invitation_status: 'PENDING_DELIVERY',
       },
       {
-        id: 'default-int-2',
+        id: `default-int-2-${appId}`,
+        application_id: appId,
         round_number: 2,
         title: 'Round 2 — Technical / Coding Assessment',
         status: 'COMPLETED',
@@ -134,7 +152,8 @@ export default function InterviewStatusPage() {
         invitation_status: 'PENDING_DELIVERY',
       },
       {
-        id: 'default-int-1',
+        id: `default-int-1-${appId}`,
+        application_id: appId,
         round_number: 1,
         title: 'Round 1 — Introductory / Quick Hello',
         status: 'COMPLETED',
@@ -323,11 +342,31 @@ export default function InterviewStatusPage() {
 
   // Send Invitation Mutation
   const sendInvitationMutation = useMutation({
-    mutationFn: async ({ interviewId, recipient, subject, body, isDraft }: { interviewId: string; recipient?: string; subject: string; body: string; isDraft?: boolean }) => {
+    mutationFn: async ({
+      interviewId,
+      recipient,
+      subject,
+      body,
+      isDraft,
+      applicationId,
+    }: {
+      interviewId: string
+      recipient?: string
+      subject: string
+      body: string
+      isDraft?: boolean
+      applicationId?: string
+    }) => {
       const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient, subject, body, is_draft: isDraft })
+        body: JSON.stringify({
+          recipient,
+          subject,
+          body,
+          is_draft: isDraft,
+          application_id: applicationId || activeApp?.id,
+        })
       })
       if (!res.ok) {
         const err = await res.json()
@@ -339,8 +378,13 @@ export default function InterviewStatusPage() {
       qc.invalidateQueries({ queryKey: ['application-interviews', activeApp?.id] })
       setInvitationModalOpen(false)
       const delivery = data.data?.delivery_status || 'PENDING_DELIVERY'
+      const deliveredTo = data.data?.delivered_to
       if (delivery === 'SENT' || delivery === 'DELIVERED') {
-        success('Interview invitation sent successfully!')
+        if (deliveredTo && deliveredTo !== inviteRecipient) {
+          success(`Interview invitation sent! (Resend sandbox delivered to: ${deliveredTo})`)
+        } else {
+          success('Interview invitation sent successfully!')
+        }
       } else {
         success(`Interview invitation recorded with status: ${delivery}`)
       }
@@ -414,11 +458,15 @@ export default function InterviewStatusPage() {
     setScheduleModalOpen(true)
   }
 
-  // Load invitation preview with template key
-  const loadInvitePreview = async (interviewId: string, templateKey?: string) => {
+  // Load invitation preview with template key and explicit application ID
+  const loadInvitePreview = async (interviewId: string, templateKey?: string, appId?: string) => {
     setIsLoadingInvitePreview(true)
     try {
-      const q = templateKey ? `?template_key=${encodeURIComponent(templateKey)}` : ''
+      const currentAppId = appId || activeApp?.id || ''
+      const params = new URLSearchParams()
+      if (templateKey) params.set('template_key', templateKey)
+      if (currentAppId) params.set('application_id', currentAppId)
+      const q = params.toString() ? `?${params.toString()}` : ''
       const res = await fetch(`/api/hiring/interviews/${interviewId}/invitation${q}`)
       if (res.ok) {
         const d = await res.json()
@@ -450,7 +498,7 @@ export default function InterviewStatusPage() {
       ? 'interview-round-3'
       : 'interview-round-1'
     setSelectedTemplateKey(initialKey)
-    await loadInvitePreview(interview.id, initialKey)
+    await loadInvitePreview(interview.id, initialKey, activeApp?.id)
   }
 
   // Open feedback modal
@@ -1599,20 +1647,29 @@ export default function InterviewStatusPage() {
         }}>
           <div className="card neu-interview-card" style={{
             width: '100%',
-            maxWidth: 620,
+            maxWidth: 640,
             background: 'var(--neu-base)',
             boxShadow: 'var(--elev-4)',
             borderRadius: 20,
             maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: 24,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            padding: 0,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            {/* Modal Header (pinned) */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 24px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}>
               <div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   Interview Invitation Email
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
                   Candidate: <b>{activeApp?.candidate?.full_name || 'Candidate'}</b>
                 </p>
               </div>
@@ -1626,128 +1683,147 @@ export default function InterviewStatusPage() {
             </div>
 
             {isLoadingInvitePreview ? (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+              <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
                 Rendering invitation preview…
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                    Recipient Email:
-                  </label>
-                  <input
-                    type="email"
-                    value={inviteRecipient}
-                    onChange={e => setInviteRecipient(e.target.value)}
-                    placeholder="candidate@example.com or delivered@resend.dev"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(0,0,0,0.1)',
-                      background: 'var(--neu-bg-deep)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                    }}
-                  />
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
-                    💡 <b>Resend Test Delivery:</b> Fixture domains (like <code>@example.com</code>) are automatically delivered via Resend test mailbox. You can also specify your own email address here.
+              <>
+                {/* Modal Scrollable Body */}
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '16px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                      Recipient Email:
+                    </label>
+                    <input
+                      type="email"
+                      value={inviteRecipient}
+                      onChange={e => setInviteRecipient(e.target.value)}
+                      placeholder="candidate@example.com or delivered@resend.dev"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        background: 'var(--neu-bg-deep)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                      }}
+                    />
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: 4 }}>
+                      💡 <b>Resend Test Delivery:</b> Mock domains (e.g. <code>@talent-mock.com</code>) are automatically routed to your verified Resend account.
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                      Email Template (Handlebars):
+                    </label>
+                    <select
+                      value={selectedTemplateKey}
+                      onChange={e => {
+                        const newKey = e.target.value
+                        setSelectedTemplateKey(newKey)
+                        if (selectedInterviewForInvite?.id) {
+                          loadInvitePreview(selectedInterviewForInvite.id, newKey, activeApp?.id)
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        background: 'var(--neu-bg-deep)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <option value="interview-round-1">Round 1 — Introductory Interview</option>
+                      <option value="interview-round-2">Round 2 — Coding Assessment</option>
+                      <option value="interview-round-3">Round 3 — Technical & HR</option>
+                      <option value="interview-rescheduled">Interview Rescheduled</option>
+                      <option value="interview-cancelled">Interview Cancelled</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                      Email Subject:
+                    </label>
+                    <input
+                      type="text"
+                      value={inviteSubject}
+                      onChange={e => setInviteSubject(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        background: 'var(--neu-bg-deep)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                      Email Body (Rendered with Variables):
+                    </label>
+                    <textarea
+                      rows={7}
+                      value={inviteBody}
+                      onChange={e => setInviteBody(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        background: 'var(--neu-bg-deep)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.6,
+                        fontFamily: 'monospace',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    fontSize: '0.75rem',
+                    color: '#D97706',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                    <span>
+                      <b>Zero Fabrication:</b> Resend sandbox routes testing emails to your verified owner inbox.
+                    </span>
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                    Email Template (Handlebars):
-                  </label>
-                  <select
-                    value={selectedTemplateKey}
-                    onChange={e => {
-                      const newKey = e.target.value
-                      setSelectedTemplateKey(newKey)
-                      if (selectedInterviewForInvite?.id) {
-                        loadInvitePreview(selectedInterviewForInvite.id, newKey)
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(0,0,0,0.1)',
-                      background: 'var(--neu-bg-deep)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                    }}
-                  >
-                    <option value="interview-round-1">Round 1 — Introductory Interview</option>
-                    <option value="interview-round-2">Round 2 — Coding Assessment</option>
-                    <option value="interview-round-3">Round 3 — Technical & HR</option>
-                    <option value="interview-rescheduled">Interview Rescheduled</option>
-                    <option value="interview-cancelled">Interview Cancelled</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                    Email Subject:
-                  </label>
-                  <input
-                    type="text"
-                    value={inviteSubject}
-                    onChange={e => setInviteSubject(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(0,0,0,0.1)',
-                      background: 'var(--neu-bg-deep)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                    Email Body (Rendered with Variables):
-                  </label>
-                  <textarea
-                    rows={12}
-                    value={inviteBody}
-                    onChange={e => setInviteBody(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 10,
-                      border: '1px solid rgba(0,0,0,0.1)',
-                      background: 'var(--neu-bg-deep)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8rem',
-                      lineHeight: 1.6,
-                      fontFamily: 'monospace',
-                    }}
-                  />
-                </div>
-
+                {/* Modal Footer (pinned sticky) */}
                 <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  fontSize: '0.75rem',
-                  color: '#D97706',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                  justifyContent: 'flex-end',
+                  gap: 10,
+                  padding: '14px 24px',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--neu-base)',
                 }}>
-                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                  <span>
-                    <b>Zero Fabrication:</b> If RESEND_API_KEY / SENDGRID_API_KEY is not configured in environment, status will be recorded as <code>PENDING_DELIVERY</code>.
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
                   <button
                     type="button"
                     onClick={() => setInvitationModalOpen(false)}
@@ -1764,6 +1840,7 @@ export default function InterviewStatusPage() {
                       subject: inviteSubject,
                       body: inviteBody,
                       isDraft: true,
+                      applicationId: activeApp?.id,
                     })}
                     disabled={sendInvitationMutation.isPending}
                     className="btn btn-secondary"
@@ -1779,6 +1856,7 @@ export default function InterviewStatusPage() {
                       subject: inviteSubject,
                       body: inviteBody,
                       isDraft: false,
+                      applicationId: activeApp?.id,
                     })}
                     disabled={sendInvitationMutation.isPending}
                     className="btn btn-primary"
@@ -1787,7 +1865,7 @@ export default function InterviewStatusPage() {
                     <Send size={14} /> {sendInvitationMutation.isPending ? 'Sending…' : 'Send Invitation'}
                   </button>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>

@@ -30,6 +30,7 @@ export interface SendEmailResult {
   status: EmailDeliveryStatus
   provider: 'sendgrid' | 'resend' | 'smtp' | 'gmail' | 'mock_email'
   simulationStatus: 'REAL' | 'SIMULATED'
+  deliveredTo?: string
   error?: string
 }
 
@@ -190,14 +191,24 @@ export class ResendEmailProvider implements EmailProvider {
     }
 
     // Resend Test Mode Sandbox Routing:
-    // Resend's test sender onboarding@resend.dev strictly forbids example.com domains with 422 error.
-    // If testing seed candidates with @example.com, route to RESEND_TEST_RECIPIENT or delivered@resend.dev
+    // When using Resend's test sender (onboarding@resend.dev), Resend strictly restricts delivery
+    // to the verified owner account email (RESEND_TEST_RECIPIENT) or delivered@resend.dev.
+    // Candidate fixture and mock domains (@talent-mock.com, @indeed-mock.com, @example.com, etc.)
+    // are automatically routed to RESEND_TEST_RECIPIENT or delivered@resend.dev.
     let targetTo = options.to
-    const isExampleDomain = typeof targetTo === 'string' &&
-      (targetTo.includes('@example.com') || targetTo.includes('@test.com') || targetTo.includes('@example.org'))
+    const testRecipient = (process.env.RESEND_TEST_RECIPIENT || '').trim()
+    const isMockOrTestDomain = typeof targetTo === 'string' &&
+      (targetTo.includes('@example.') ||
+       targetTo.includes('@test.') ||
+       targetTo.includes('@mock.') ||
+       targetTo.includes('@talent-mock.') ||
+       targetTo.includes('@indeed-mock.') ||
+       targetTo.includes('@linkedin-mock.'))
 
-    if (isExampleDomain && from.includes('onboarding@resend.dev')) {
-      targetTo = process.env.RESEND_TEST_RECIPIENT || 'delivered@resend.dev'
+    if (from.includes('onboarding@resend.dev')) {
+      if (isMockOrTestDomain || (testRecipient && targetTo !== testRecipient)) {
+        targetTo = testRecipient || 'delivered@resend.dev'
+      }
     }
 
     const payload: {
@@ -233,12 +244,27 @@ export class ResendEmailProvider implements EmailProvider {
     try {
       let response = await client.emails.send(payload as any)
 
-      // Fallback: If Resend still rejected recipient as an example.com domain in test mode, retry with delivered@resend.dev
-      if (
-        response.error &&
-        (response.error.message?.includes('example.com') || response.error.message?.includes('testing email address'))
-      ) {
-        payload.to = process.env.RESEND_TEST_RECIPIENT || 'delivered@resend.dev'
+      // Fallback: If Resend rejected recipient due to sandbox/test account restriction
+      // Resend error: "You can only send testing emails to your own email address (xyz@gmail.com)..."
+      const isTestRestrictionError = response.error && (
+        response.error.message?.includes('testing email') ||
+        response.error.message?.includes('testing emails') ||
+        response.error.message?.includes('own email address') ||
+        response.error.message?.includes('verify a domain') ||
+        response.error.message?.includes('example.com')
+      )
+
+      if (isTestRestrictionError) {
+        const extractedOwnerEmail = response.error?.message?.match(/\(([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/)?.[1]
+        const fallbackTo = extractedOwnerEmail || process.env.RESEND_TEST_RECIPIENT || 'delivered@resend.dev'
+        payload.to = fallbackTo
+        if (payload.text) {
+          payload.text = `[Notice: Resend Sandbox delivered to ${fallbackTo} for recipient ${options.to}]\n\n${payload.text}`
+        }
+        if (payload.html) {
+          payload.html = `<div style="background:#f3f4f6;padding:8px 12px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#4b5563;">Notice: Resend Sandbox delivered to <b>${fallbackTo}</b> for candidate recipient <b>${options.to}</b></div>${payload.html}`
+        }
+        targetTo = fallbackTo
         response = await client.emails.send(payload as any)
       }
 
@@ -271,6 +297,7 @@ export class ResendEmailProvider implements EmailProvider {
         status: 'SENT',
         provider: 'resend',
         simulationStatus: 'REAL',
+        deliveredTo: typeof targetTo === 'string' ? targetTo : targetTo[0],
       }
     } catch (err: any) {
       return {

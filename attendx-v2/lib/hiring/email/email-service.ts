@@ -33,6 +33,7 @@ export interface DispatchEmailResponse {
   renderedSubject: string
   renderedBody: string
   recipient: string
+  deliveredTo?: string
   error?: string
 }
 
@@ -146,6 +147,7 @@ export class EmailService {
       renderedSubject: subject,
       renderedBody: body,
       recipient: recipientEmail,
+      deliveredTo: sendResult.deliveredTo,
       error: sendResult.error,
     }
   }
