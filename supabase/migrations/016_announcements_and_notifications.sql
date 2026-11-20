@@ -48,13 +48,16 @@ ALTER TABLE public.notifications FORCE ROW LEVEL SECURITY;
 
 -- RLS Policies
 DROP POLICY IF EXISTS "announcements_read_tenant" ON public.announcements;
+DROP POLICY IF EXISTS "announcements_read_tenant" ON public.announcements;
 CREATE POLICY "announcements_read_tenant" ON public.announcements
   FOR SELECT USING (tenant_id = get_my_tenant_id() OR auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "announcement_dismissals_self" ON public.announcement_dismissals;
+DROP POLICY IF EXISTS "announcement_dismissals_self" ON public.announcement_dismissals;
 CREATE POLICY "announcement_dismissals_self" ON public.announcement_dismissals
   FOR ALL USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "notifications_read_self" ON public.notifications;
 DROP POLICY IF EXISTS "notifications_read_self" ON public.notifications;
 CREATE POLICY "notifications_read_self" ON public.notifications
   FOR SELECT USING (user_id = auth.uid());
