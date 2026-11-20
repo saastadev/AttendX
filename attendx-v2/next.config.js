@@ -16,6 +16,16 @@ const cspHeader = `
 const nextConfig = {
   turbopack: {},
 
+  // Always define this flag at build time. Turbopack only inlines NEXT_PUBLIC_*
+  // values that are SET; an unset one is left as a runtime process.env lookup,
+  // so the gated demo-credentials panel (and the seed password inside it) was
+  // still shipped in production bundles. Pinning it to a literal lets the
+  // compiler fold `'false' === 'true'` and drop the panel entirely.
+  env: {
+    NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS:
+      process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === 'true' ? 'true' : 'false',
+  },
+
   images: {
     remotePatterns: [
       {

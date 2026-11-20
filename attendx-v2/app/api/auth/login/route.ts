@@ -39,7 +39,6 @@ const DEMO_USERS: Record<string, { id: string; role: string; full_name: string; 
   'hr@acme-tech.com': { id: '11111111-1111-1111-1111-333333333333', role: 'HR', full_name: 'Carol HR', tenant_id: '11111111-0000-0000-0000-000000000001' },
   'manager@acme-tech.com': { id: '11111111-1111-1111-1111-444444444444', role: 'MANAGER', full_name: 'David Manager', tenant_id: '11111111-0000-0000-0000-000000000001' },
   'employee@acme-tech.com': { id: '11111111-1111-1111-1111-555555555555', role: 'EMPLOYEE', full_name: 'Eve Employee', tenant_id: '11111111-0000-0000-0000-000000000001' },
-  'hitlergaripellam05@gmail.com': { id: '11111111-6666-6666-6666-666666666666', role: 'SUPERADMIN', full_name: 'Sridhar Admin', tenant_id: '11111111-0000-0000-0000-000000000001' },
   // Globex
   'superadmin@globex-corp.com': { id: '22222222-2222-2222-2222-111111111111', role: 'SUPERADMIN', full_name: 'Gary Superadmin', tenant_id: '22222222-0000-0000-0000-000000000002' },
   'admin@globex-corp.com': { id: '22222222-2222-2222-2222-222222222222', role: 'ADMIN', full_name: 'Grace Admin', tenant_id: '22222222-0000-0000-0000-000000000002' },
