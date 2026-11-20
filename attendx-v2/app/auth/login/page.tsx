@@ -9,6 +9,9 @@ import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, SPRING_BOUNCY, SPRING_STIFF, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
 
+// Opt-in only (local/dev). Never set this for a production build.
+const SHOW_DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === 'true'
+
 /* ---- Mobile Brand Strip (shown on mobile instead of full hero) ---- */
 function MobileBrandStrip() {
   return (
@@ -372,7 +375,13 @@ function LoginForm() {
             <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign up</Link>
           </p>
 
-          {/* Demo credentials (collapsible) */}
+          {/* Demo credentials (collapsible).
+              Gated on an explicit build-time flag. Previously this rendered on
+              every deployment, so the live production login page advertised
+              'Password: Password123!' with one-click SUPERADMIN logins. Because
+              NEXT_PUBLIC_* values are inlined at build time, the panel and its
+              strings are dropped from bundles built without the flag. */}
+          {SHOW_DEMO_ACCOUNTS && (
           <div>
             <button
               type="button"
@@ -406,7 +415,6 @@ function LoginForm() {
                       { role: 'Admin', email: 'admin@acme-tech.com' },
                       { role: 'HR', email: 'hr@acme-tech.com' },
                       { role: 'Employee', email: 'employee@acme-tech.com' },
-                      { role: 'Sridhar', email: 'hitlergaripellam05@gmail.com' },
                     ].map(demo => (
                       <button
                         key={demo.email}
@@ -429,6 +437,7 @@ function LoginForm() {
               )}
             </AnimatePresence>
           </div>
+          )}
         </motion.div>
       </form>
     </motion.div>

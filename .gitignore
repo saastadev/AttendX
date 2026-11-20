@@ -40,3 +40,7 @@ AttendX_Supabase_Full_Database.sql
 MODULE_4_*.md
 scratch/
 
+# report artifacts
+*.pdf
+*.zip
+

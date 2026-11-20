@@ -139,6 +139,7 @@ $$;
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS "profiles_self_update" ON profiles;
 
+DROP POLICY IF EXISTS "profiles_self_update" ON profiles;
 CREATE POLICY "profiles_self_update" ON profiles
   FOR UPDATE
   USING (id = auth.uid() AND tenant_id = get_my_tenant_id())
