@@ -34,6 +34,11 @@ self.addEventListener('fetch', (event) => {
   if (
     event.request.method !== 'GET' ||
     url.pathname.startsWith('/api/') ||
+    // Self-hosted deploys serve auth, database and storage on this same
+    // origin. Never cache them: responses are per-user and must stay fresh.
+    url.pathname.startsWith('/auth/v1/') ||
+    url.pathname.startsWith('/rest/v1/') ||
+    url.pathname.startsWith('/storage/v1/') ||
     url.hostname.includes('supabase.co') ||
     url.hostname.includes('openai.com') ||
     url.hostname.includes('sentry.io')

@@ -66,7 +66,10 @@ export function getSupabaseServiceClient(): SupabaseClient {
   const { url } = requireSupabaseConfig()
   const serviceKey = requireServiceRoleKey()
   return createClient(
-    url,
+    // Self-hosted deploys (deploy/hostinger) block /auth/v1/admin on the public
+    // domain, so privileged calls go through the server-local gateway instead.
+    // Unset on Supabase Cloud, where the public URL serves everything.
+    process.env.SUPABASE_INTERNAL_URL || url,
     serviceKey,
     {
       auth: {

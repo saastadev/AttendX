@@ -162,7 +162,7 @@ export async function proxy(request: NextRequest) {
       if (serviceKey) {
         const { createClient } = await import('@supabase/supabase-js')
         clientForLookup = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
           serviceKey,
           { auth: { autoRefreshToken: false, persistSession: false } }
         ) as any
@@ -234,7 +234,7 @@ export async function proxy(request: NextRequest) {
         if (serviceKey) {
           const { createClient } = await import('@supabase/supabase-js')
           const clientForLookup = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
             serviceKey,
             { auth: { autoRefreshToken: false, persistSession: false } }
           ) as any
@@ -276,7 +276,7 @@ export async function proxy(request: NextRequest) {
         if (serviceKey) {
           const { createClient } = await import('@supabase/supabase-js')
           const clientForLookup = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!,
             serviceKey,
             { auth: { autoRefreshToken: false, persistSession: false } }
           ) as any
