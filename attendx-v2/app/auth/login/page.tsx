@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -453,16 +453,9 @@ function LoginFormWithSuspense() {
 }
 
 export default function LoginPage() {
-  const [showForm, setShowForm] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setShowForm(true), 3000)
-    return () => clearTimeout(t)
-  }, [])
-
   return (
     <>
-      {/* ── Desktop: unchanged side-by-side layout ── */}
+      {/* Desktop: focused sign-in beside the product promise. */}
       <div className="auth-shell auth-shell-desktop">
         <AuthHero />
         <div className="auth-form-panel" style={{ overflowY: 'auto' }}>
@@ -473,38 +466,15 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── Mobile: hero splash → login form ── */}
+      {/* Mobile: show the form immediately. Authentication should never be
+          blocked by a decorative animation or an arbitrary timeout. */}
       <div className="auth-shell-mobile">
-        <AnimatePresence mode="wait">
-          {!showForm ? (
-            /* Step 1 — full-screen hero splash */
-            <motion.div
-              key="splash"
-              style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column' }}
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0, y: -40, scale: 0.97 }}
-              transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-            >
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <AuthHero />
-              </div>
-            </motion.div>
-          ) : (
-            /* Step 2 — login form slides up */
-            <motion.div
-              key="form"
-              style={{ minHeight: '100dvh', overflowY: 'auto', background: 'var(--neu-bg)' }}
-              initial={{ opacity: 0, y: 60 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
-            >
-              <div className="auth-mobile-brand">
-                <MobileBrandStrip />
-              </div>
-              <LoginFormWithSuspense />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div style={{ minHeight: '100dvh', overflowY: 'auto', background: 'var(--neu-bg)' }}>
+          <div className="auth-mobile-brand">
+            <MobileBrandStrip />
+          </div>
+          <LoginFormWithSuspense />
+        </div>
       </div>
     </>
   )
