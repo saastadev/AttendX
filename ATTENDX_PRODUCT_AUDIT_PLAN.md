@@ -49,6 +49,22 @@
 
 ## Delivery sequence
 
+## Business release acceptance
+
+| Role | Business outcome | Required release evidence |
+| --- | --- | --- |
+| Employee | Complete onboarding, clock in/out, request leave, track own records | Saved records, accurate balance, visible success/failure, no peer access |
+| Manager | Review team attendance and approve requests | Direct-report scope, persistent decisions, employee notification |
+| HR | Manage directory and hiring through employee conversion | Requisition → candidate → interview → offer → onboarding with actual delivery results |
+| Admin | Provision users and manage access | Seat limits, active workspace roles, deactivation and session revocation |
+| Superadmin | Administer authorized workspaces | Explicit workspace selection and no inherited privileges from another workspace |
+
+Current hiring access is HR-only. Login destinations now respect that rule. Login roles are derived only from current database assignments in the active workspace; stale metadata and assignments in other workspaces cannot restore privileges. Missing or unknown assignments deny access.
+
+Every release journey requires a real test-workspace run, keyboard and 390px mobile checks, loading/empty/error states, and confirmation based on persisted records. Compilation and unit-test results alone do not establish these outcomes. Provider configuration, database isolation and actual authenticated browser verification remain release gates.
+
+## Implementation sequence
+
 1. Browser smoke suite and shared API/error layer.
 2. Attendance and leave end-to-end completion.
 3. Performance, notifications, and profile completion.
