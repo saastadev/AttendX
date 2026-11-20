@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Bot, User, AlertCircle, Loader, Sparkles, Mic, ChevronRight } from 'lucide-react'
-import { format } from 'date-fns'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
@@ -166,6 +165,9 @@ export default function CopilotPage() {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
   const [backendError, setBackendError] = useState(false)
+  // Keep one conversation id for the lifetime of this page so the API can
+  // safely load and persist context for this user only.
+  const [sessionId] = useState(() => crypto.randomUUID())
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -186,6 +188,7 @@ export default function CopilotPage() {
     }
     setMessages(prev => [...prev, userMsg])
     setThinking(true)
+    let serviceUnavailable = false
 
     try {
       const supabase = getSupabaseBrowserClient()
@@ -204,19 +207,20 @@ export default function CopilotPage() {
       const res = await fetch('/api/copilot', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, sessionId }),
       })
 
       if (!res.ok) {
-        // Backend not implemented yet — honest error state
         if (res.status === 404) {
+          serviceUnavailable = true
           setBackendError(true)
-          throw new Error('Copilot backend is not yet deployed. Full UI is ready and wired — waiting on the API route.')
+          throw new Error('The HR Copilot service is unavailable in this deployment.')
         }
         throw new Error(`API error: ${res.status} ${res.statusText}`)
       }
 
       const { reply } = await res.json()
+      setBackendError(false)
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(), role: 'assistant', content: reply, timestamp: new Date(), status: 'done',
       }])
@@ -224,11 +228,11 @@ export default function CopilotPage() {
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: backendError
-          ? '⚠️ The HR Copilot backend is not yet deployed. This chat UI is fully built and wired — it will work once the `/api/copilot` streaming endpoint goes live.'
+        content: serviceUnavailable
+          ? 'The HR Copilot service is unavailable in this deployment. Please try again later or contact your administrator.'
           : `I ran into an error: ${err.message}. Please try again.`,
         timestamp: new Date(),
-        status: err.message.includes('not yet') ? 'done' : 'error',
+        status: 'error',
       }])
     } finally {
       setThinking(false)

@@ -268,7 +268,9 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       toolResult = snapshot
-      reply = `Workforce Analytics & Anomaly Summary:\n- Total Feedback Processed: ${snapshot?.total_feedback_count ?? 0}\n- Morale Index: ${snapshot?.morale_index ?? 75}/100\n- Engagement Score: ${snapshot?.engagement_score ?? 80}/100\n- Retention Risk Score: ${snapshot?.retention_risk_score ?? 15}/100\n- Attendance Anomalies: Zero critical attendance deviations detected in the current pay cycle.`
+      reply = snapshot
+        ? `Workforce Analytics & Anomaly Summary:\n- Total Feedback Processed: ${snapshot.total_feedback_count}\n- Morale Index: ${snapshot.morale_index}/100\n- Engagement Score: ${snapshot.engagement_score}/100\n- Retention Risk Score: ${snapshot.retention_risk_score}/100\n- Attendance anomalies require review in the Attendance Insights dashboard.`
+        : 'No workforce analytics snapshot is available for your organization yet. Once feedback has been processed, the latest metrics will appear here.'
     }
     // 6e. Attendance Check & Attendance Rate (Monthly or Recent)
     else if (
@@ -403,13 +405,46 @@ export async function POST(req: NextRequest) {
       const tz = aiContext.timezone || 'Asia/Kolkata'
       const targetDate = todayInTimezone(tz)
 
-      const { data: todayLeaves, error: leaveErr } = await serviceClient
+      // Keep the answer within the caller's reporting scope. HR/Admin may
+      // view the tenant-wide roster; managers see direct reports; employees
+      // see only colleagues with the same manager.
+      const role = (aiContext.role as string).toUpperCase()
+      let teamEmployeeIds: string[] | null = null
+      if (role === 'MANAGER') {
+        const { data: reports } = await serviceClient
+          .from('employees')
+          .select('id')
+          .eq('tenant_id', aiContext.tenantId)
+          .eq('manager_id', aiContext.userId)
+        teamEmployeeIds = (reports || []).map((employee: any) => employee.id)
+      } else if (role === 'EMPLOYEE') {
+        const { data: self } = await serviceClient
+          .from('employees')
+          .select('manager_id')
+          .eq('tenant_id', aiContext.tenantId)
+          .eq('id', aiContext.userId)
+          .maybeSingle()
+        if (self?.manager_id) {
+          const { data: colleagues } = await serviceClient
+            .from('employees')
+            .select('id')
+            .eq('tenant_id', aiContext.tenantId)
+            .eq('manager_id', self.manager_id)
+          teamEmployeeIds = (colleagues || []).map((employee: any) => employee.id)
+        } else {
+          teamEmployeeIds = []
+        }
+      }
+
+      let leaveQuery = serviceClient
         .from('leaves')
         .select('employee_id, start_date, end_date, leave_type:leave_types(name)')
         .eq('tenant_id', aiContext.tenantId)
         .eq('status', 'APPROVED')
         .lte('start_date', targetDate)
         .gte('end_date', targetDate)
+      if (teamEmployeeIds) leaveQuery = leaveQuery.in('employee_id', teamEmployeeIds)
+      const { data: todayLeaves, error: leaveErr } = await leaveQuery
 
       if (leaveErr) {
         return NextResponse.json({
