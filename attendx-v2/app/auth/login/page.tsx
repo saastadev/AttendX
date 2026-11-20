@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, ChevronDown, CheckCircle } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, ChevronDown, CheckCircle, Clock3, CalendarCheck2, UsersRound, ShieldCheck } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
 import { SPRING_GENTLE, SPRING_BOUNCY, SPRING_STIFF, STAGGER_CONTAINER, STAGGER_ITEM } from '@/components/ui/MotionConfig'
@@ -45,72 +45,24 @@ function MobileBrandStrip() {
 /* ---- Auth Hero (desktop only) ---- */
 function AuthHero() {
   return (
-    <div className="auth-hero" role="complementary" aria-label="AttendX hero">
-      <div className="gradient-mesh" aria-hidden="true" />
-      <div aria-hidden="true" style={{ position: 'relative', width: 260, height: 280, perspective: 800, marginBottom: '1.5rem' }}>
-        {/* Back card */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
-          borderRadius: 24, border: '1px solid rgba(255,255,255,0.2)',
-          transform: 'perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(-30px)',
-          animation: 'hero-float-back 6s ease-in-out infinite',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-        }}>
-          <div style={{ padding: 24, opacity: 0.6 }}>
-            <div style={{ height: 10, background: 'rgba(255,255,255,0.5)', borderRadius: 999, marginBottom: 12, width: '70%' }} />
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.35)', borderRadius: 999, marginBottom: 8, width: '85%' }} />
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.25)', borderRadius: 999, width: '60%' }} />
-          </div>
+    <aside className="auth-hero" aria-label="What you can do with AttendX">
+      <div className="auth-hero-content">
+        <span className="auth-hero-eyebrow">YOUR WORKDAY, CONNECTED</span>
+        <h2 className="auth-hero-headline">Make every workday<br /><span>work better.</span></h2>
+        <p className="auth-hero-description">One place for the moments that matter at work, from clocking in to growing your team.</p>
+        <div className="auth-hero-features">
+          <div><Clock3 aria-hidden="true" /><span>Track your time with confidence</span></div>
+          <div><CalendarCheck2 aria-hidden="true" /><span>Plan leave and stay in sync</span></div>
+          <div><UsersRound aria-hidden="true" /><span>Support people and teams</span></div>
         </div>
-        {/* Front card */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(16px)',
-          borderRadius: 24, border: '1px solid rgba(255,255,255,0.35)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 32px 80px rgba(0,0,0,0.25)',
-          transform: 'perspective(800px) rotateX(8deg) rotateY(-12deg) translateZ(20px)',
-          animation: 'hero-float-front 6s ease-in-out infinite',
-          overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent)' }} />
-          <div style={{ padding: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.5))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.125rem', fontWeight: 800, color: '#4F46E5' }}>A</div>
-              <div>
-                <div style={{ height: 12, background: 'rgba(255,255,255,0.9)', borderRadius: 999, width: 100, marginBottom: 6 }} />
-                <div style={{ height: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 999, width: 70 }} />
-              </div>
-            </div>
-            {[
-              { label: 'Clock In', color: '#10B981', pct: '100%' },
-              { label: 'Leave', color: '#F59E0B', pct: '60%' },
-              { label: 'Goals', color: 'rgba(255,255,255,0.7)', pct: '80%' },
-            ].map(row => (
-              <div key={row.label} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <div style={{ height: 8, background: 'rgba(255,255,255,0.7)', borderRadius: 999, width: 60 }} />
-                  <div style={{ height: 8, background: 'rgba(255,255,255,0.4)', borderRadius: 999, width: 30 }} />
-                </div>
-                <div style={{ height: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 999 }}>
-                  <div style={{ height: '100%', borderRadius: 999, width: row.pct, background: row.color, transition: 'width 1s ease' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <p className="auth-hero-footnote"><ShieldCheck size={17} aria-hidden="true" /> Your workspace is protected by your organization.</p>
       </div>
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.75rem', color: '#ffffff', marginBottom: 8, lineHeight: 1.2 }}>Next-Gen Workforce OS</h2>
-        <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.9375rem', lineHeight: 1.5, maxWidth: 320 }}>Automated attendance, AI scheduling, and real-time operations in one platform.</p>
-      </div>
-    </div>
+    </aside>
   )
 }
 
 /* ---- Login Form ---- */
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? undefined
   const initialErrorParam = searchParams.get('error')
@@ -135,7 +87,6 @@ function LoginForm() {
     if (!email.trim()) errs.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email'
     if (!password) errs.password = 'Password is required'
-    else if (password.length < 8) errs.password = 'Password must be at least 8 characters'
     return errs
   }
 
@@ -233,8 +184,9 @@ function LoginForm() {
         </div>
       </motion.div>
 
-      <motion.h1 variants={STAGGER_ITEM} style={{ fontSize: 'var(--text-2xl)', marginBottom: 4, fontFamily: 'var(--font-display)', fontWeight: 800 }}>Welcome back</motion.h1>
-      <motion.p variants={STAGGER_ITEM} style={{ color: 'var(--text-tertiary)', marginBottom: 24, fontSize: 'var(--text-sm)' }}>Sign in to your workspace</motion.p>
+      <motion.p variants={STAGGER_ITEM} className="auth-form-eyebrow">WELCOME TO ATTENDX</motion.p>
+      <motion.h1 variants={STAGGER_ITEM} className="auth-form-heading">Good to see you again.</motion.h1>
+      <motion.p variants={STAGGER_ITEM} className="auth-form-intro">Sign in with the work email your organization invited.</motion.p>
 
       <form onSubmit={handleSubmit} noValidate>
         <motion.div variants={STAGGER_ITEM} className="form-section">
@@ -315,7 +267,7 @@ function LoginForm() {
           <div className="input-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label className="input-label" htmlFor="login-password">Password</label>
-              <Link href="/auth/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--accent)', fontWeight: 500 }}>Forgot?</Link>
+              <Link href="/auth/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--accent)', fontWeight: 600 }}>Forgot password?</Link>
             </div>
             <div className="input-wrap">
               <Lock size={18} className="input-icon" aria-hidden="true" />
@@ -371,8 +323,8 @@ function LoginForm() {
           </motion.button>
 
           <p style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>
-            Don't have an account?{' '}
-            <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign up</Link>
+            Have an invitation?{' '}
+            <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 600 }}>Create your account</Link>
           </p>
 
           {/* Demo credentials (collapsible).

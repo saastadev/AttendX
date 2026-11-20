@@ -14,6 +14,7 @@
 - Copilot workforce analytics no longer invents default morale, engagement, retention, or anomaly values when the database has no snapshot.
 - Copilot team-leave answers are scoped to the caller’s reporting context: tenant-wide for HR/Admin, direct reports for Managers, and same-manager colleagues for Employees.
 - Mobile login now opens directly to the sign-in form instead of blocking authentication behind a three-second splash animation.
+- Login now explains the invited-account flow, uses a clearer branded layout, and accepts any nonempty password for server verification (password creation rules belong to onboarding and reset).
 
 ## Remaining product gaps, ordered by user impact
 
