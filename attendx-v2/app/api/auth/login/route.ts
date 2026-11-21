@@ -2,36 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { getSupabaseServiceClient, allowDemoAuthentication } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { resolveLoginRoles, resolveLoginDestination } from '@/lib/auth/login-roles'
 
 const loginSchema = z.object({
   email: z.string().email('Valid email is required'),
   password: z.string().min(1, 'Password is required'),
   next: z.string().optional(),
 })
-
-const ROLE_PRIORITY_MAP: Record<string, number> = {
-  SUPERADMIN: 1,
-  ADMIN: 2,
-  HR: 3,
-  MANAGER: 4,
-  EMPLOYEE: 5,
-}
-
-const ROLE_DEFAULT_DESTINATION: Record<string, string> = {
-  SUPERADMIN: '/admin/users',
-  ADMIN: '/admin/users',
-  HR: '/hr/directory',
-  MANAGER: '/manager/team',
-  EMPLOYEE: '/dashboard',
-}
-
-const ROLE_ROUTE_PERMISSIONS: Record<string, string[]> = {
-  SUPERADMIN: ['/admin', '/hr', '/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-  ADMIN: ['/admin', '/hr', '/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-  HR: ['/hr', '/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-  MANAGER: ['/manager', '/hiring', '/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-  EMPLOYEE: ['/dashboard', '/attendance', '/leave', '/cases', '/profile', '/copilot', '/performance', '/recognition', '/notifications'],
-}
 
 const DEMO_USERS: Record<string, { id: string; role: string; full_name: string; tenant_id: string }> = {
   'superadmin@acme-tech.com': { id: '11111111-1111-1111-1111-111111111111', role: 'SUPERADMIN', full_name: 'Alice Superadmin', tenant_id: '11111111-0000-0000-0000-000000000001' },
@@ -45,23 +22,6 @@ const DEMO_USERS: Record<string, { id: string; role: string; full_name: string; 
   'hr@globex-corp.com': { id: '22222222-2222-2222-2222-333333333333', role: 'HR', full_name: 'Hannah HR', tenant_id: '22222222-0000-0000-0000-000000000002' },
   'manager@globex-corp.com': { id: '22222222-2222-2222-2222-444444444444', role: 'MANAGER', full_name: 'Ian Manager', tenant_id: '22222222-0000-0000-0000-000000000002' },
   'employee@globex-corp.com': { id: '22222222-2222-2222-2222-555555555555', role: 'EMPLOYEE', full_name: 'Ivy Employee', tenant_id: '22222222-0000-0000-0000-000000000002' },
-}
-
-function resolveSafeDestination(primaryRole: string, requestedNext?: string): string {
-  const defaultDest = ROLE_DEFAULT_DESTINATION[primaryRole] || '/dashboard'
-  if (!requestedNext || !requestedNext.startsWith('/') || requestedNext.startsWith('//')) {
-    return defaultDest
-  }
-
-  // Prevent redirect loops to auth pages
-  if (requestedNext.startsWith('/auth')) {
-    return defaultDest
-  }
-
-  const allowedPrefixes = ROLE_ROUTE_PERMISSIONS[primaryRole] || ['/dashboard']
-  const isAllowed = allowedPrefixes.some(prefix => requestedNext.startsWith(prefix))
-
-  return isAllowed ? requestedNext : defaultDest
 }
 
 export async function POST(request: NextRequest) {
@@ -205,14 +165,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Resolve access before registering a session or granting onboarding access.
+    const sortedRoles = resolveLoginRoles(roleRecords, profile.tenant_id)
+    const primaryRole = sortedRoles[0]
+    if (!primaryRole) {
+      try { await supabase.auth.signOut() } catch { /* best effort */ }
+      return NextResponse.json(
+        { error: 'No active workspace role is assigned. Please contact your administrator.', code: 'ROLE_NOT_ASSIGNED' },
+        { status: 403 }
+      )
+    }
+
     // Record session in active_sessions
     try {
       const { SessionManager } = await import('@/lib/auth/session-manager')
-      const token = authData.session?.access_token || user.id
+      const token = authData?.session?.access_token || user.id
       await SessionManager.registerSession({
         userId: user.id,
         tenantId: profile.tenant_id,
-        authSessionId: (authData.session as any)?.id || null,
+        authSessionId: (authData?.session as any)?.id || null,
         sessionToken: token,
         uaString: request.headers.get('user-agent') || '',
         ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
@@ -239,19 +210,6 @@ export async function POST(request: NextRequest) {
       return response
     }
 
-    // 5. Authoritative Server-Side Role Resolution with multi-role precedence
-    const userRoles = roleRecords.map(r => r.role as string)
-    // Add app_metadata role fallback if present
-    const appMetadataRole = (user.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined
-    if (appMetadataRole && !userRoles.includes(appMetadataRole)) {
-      userRoles.push(appMetadataRole)
-    }
-
-    const sortedRoles = userRoles.sort(
-      (a, b) => (ROLE_PRIORITY_MAP[a] || 99) - (ROLE_PRIORITY_MAP[b] || 99)
-    )
-    const primaryRole = sortedRoles[0] || 'EMPLOYEE'
-
     // Synchronize app_metadata tenant_id and role with authoritative server profile if mismatched
     if (!isDemoUser && ((user.app_metadata as any)?.tenant_id !== profile.tenant_id || (user.app_metadata as any)?.role !== primaryRole)) {
       try {
@@ -269,7 +227,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Safe destination calculation
-    const destination = resolveSafeDestination(primaryRole, requestedNext)
+    const destination = resolveLoginDestination(primaryRole, requestedNext)
 
     const response = NextResponse.json({
       success: true,
