@@ -60,7 +60,7 @@ const SIDEBAR_NAV: NavGroup[] = [
       { href: '/hr/directory', icon: Users,    label: 'Directory', id: 'snav-directory', minRole: 'HR' },
       { href: '/hr/insights',  icon: BarChart2, label: 'Insights',  id: 'snav-insights',  minRole: 'HR' },
       { href: '/hr/sentiment', icon: Heart,     label: 'Sentiment', id: 'snav-sentiment', minRole: 'HR' },
-      { href: '/admin/users',  icon: Shield,   label: 'Users',     id: 'snav-users',     minRole: 'ADMIN' },
+      { href: '/admin/users',  icon: UserPlus, label: 'Employees', id: 'snav-users',     minRole: 'ADMIN' },
       { href: '/admin/attendance', icon: Camera, label: 'Selfies', id: 'snav-admin-attendance', minRole: 'ADMIN' },
       { href: '/admin/settings',icon: Settings, label: 'Settings',  id: 'snav-settings',  minRole: 'ADMIN' },
     ],
