@@ -14,6 +14,8 @@ import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { AnimatedValue } from '@/components/ui/AnimatedValue'
 import type { AttendanceRecord } from '@/types/database'
+import { ClockActionButton } from '@/components/attendance/ClockActionButton'
+import { invalidateAttendance } from '@/hooks/useTodayAttendance'
 
 function isMissingOutRecord(r: AttendanceRecord | any): boolean {
   if (!r) return false
@@ -101,8 +103,7 @@ export default function AttendanceHistoryPage() {
       setDeletingRecord(null)
       setSelectedSelfie(null)
       refetchWorkforce()
-      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
+      invalidateAttendance(queryClient)
     },
     onError: (err: Error) => {
       toastError(err.message || 'Failed to delete selfie')
@@ -183,9 +184,7 @@ export default function AttendanceHistoryPage() {
             </div>
           )}
 
-          <Link href="/attendance/checkin" className="btn btn-primary" id="btn-clockin-now">
-            <Clock size={18} /> Clock In Now
-          </Link>
+          <ClockActionButton id="btn-clockin-now" />
         </div>
       </div>
 

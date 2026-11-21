@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useCallback, useState } from 'rea
 import { syncOfflineQueue, getPendingQueueItems, getDeadLetterItems } from '@/lib/offline/queue'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
+import { useQueryClient } from '@tanstack/react-query'
+import { invalidateAttendance } from '@/hooks/useTodayAttendance'
 import type { OfflineQueueItem } from '@/types/database'
 
 interface OfflineSyncContextValue {
@@ -23,6 +25,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
   const [deadLetterItems, setDeadLetterItems] = useState<OfflineQueueItem[]>([])
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null)
   const user = useAuthStore(s => s.user)
+  const queryClient = useQueryClient()
 
   const refreshQueueStatus = useCallback(async () => {
     try {
@@ -48,6 +51,8 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
 
     if (result.synced > 0) {
       console.info(`[OfflineSync] Synced ${result.synced} items`)
+      // Queued clock-ins just reached the server: update every page's status.
+      invalidateAttendance(queryClient)
     }
     if (result.retrying > 0) {
       console.info(`[OfflineSync] Rescheduled ${result.retrying} items with backoff`)
@@ -57,7 +62,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
     }
 
     return result
-  }, [user, refreshQueueStatus])
+  }, [user, refreshQueueStatus, queryClient])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

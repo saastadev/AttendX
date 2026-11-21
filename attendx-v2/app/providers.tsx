@@ -6,6 +6,7 @@ import { AuthProvider } from '@/hooks/useAuth'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { OfflineSyncProvider } from '@/hooks/useOfflineSync'
 import { ToastContainer } from '@/components/ui/Toast'
+import { PersistedQueryCache } from '@/components/PersistedQueryCache'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -15,8 +16,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             // Stale time: 2 minutes — data stays fresh without refetch
             staleTime: 2 * 60 * 1000,
-            // Cache time: 10 minutes — data kept in memory after component unmounts
-            gcTime: 10 * 60 * 1000,
+            // Kept for a day so the saved cache (PersistedQueryCache) can
+            // restore it after a reload; stale data still refetches on view.
+            gcTime: 24 * 60 * 60 * 1000,
             // Retry once on failure
             retry: 1,
             // Don't refetch on window focus for HR app (high-frequency workflows)
@@ -63,6 +65,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <PersistedQueryCache />
       <ThemeProvider>
         <AuthProvider>
           <OfflineSyncProvider>

@@ -12,6 +12,7 @@ import { addToOfflineQueue } from '@/lib/offline/queue'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useToast } from '@/components/ui/Toast'
 import type { AttendanceRecord, Geofence } from '@/types/database'
+import { invalidateAttendance, useTodayAttendance } from '@/hooks/useTodayAttendance'
 
 type Step = 'intro' | 'camera' | 'confirming' | 'success' | 'error'
 type CheckinType = 'in' | 'out'
@@ -54,33 +55,12 @@ export default function CheckInPage() {
   } | null>(null)
 
   const [allowRecheckin, setAllowRecheckin] = useState(false)
-  const [effectiveDate, setEffectiveDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
-  // Today's attendance record
-  const { data: todayAttendance } = useQuery<AttendanceRecord | null>({
-    queryKey: ['attendance-today', user?.id, effectiveDate],
-    queryFn: async () => {
-      if (!user) return null
-      try {
-        const res = await fetch('/api/attendance/checkin')
-        if (res.ok) {
-          const json = await res.json()
-          if (json?.todayDate) setEffectiveDate(json.todayDate)
-          if (json?.today !== undefined) return json.today
-        }
-      } catch (err) {
-        console.warn('[Checkin] API today fetch failed, falling back to client query:', err)
-      }
-      const { data } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .eq('employee_id', user.id)
-        .eq('date', effectiveDate)
-        .maybeSingle()
-      return data
-    },
-    enabled: !!user,
-  })
+  // Today's status: the shared answer every page uses (hooks/useTodayAttendance).
+  const { data: todayData } = useTodayAttendance()
+  const todayAttendance = todayData?.today ?? null
+  // The company's "today" from the server; the phone's date until it answers.
+  const effectiveDate = todayData?.todayDate ?? format(new Date(), 'yyyy-MM-dd')
 
   // Geofences for this tenant
   const { data: geofences } = useQuery<Geofence[]>({
@@ -422,12 +402,7 @@ export default function CheckInPage() {
       setAllowRecheckin(false)
       setCompletedAction(result.actionType)
       setStep('success')
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      queryClient.invalidateQueries({ queryKey: ['today-attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
-      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['admin-attendance-records'] })
-      queryClient.invalidateQueries({ queryKey: ['manager-team'] })
+      invalidateAttendance(queryClient)
       if (result.offline) {
         toastSuccess(
           result.actionType === 'in' ? 'Clock-in queued offline' : 'Clock-out queued offline',

@@ -16,12 +16,21 @@ const cspHeader = `
 const nextConfig = {
   turbopack: {},
 
+  // Pages already visited are reused for 30 s when going back and forth,
+  // instead of asking the server again on every tap.
+  experimental: {
+    staleTimes: { dynamic: 30, static: 300 },
+  },
+
   // Always define this flag at build time. Turbopack only inlines NEXT_PUBLIC_*
   // values that are SET; an unset one is left as a runtime process.env lookup,
   // so the gated demo-credentials panel (and the seed password inside it) was
   // still shipped in production bundles. Pinning it to a literal lets the
   // compiler fold `'false' === 'true'` and drop the panel entirely.
   env: {
+    // Changes every build; the saved data cache (lib/query-cache.ts) is
+    // discarded when it doesn't match, so a deploy never reads old shapes.
+    NEXT_PUBLIC_BUILD_ID: process.env.NEXT_PUBLIC_BUILD_ID || String(Date.now()),
     NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS:
       process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS === 'true' ? 'true' : 'false',
   },
