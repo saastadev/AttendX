@@ -1,0 +1,22 @@
+{
+  "name": "attendx-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AttendX Android app: a Capacitor shell that opens the live AttendX site.",
+  "scripts": {
+    "sync": "cap sync android",
+    "apk:debug": "cap sync android && cd android && ./gradlew assembleDebug",
+    "apk:release": "cap sync android && cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2",
+    "typescript": "5.9.3"
+  }
+}
