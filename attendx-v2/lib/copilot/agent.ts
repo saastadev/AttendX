@@ -8,7 +8,7 @@ import { OPENAI_TOOLS, runCopilotTool, todayInTimezone } from './tools.ts'
 const MAX_ROUNDS = 5
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions'
 
-export const copilotModel = () => process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini'
+export const copilotModel = () => process.env.OPENAI_MODEL?.trim() || 'gpt-5.4-mini'
 
 export function copilotConfigured(): boolean {
   const key = process.env.OPENAI_API_KEY?.trim()
