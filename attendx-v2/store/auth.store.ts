@@ -8,6 +8,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { AuthUser, UserRole, Tenant, Profile } from '@/types/database'
+import { clearPersistedQueryCache } from '@/lib/query-cache'
 
 interface AuthState {
   user: AuthUser | null
@@ -45,7 +46,11 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user, isLoading: false, isInitialized: true }),
       setLoading: (isLoading) => set({ isLoading }),
       setInitialized: (isInitialized) => set({ isInitialized }),
-      clearUser: () => set({ user: null, isLoading: false }),
+      clearUser: () => {
+        // Every sign-out path ends here: drop the saved data cache too.
+        clearPersistedQueryCache()
+        set({ user: null, isLoading: false })
+      },
 
       isAuthenticated: () => get().user !== null,
 

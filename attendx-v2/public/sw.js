@@ -3,9 +3,10 @@
 // Spec: docs/specs/20_27_infra_hardening_pwa_security_spec.md
 // ============================================================
 
-const CACHE_NAME = 'attendx-pwa-v2.0.0'
+const CACHE_NAME = 'attendx-pwa-v2.0.1'
+// Only files served directly. '/' is a redirect (to login or the dashboard),
+// and a cached redirect can't answer a page load: the browser fails it.
 const STATIC_SHELL_ASSETS = [
-  '/',
   '/manifest.json',
   '/favicon.ico',
   '/offline.html',
@@ -51,7 +52,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request).catch(async () => {
         const cached = await caches.match(event.request)
-        if (cached) return cached
+        if (cached && !cached.redirected) return cached
         return (await caches.match('/offline.html')) || Response.error()
       })
     )

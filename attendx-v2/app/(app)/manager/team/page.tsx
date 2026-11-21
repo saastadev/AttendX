@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns'
 import { useAuthStore } from '@/store/auth.store'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import { ManagerRouteMapModal } from '@/components/location/ManagerRouteMapModal'
+import { ClockActionButton } from '@/components/attendance/ClockActionButton'
 
 export default function ManagerTeamPage() {
   const user = useAuthStore(s => s.user)
@@ -90,9 +91,7 @@ export default function ManagerTeamPage() {
           <p className="page-subtitle">Monitor team members' real-time attendance, punches, and pending requests</p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-          <Link href="/attendance/checkin" className="btn btn-secondary">
-            <Clock size={18} /> Clock In / Out
-          </Link>
+          <ClockActionButton className="btn btn-secondary" />
         </div>
       </div>
 

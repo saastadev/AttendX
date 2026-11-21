@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { useAuthStore } from '@/store/auth.store'
 import { useToast } from '@/components/ui/Toast'
 import { PageWrapper } from '@/components/ui/PageWrapper'
+import { invalidateAttendance } from '@/hooks/useTodayAttendance'
 
 interface AttendanceItem {
   user_id: string
@@ -80,9 +81,7 @@ export default function AdminAttendancePage() {
     onSuccess: (data) => {
       success(data.message || 'Selfie deleted successfully')
       setDeletingRecord(null)
-      queryClient.invalidateQueries({ queryKey: ['admin-attendance-records'] })
-      queryClient.invalidateQueries({ queryKey: ['admin-live-attendance'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance-records'] })
+      invalidateAttendance(queryClient)
     },
     onError: (err: Error) => {
       error(err.message || 'Failed to delete selfie image')

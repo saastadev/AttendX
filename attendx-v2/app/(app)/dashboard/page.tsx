@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { AnimatedValue } from '@/components/ui/AnimatedValue'
 import { PageWrapper } from '@/components/ui/PageWrapper'
 import type { AttendanceRecord, Announcement, Notification, LeaveBalance } from '@/types/database'
+import { useTodayAttendance } from '@/hooks/useTodayAttendance'
 
 // ---- Skeleton loaders ----
 function StatCardSkeleton() {
@@ -139,38 +140,10 @@ export default function DashboardPage() {
     { id: 'ann-1', title: '🎉 Q4 2026 All-Hands Meeting', body: 'Join us on Oct 15 for the company-wide all-hands meeting. Agenda and invite will follow by email.', cta_label: 'Add to Calendar', cta_url: '#', is_active: true, created_at: new Date().toISOString() } as any,
   ]
 
-  // Fetch today's attendance record
-  const { data: todayAttendance, isLoading: attendanceLoading } = useQuery<AttendanceRecord | null>({
-    queryKey: ['today-attendance', user?.id],
-    queryFn: async () => {
-      if (!user) return null
-      if (isOfflineMode) return MOCK_ATTENDANCE
-      try {
-        const res = await fetch('/api/attendance/checkin')
-        if (res.ok) {
-          const json = await res.json()
-          if (json?.today !== undefined) return json.today
-        }
-      } catch (err) {
-        console.warn('[Dashboard] Attendance API fetch failed, falling back to client query:', err)
-      }
-      const todayStr = format(new Date(), 'yyyy-MM-dd')
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .eq('employee_id', user.id)
-        .eq('date', todayStr)
-        .maybeSingle()
-
-      if (error && error.code !== 'PGRST116') {
-        // Silently return null for network errors in offline mode
-        return null
-      }
-      return data
-    },
-    enabled: !!user,
-    refetchInterval: 30 * 1000,
-  })
+  // Today's status: the shared answer every page uses (hooks/useTodayAttendance).
+  const { data: todayData, isLoading: todayLoading } = useTodayAttendance()
+  const todayAttendance: AttendanceRecord | null = isOfflineMode ? MOCK_ATTENDANCE : (todayData?.today ?? null)
+  const attendanceLoading = !isOfflineMode && todayLoading
 
   // Fetch leave balances
   const { data: leaveBalances, isLoading: balancesLoading } = useQuery<LeaveBalance[]>({

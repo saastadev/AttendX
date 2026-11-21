@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Users, UserPlus, Shield, Search, CheckCircle,
-  Clock, KeyRound, UserCheck, UserX, Calendar, AlertCircle
+  Clock, KeyRound, UserCheck, UserX, Calendar, AlertCircle, Copy, Check
 } from 'lucide-react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/store/auth.store'
@@ -35,7 +35,8 @@ export default function AdminUsersPage() {
   const [inviteRole, setInviteRole] = useState<UserRole>('EMPLOYEE')
 
   // Extra invite state
-  const [inviteResult, setInviteResult] = useState<{ employee_code: string; temp_password?: string } | null>(null)
+  const [inviteResult, setInviteResult] = useState<{ employee_code: string; temp_password?: string; email: string; full_name: string; role: string } | null>(null)
+  const [copiedLogin, setCopiedLogin] = useState(false)
 
   // Fetch users via secure server API route
   const { data: usersResponse, isLoading } = useQuery<{ data: UserWithRole[]; count: number }>({
@@ -144,8 +145,8 @@ export default function AdminUsersPage() {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">User & Access Management</h1>
-          <p className="page-subtitle">Manage workspace members, roles, and security permissions</p>
+          <h1 className="page-title">Employees</h1>
+          <p className="page-subtitle">Add people, set their role, and share their sign-in details</p>
         </div>
         <button
           onClick={() => setShowInviteModal(true)}
@@ -153,7 +154,7 @@ export default function AdminUsersPage() {
           style={{ minHeight: 48, padding: '0 20px', fontWeight: 600 }}
           id="btn-invite-user"
         >
-          <UserPlus size={18} /> Invite Member
+          <UserPlus size={18} /> Add employee
         </button>
       </div>
 
@@ -529,10 +530,10 @@ export default function AdminUsersPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  Invite & Provision Member
+                  Add employee
                 </h2>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', margin: '4px 0 0' }}>
-                  Create an active account or generate a shareable invite link
+                  Creates their account now. You get a one-time password to share with them.
                 </p>
               </div>
               <button
@@ -565,9 +566,11 @@ export default function AdminUsersPage() {
                   border: '1px solid rgba(16,185,129,0.3)',
                 }}>
                   <div style={{ fontWeight: 700, color: 'var(--success, #10b981)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <CheckCircle size={18} /> Account Provisioned Successfully!
+                    <CheckCircle size={18} /> {inviteResult.full_name} can sign in now
                   </div>
                   <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div><strong>Email:</strong> {inviteResult.email}</div>
+                    <div><strong>Role:</strong> {inviteResult.role}</div>
                     <div><strong>Employee Code:</strong> <span style={{ color: 'var(--accent, #6366f1)', fontWeight: 600 }}>{inviteResult.employee_code}</span></div>
                     {inviteResult.temp_password && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -580,10 +583,40 @@ export default function AdminUsersPage() {
                       </div>
                     )}
                     <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                      💡 The user can log in immediately at <code>/auth/login</code> using this email & temporary password.
+                      This password is shown only once. At their first sign-in AttendX asks them to set their own.
                     </div>
                   </div>
                 </div>
+                {inviteResult.temp_password && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                      const text = [
+                        `Hi ${inviteResult.full_name.split(' ')[0]}, your AttendX account is ready.`,
+                        '',
+                        `Sign in: ${origin}/auth/login`,
+                        `Email: ${inviteResult.email}`,
+                        `Temporary password: ${inviteResult.temp_password}`,
+                        '',
+                        "You'll set your own password the first time you sign in.",
+                        `Android app: https://www.saastatech.com/products#attendx`,
+                      ].join('\n')
+                      try {
+                        await navigator.clipboard.writeText(text)
+                        setCopiedLogin(true)
+                      } catch {
+                        setCopiedLogin(false)
+                      }
+                    }}
+                    className="btn btn-secondary btn-block"
+                    style={{ height: 44, gap: 8 }}
+                    id="btn-copy-login"
+                  >
+                    {copiedLogin ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedLogin ? 'Copied: paste it in WhatsApp' : 'Copy login details'}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setShowInviteModal(false)
@@ -613,10 +646,11 @@ export default function AdminUsersPage() {
                   })
                   const data = await res.json()
                   if (!res.ok) throw new Error(data.error ?? 'Failed to provision member')
-                  setInviteResult({ employee_code: data.employee_code, temp_password: data.temp_password })
+                  setInviteResult({ employee_code: data.employee_code, temp_password: data.temp_password, email: data.email ?? inviteEmail.trim(), full_name: data.full_name ?? inviteName.trim(), role: data.role ?? inviteRole })
+                  setCopiedLogin(false)
                   queryClient.invalidateQueries({ queryKey: ['admin-users'] })
                   queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] })
-                  success('Member provisioned', `Created account for ${inviteName}`)
+                  success('Employee added', `Account created for ${inviteName}`)
                 } catch (err: any) {
                   error('Failed to provision member', err.message)
                 }
@@ -675,7 +709,7 @@ export default function AdminUsersPage() {
                       style={{ flex: 1, height: 44 }}
                       id="provision-submit-btn"
                     >
-                      Provision Account
+                      Create account
                     </button>
                   </div>
                 </div>
